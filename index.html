@@ -1,165 +1,277 @@
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
-  <meta charset="UTF-8">
-  <title>Poiema Estoque</title>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<!-- deploy force -->
+<meta charset="UTF-8" />
+<title>Poiema Estoque PRO</title>
 
-  <style>
-    body {
-      margin: 0;
-      font-family: Arial;
-      background: #0f172a;
-      color: white;
-    }
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-    .container {
-      display: flex;
-      height: 100vh;
-      align-items: center;
-      justify-content: center;
-    }
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    .card {
-      background: #1e293b;
-      padding: 30px;
-      border-radius: 10px;
-      width: 300px;
-    }
-
-    input {
-      width: 100%;
-      padding: 10px;
-      margin: 10px 0;
-      border-radius: 5px;
-      border: none;
-    }
-
-    button {
-      width: 100%;
-      padding: 10px;
-      background: #7c3aed;
-      color: white;
-      border: none;
-      border-radius: 5px;
-      cursor: pointer;
-    }
-
-    #app {
-      display: none;
-      padding: 20px;
-    }
-  </style>
 </head>
 
-<body>
+<body class="bg-gray-900 text-white">
 
 <!-- LOGIN -->
-<div class="container" id="login-screen">
-  <div class="card">
-    <h2>Poiema Estoque</h2>
-
-    <input id="email" placeholder="E-mail">
-    <input id="password" type="password" placeholder="Senha">
-
-    <button onclick="login()">Entrar</button>
-
-    <p id="error" style="color:red;"></p>
+<div id="login-screen" class="h-screen flex items-center justify-center px-4">
+  <div class="bg-gray-800 p-6 rounded w-full max-w-sm">
+    <h2 class="text-xl mb-4 text-center">Login</h2>
+    <input id="login-email" class="w-full mb-2 p-3 rounded text-black" placeholder="Email" />
+    <input id="login-password" type="password" class="w-full mb-2 p-3 rounded text-black" placeholder="Senha" />
+    <button onclick="doLogin()" class="w-full bg-blue-600 p-3 rounded text-lg">Entrar</button>
   </div>
 </div>
 
 <!-- APP -->
-<div id="app">
-  <h1>Dashboard</h1>
-  <p id="user-email"></p>
+<div id="app" class="hidden">
 
-  <button onclick="logout()">Sair</button>
+<div class="max-w-5xl mx-auto p-4">
 
-  <hr>
-
-  <h2>Produtos</h2>
-  <input id="prod-name" placeholder="Nome do produto">
-  <button onclick="addProduct()">Adicionar</button>
-
-  <ul id="product-list"></ul>
+<!-- HEADER -->
+<div class="bg-gray-800 p-4 flex justify-between items-center rounded mb-4">
+  <div>
+    <div id="user-name"></div>
+    <div id="user-role" class="text-sm text-gray-400"></div>
+  </div>
+  <button onclick="logout()" class="bg-red-600 px-4 py-2 rounded">Sair</button>
 </div>
 
-<script>
-const supabase = window.supabase.createClient(
-  "https://lggbgqqnguoacuilbugm.supabase.co",
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZ2JncXFuZ3VvYWN1aWxidWdtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4MzU3OTMsImV4cCI6MjA5MTQxMTc5M30.ma9mvlD4hZhXJheFbxEG5c9jvJahZ2_PAh2rWZnCa8k"
+<!-- DASHBOARD -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+  <div class="bg-gray-800 p-4 rounded">Produtos: <span id="total-products">0</span></div>
+  <div class="bg-gray-800 p-4 rounded">Baixo estoque: <span id="low-stock">0</span></div>
+  <div class="bg-gray-800 p-4 rounded">Movimentações: <span id="total-mov">0</span></div>
+</div>
+
+<!-- GRÁFICO -->
+<canvas id="chartStock" class="bg-gray-800 p-4 rounded mb-6"></canvas>
+
+<!-- FILTRO -->
+<select id="filter-category" onchange="loadProducts()" class="p-3 text-black mb-4 w-full rounded">
+  <option value="">Todas categorias</option>
+</select>
+
+<!-- NOVO PRODUTO -->
+<div class="bg-gray-800 p-4 rounded mb-4">
+  <h3 class="mb-2">Novo Produto</h3>
+  <input id="p-name" class="p-3 text-black w-full mb-2 rounded" placeholder="Nome" />
+  <input id="p-category" class="p-3 text-black w-full mb-2 rounded" placeholder="Categoria" />
+  <input id="p-qty" type="number" class="p-3 text-black w-full mb-2 rounded" placeholder="Quantidade" />
+  <input id="p-min" type="number" class="p-3 text-black w-full mb-2 rounded" placeholder="Estoque mínimo" />
+  <button onclick="addProduct()" class="bg-green-600 w-full p-3 rounded text-lg">Salvar</button>
+</div>
+
+<!-- PRODUTOS -->
+<div id="products" class="mb-6"></div>
+
+<!-- HISTÓRICO -->
+<h3 class="mb-2">Histórico</h3>
+<div id="movements"></div>
+
+<!-- ADMIN -->
+<div id="admin-panel" class="hidden mt-6">
+  <h3 class="mb-2">Usuários</h3>
+  <div id="users"></div>
+</div>
+
+</div>
+</div>
+
+<script type="module">
+import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm'
+
+const sb = createClient(
+  'https://lggbgqqnguoacuilbugm.supabase.co',
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZ2JncXFuZ3VvYWN1aWxidWdtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4MzU3OTMsImV4cCI6MjA5MTQxMTc5M30.ma9mvlD4hZhXJheFbxEG5c9jvJahZ2_PAh2rWZnCa8k'
 )
 
-async function login() {
-  const email = document.getElementById('email').value
-  const password = document.getElementById('password').value
+let user = null
+let profile = null
+let chart = null
 
-  const { data, error } = await supabase.auth.signInWithPassword({
-    email,
-    password
-  })
+// AUTO LOGIN
+const { data } = await sb.auth.getSession()
+if (data.session) enterApp(data.session.user)
 
-  if (error) {
-    document.getElementById('error').innerText = error.message
-  }
+// LOGIN
+window.doLogin = async () => {
+  const email = document.getElementById('login-email').value
+  const password = document.getElementById('login-password').value
+
+  const { data, error } = await sb.auth.signInWithPassword({ email, password })
+  if (error) return alert(error.message)
+
+  enterApp(data.user)
 }
 
-async function logout() {
-  await supabase.auth.signOut()
+// ENTRAR
+async function enterApp(u) {
+  user = u
+
+  document.getElementById('login-screen').style.display = 'none'
+  document.getElementById('app').style.display = 'block'
+
+  const { data } = await sb.from('profiles').select('*').eq('id', user.id).single()
+  profile = data
+
+  document.getElementById('user-name').innerText = profile?.name || user.email
+  document.getElementById('user-role').innerText = profile?.role || 'user'
+
+  if (profile?.role === 'admin') {
+    document.getElementById('admin-panel').style.display = 'block'
+    loadUsers()
+  }
+
+  loadProducts()
+  loadMovements()
+}
+
+// LOGOUT
+window.logout = async () => {
+  await sb.auth.signOut()
   location.reload()
 }
 
-async function checkUser() {
-  const { data } = await supabase.auth.getSession()
-
-  if (data.session) {
-    showApp(data.session.user)
-  }
-}
-
-async function showApp(user) {
-  document.getElementById('login-screen').style.display = 'none'
-  document.getElementById('app').style.display = 'block'
-  document.getElementById('user-email').innerText = user.email
-
-  loadProducts()
-}
-
+// PRODUTOS
 async function loadProducts() {
-  const { data, error } = await supabase
-    .from('products')
-    .select('*')
+  let query = sb.from('products').select('*').eq('church_id', profile.church_id)
 
-  if (data) {
-    const list = document.getElementById('product-list')
-    list.innerHTML = ''
+  const cat = document.getElementById('filter-category').value
+  if (cat) query = query.eq('category', cat)
 
-    data.forEach(p => {
-      const li = document.createElement('li')
-      li.innerText = p.name + ' (Qtd: ' + p.quantity + ')'
-      list.appendChild(li)
-    })
-  }
+  const { data } = await query
+
+  const el = document.getElementById('products')
+  el.innerHTML = ''
+
+  let low = 0
+  let cats = new Set()
+
+  data.forEach(p => {
+    if (p.quantity <= p.min_stock) low++
+    cats.add(p.category)
+
+    el.innerHTML += `
+      <div class="bg-gray-700 p-4 mb-2 rounded">
+        <b>${p.name}</b> (${p.category})<br>
+        Estoque: ${p.quantity}
+        <div class="mt-2 flex gap-2">
+          <button onclick="mov('${p.id}',1)" class="bg-green-600 px-4 py-2 rounded">+</button>
+          <button onclick="mov('${p.id}',-1)" class="bg-red-600 px-4 py-2 rounded">-</button>
+        </div>
+      </div>
+    `
+  })
+
+  document.getElementById('total-products').innerText = data.length
+  document.getElementById('low-stock').innerText = low
+
+  // categorias
+  const select = document.getElementById('filter-category')
+  select.innerHTML = '<option value="">Todas categorias</option>'
+  cats.forEach(c => select.innerHTML += `<option>${c}</option>`)
+
+  renderChart(data)
 }
 
-async function addProduct() {
-  const name = document.getElementById('prod-name').value
-
-  await supabase.from('products').insert([
-    { name, quantity: 1 }
-  ])
+// ADD PRODUTO
+window.addProduct = async () => {
+  await sb.from('products').insert([{
+    name: document.getElementById('p-name').value,
+    category: document.getElementById('p-category').value,
+    quantity: Number(document.getElementById('p-qty').value),
+    min_stock: Number(document.getElementById('p-min').value),
+    church_id: profile.church_id
+  }])
 
   loadProducts()
 }
 
-// AUTO LOGIN
-checkUser()
+// MOVIMENTAÇÃO
+window.mov = async (id, val) => {
 
-// ESCUTA LOGIN
-supabase.auth.onAuthStateChange((event, session) => {
-  if (session) showApp(session.user)
-})
+  const { data: p } = await sb.from('products')
+    .select('*')
+    .eq('id', id)
+    .eq('church_id', profile.church_id)
+    .single()
+
+  await sb.from('products')
+    .update({ quantity: p.quantity + val })
+    .eq('id', id)
+
+  await sb.from('stock_movements').insert([{
+    product_id: id,
+    quantity: val,
+    type: val > 0 ? 'in' : 'out',
+    church_id: profile.church_id
+  }])
+
+  loadProducts()
+  loadMovements()
+}
+
+// HISTÓRICO
+async function loadMovements() {
+  const { data } = await sb
+    .from('stock_movements')
+    .select('*, products(name)')
+    .eq('church_id', profile.church_id)
+    .order('created_at', { ascending: false })
+    .limit(20)
+
+  const el = document.getElementById('movements')
+  el.innerHTML = ''
+
+  document.getElementById('total-mov').innerText = data.length
+
+  data.forEach(m => {
+    el.innerHTML += `
+      <div class="bg-gray-800 p-3 mb-2 rounded">
+        ${m.products?.name} 
+        ${m.type === 'in' ? '⬆️ Entrada' : '⬇️ Saída'} 
+        (${m.quantity})
+      </div>
+    `
+  })
+}
+
+// GRÁFICO
+function renderChart(products) {
+  const ctx = document.getElementById('chartStock')
+
+  if (chart) chart.destroy()
+
+  chart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: products.map(p => p.name),
+      datasets: [{
+        label: 'Estoque',
+        data: products.map(p => p.quantity)
+      }]
+    }
+  })
+}
+
+// ADMIN
+async function loadUsers() {
+  const { data } = await sb.from('profiles')
+    .select('*')
+    .eq('church_id', profile.church_id)
+
+  const el = document.getElementById('users')
+  el.innerHTML = ''
+
+  data.forEach(u => {
+    el.innerHTML += `
+      <div class="bg-gray-700 p-3 mb-2 rounded">
+        ${u.name} - ${u.role}
+      </div>
+    `
+  })
+}
 </script>
 
 </body>
