@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <title>Poiema Estoque</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<!-- deploy force -->
+
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial;
+      background: #0f172a;
+      color: white;
+    }
+
+    .container {
+      display: flex;
+      height: 100vh;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .card {
+      background: #1e293b;
+      padding: 30px;
+      border-radius: 10px;
+      width: 300px;
+    }
+
+    input {
+      width: 100%;
+      padding: 10px;
+      margin: 10px 0;
+      border-radius: 5px;
+      border: none;
+    }
+
+    button {
+      width: 100%;
+      padding: 10px;
+      background: #7c3aed;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+
+    #app {
+      display: none;
+      padding: 20px;
+    }
+  </style>
+</head>
+
+<body>
+
+<!-- LOGIN -->
+<div class="container" id="login-screen">
+  <div class="card">
+    <h2>Poiema Estoque</h2>
+
+    <input id="email" placeholder="E-mail">
+    <input id="password" type="password" placeholder="Senha">
+
+    <button onclick="login()">Entrar</button>
+
+    <p id="error" style="color:red;"></p>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app">
+  <h1>Dashboard</h1>
+  <p id="user-email"></p>
+
+  <button onclick="logout()">Sair</button>
+
+  <hr>
+
+  <h2>Produtos</h2>
+  <input id="prod-name" placeholder="Nome do produto">
+  <button onclick="addProduct()">Adicionar</button>
+
+  <ul id="product-list"></ul>
+</div>
+
+<script>
+const supabase = window.supabase.createClient(
+  "https://lggbgqqnguoacuilbugm.supabase.co",
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZ2JncXFuZ3VvYWN1aWxidWdtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4MzU3OTMsImV4cCI6MjA5MTQxMTc5M30.ma9mvlD4hZhXJheFbxEG5c9jvJahZ2_PAh2rWZnCa8k"
+)
+
+async function login() {
+  const email = document.getElementById('email').value
+  const password = document.getElementById('password').value
+
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email,
+    password
+  })
+
+  if (error) {
+    document.getElementById('error').innerText = error.message
+  }
+}
+
+async function logout() {
+  await supabase.auth.signOut()
+  location.reload()
+}
+
+async function checkUser() {
+  const { data } = await supabase.auth.getSession()
+
+  if (data.session) {
+    showApp(data.session.user)
+  }
+}
+
+async function showApp(user) {
+  document.getElementById('login-screen').style.display = 'none'
+  document.getElementById('app').style.display = 'block'
+  document.getElementById('user-email').innerText = user.email
+
+  loadProducts()
+}
+
+async function loadProducts() {
+  const { data, error } = await supabase
+    .from('products')
+    .select('*')
+
+  if (data) {
+    const list = document.getElementById('product-list')
+    list.innerHTML = ''
+
+    data.forEach(p => {
+      const li = document.createElement('li')
+      li.innerText = p.name + ' (Qtd: ' + p.quantity + ')'
+      list.appendChild(li)
+    })
+  }
+}
+
+async function addProduct() {
+  const name = document.getElementById('prod-name').value
+
+  await supabase.from('products').insert([
+    { name, quantity: 1 }
+  ])
+
+  loadProducts()
+}
+
+// AUTO LOGIN
+checkUser()
+
+// ESCUTA LOGIN
+supabase.auth.onAuthStateChange((event, session) => {
+  if (session) showApp(session.user)
+})
+</script>
+
+</body>
+</html>
