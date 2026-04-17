@@ -4,75 +4,28 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Poiema Estoque PRO</title>
+
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
 
 <style>
-body {
-  margin:0;
-  font-family: 'Inter', sans-serif;
-  background: linear-gradient(135deg,#0b0f1a,#111827);
-  color:#e5e7eb;
-}
-
-.sidebar {
-  width:260px;
-  height:100vh;
-  position:fixed;
-  background:rgba(17,24,39,0.7);
-  backdrop-filter:blur(12px);
-  border-right:1px solid rgba(255,255,255,0.05);
-  padding:20px;
-}
-
-.menu-item {
-  padding:12px;
-  border-radius:10px;
-  cursor:pointer;
-  margin-bottom:8px;
-}
-
-.menu-item:hover { background:rgba(139,92,246,0.15); }
-.menu-item.active { background:linear-gradient(90deg,#7c3aed,#6366f1); }
-
-.main {
-  margin-left:260px;
-  padding:20px;
-}
-
-.card {
-  background:rgba(17,24,39,0.6);
-  border:1px solid rgba(255,255,255,0.05);
-  border-radius:14px;
-  padding:20px;
-}
-
-.grid {
-  display:grid;
-  grid-template-columns:repeat(4,1fr);
-  gap:15px;
-}
-
-.table {
-  width:100%;
-  margin-top:20px;
-  border-collapse:collapse;
-}
-
-.table th, .table td {
-  padding:12px;
-  border-bottom:1px solid rgba(255,255,255,0.05);
-}
-
-.badge { padding:4px 10px; border-radius:999px; font-size:12px; }
-.badge-danger { background:rgba(239,68,68,0.2); color:#ef4444; }
-.badge-success { background:rgba(34,197,94,0.2); color:#22c55e; }
-
-.btn { padding:8px 12px; border:none; border-radius:8px; cursor:pointer; }
-.btn-success { background:#22c55e; color:#fff; }
-
-.hidden { display:none; }
+body {margin:0;font-family:'Inter',sans-serif;background:linear-gradient(135deg,#0b0f1a,#111827);color:#e5e7eb;}
+.sidebar {width:260px;height:100vh;position:fixed;background:rgba(17,24,39,0.7);backdrop-filter:blur(12px);border-right:1px solid rgba(255,255,255,0.05);padding:20px;}
+.menu-item {padding:12px;border-radius:10px;cursor:pointer;margin-bottom:8px;}
+.menu-item:hover {background:rgba(139,92,246,0.15);} 
+.menu-item.active {background:linear-gradient(90deg,#7c3aed,#6366f1);} 
+.main {margin-left:260px;padding:20px;}
+.card {background:rgba(17,24,39,0.6);border:1px solid rgba(255,255,255,0.05);border-radius:14px;padding:20px;}
+.grid {display:grid;grid-template-columns:repeat(4,1fr);gap:15px;}
+.table {width:100%;margin-top:20px;border-collapse:collapse;}
+.table th,.table td {padding:12px;border-bottom:1px solid rgba(255,255,255,0.05);} 
+.badge {padding:4px 10px;border-radius:999px;font-size:12px;} 
+.badge-danger {background:rgba(239,68,68,0.2);color:#ef4444;} 
+.badge-success {background:rgba(34,197,94,0.2);color:#22c55e;} 
+.btn {padding:8px 12px;border:none;border-radius:8px;cursor:pointer;} 
+.btn-success {background:#22c55e;color:#fff;} 
+.hidden {display:none;}
 </style>
 </head>
 <body>
@@ -104,14 +57,12 @@ body {
 
 <div id="dashboard">
   <h1>Dashboard</h1>
-
   <div class="grid">
     <div class="card"><h3>Total</h3><h1 id="total"></h1></div>
     <div class="card"><h3>OK</h3><h1 id="ok"></h1></div>
     <div class="card"><h3>Baixo</h3><h1 id="low"></h1></div>
     <div class="card"><h3>Zerado</h3><h1 id="zero"></h1></div>
   </div>
-
   <canvas id="chart" style="margin-top:30px;"></canvas>
 </div>
 
@@ -120,27 +71,62 @@ body {
   <table class="table" id="table"></table>
 </div>
 
-<div id="mov" class="hidden">
-  <h1>Movimentar</h1>
-</div>
-
-<div id="hist" class="hidden">
-  <h1>Histórico</h1>
-</div>
+<div id="mov" class="hidden"><h1>Movimentar</h1></div>
+<div id="hist" class="hidden"><h1>Histórico</h1></div>
 
 </div>
 </div>
 
 <script>
-const supabase = supabase.createClient('https://lggbgqqnguoacuilbugm.supabase.co','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZ2JncXFuZ3VvYWN1aWxidWdtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4MzU3OTMsImV4cCI6MjA5MTQxMTc5M30.ma9mvlD4hZhXJheFbxEG5c9jvJahZ2_PAh2rWZnCa8k');
 
-async function login(){
-  const email=document.getElementById('email').value;
-  const password=document.getElementById('password').value;
+// ✅ CONFIGURAÇÃO CORRETA
+const SUPABASE_URL = 'https://lggbgqqnguoacuilbugm.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZ2JncXFuZ3VvYWN1aWxidWdtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4MzU3OTMsImV4cCI6MjA5MTQxMTc5M30.ma9mvlD4hZhXJheFbxEG5c9jvJahZ2_PAh2rWZnCa8k';
+const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-  const {data,error}=await supabase.auth.signInWithPassword({email,password});
+// ✅ LOGIN GLOBAL
+window.login = async function(){
+  const email = document.getElementById('email').value;
+  const password = document.getElementById('password').value;
 
-  if(error) return alert(error.message);
+  const { data, error } = await client.auth.signInWithPassword({ email, password });
+
+  if(error){
+    alert(error.message);
+    return;
+  }
+
+  await loadUser();
+}
+
+// ✅ AUTO LOGIN (SESSÃO)
+window.onload = async function(){
+  const { data } = await client.auth.getSession();
+
+  if(data.session){
+    await loadUser();
+  }
+}
+
+// ✅ CARREGAR PERFIL + APP
+async function loadUser(){
+  const { data: { user } } = await client.auth.getUser();
+
+  if(!user){
+    logout();
+    return;
+  }
+
+  // 🔥 GARANTE PROFILE
+  let { data: profile } = await client
+    .from('profiles')
+    .select('*')
+    .eq('id', user.id)
+    .single();
+
+  if(!profile){
+    await client.from('profiles').insert({ id: user.id, nome: user.email });
+  }
 
   document.getElementById('login').classList.add('hidden');
   document.getElementById('app').classList.remove('hidden');
@@ -148,11 +134,13 @@ async function login(){
   load();
 }
 
-function logout(){
-  supabase.auth.signOut();
+// ✅ LOGOUT
+window.logout = async function(){
+  await client.auth.signOut();
   location.reload();
 }
 
+// ✅ MENU
 function show(id){
   ['dashboard','estoque','mov','hist'].forEach(x=>{
     document.getElementById(x).classList.add('hidden');
@@ -160,21 +148,25 @@ function show(id){
   document.getElementById(id).classList.remove('hidden');
 }
 
+// ✅ LOAD DADOS
 async function load(){
-  const {data}=await supabase.from('produtos').select('*');
+  const { data } = await client.from('produtos').select('*');
 
-  let total=data.length;
-  let ok=0,low=0,zero=0;
+  if(!data) return;
 
-  let html='<tr><th>Produto</th><th>Qtd</th><th>Status</th><th></th></tr>';
+  let total = data.length;
+  let ok=0, low=0, zero=0;
+
+  let html = '<tr><th>Produto</th><th>Qtd</th><th>Status</th><th></th></tr>';
 
   data.forEach(p=>{
     let status='OK';
-    if(p.qtd==0){status='Zerado';zero++;}
-    else if(p.qtd<=p.min){status='Baixo';low++;}
-    else ok++;
 
-    html+=`<tr>
+    if(p.qtd==0){ status='Zerado'; zero++; }
+    else if(p.qtd<=p.min){ status='Baixo'; low++; }
+    else { ok++; }
+
+    html += `<tr>
       <td>${p.nome}</td>
       <td>${p.qtd}</td>
       <td><span class="badge ${status=='OK'?'badge-success':'badge-danger'}">${status}</span></td>
@@ -182,12 +174,11 @@ async function load(){
     </tr>`;
   });
 
-  document.getElementById('table').innerHTML=html;
-
-  document.getElementById('total').innerText=total;
-  document.getElementById('ok').innerText=ok;
-  document.getElementById('low').innerText=low;
-  document.getElementById('zero').innerText=zero;
+  document.getElementById('table').innerHTML = html;
+  document.getElementById('total').innerText = total;
+  document.getElementById('ok').innerText = ok;
+  document.getElementById('low').innerText = low;
+  document.getElementById('zero').innerText = zero;
 
   new Chart(document.getElementById('chart'),{
     type:'doughnut',
@@ -197,6 +188,7 @@ async function load(){
     }
   });
 }
+
 </script>
 
 </body>
