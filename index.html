@@ -1,276 +1,201 @@
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
-<meta charset="UTF-8" />
-<title>Poiema Estoque PRO</title>
-
-<script src="https://cdn.tailwindcss.com"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
+<meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Poiema Estoque PRO</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
 
+<style>
+body {
+  margin:0;
+  font-family: 'Inter', sans-serif;
+  background: linear-gradient(135deg,#0b0f1a,#111827);
+  color:#e5e7eb;
+}
+
+.sidebar {
+  width:260px;
+  height:100vh;
+  position:fixed;
+  background:rgba(17,24,39,0.7);
+  backdrop-filter:blur(12px);
+  border-right:1px solid rgba(255,255,255,0.05);
+  padding:20px;
+}
+
+.menu-item {
+  padding:12px;
+  border-radius:10px;
+  cursor:pointer;
+  margin-bottom:8px;
+}
+
+.menu-item:hover { background:rgba(139,92,246,0.15); }
+.menu-item.active { background:linear-gradient(90deg,#7c3aed,#6366f1); }
+
+.main {
+  margin-left:260px;
+  padding:20px;
+}
+
+.card {
+  background:rgba(17,24,39,0.6);
+  border:1px solid rgba(255,255,255,0.05);
+  border-radius:14px;
+  padding:20px;
+}
+
+.grid {
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:15px;
+}
+
+.table {
+  width:100%;
+  margin-top:20px;
+  border-collapse:collapse;
+}
+
+.table th, .table td {
+  padding:12px;
+  border-bottom:1px solid rgba(255,255,255,0.05);
+}
+
+.badge { padding:4px 10px; border-radius:999px; font-size:12px; }
+.badge-danger { background:rgba(239,68,68,0.2); color:#ef4444; }
+.badge-success { background:rgba(34,197,94,0.2); color:#22c55e; }
+
+.btn { padding:8px 12px; border:none; border-radius:8px; cursor:pointer; }
+.btn-success { background:#22c55e; color:#fff; }
+
+.hidden { display:none; }
+</style>
 </head>
+<body>
 
-<body class="bg-gray-900 text-white">
-
-<!-- LOGIN -->
-<div id="login-screen" class="h-screen flex items-center justify-center px-4">
-  <div class="bg-gray-800 p-6 rounded w-full max-w-sm">
-    <h2 class="text-xl mb-4 text-center">Login</h2>
-    <input id="login-email" class="w-full mb-2 p-3 rounded text-black" placeholder="Email" />
-    <input id="login-password" type="password" class="w-full mb-2 p-3 rounded text-black" placeholder="Senha" />
-    <button onclick="doLogin()" class="w-full bg-blue-600 p-3 rounded text-lg">Entrar</button>
+<div id="login">
+  <div style="display:flex;justify-content:center;align-items:center;height:100vh;">
+    <div class="card" style="width:300px;">
+      <h2>Login</h2>
+      <input id="email" placeholder="email" style="width:100%;margin-bottom:10px;">
+      <input id="password" type="password" placeholder="senha" style="width:100%;margin-bottom:10px;">
+      <button onclick="login()" class="btn btn-success" style="width:100%;">Entrar</button>
+    </div>
   </div>
 </div>
 
-<!-- APP -->
 <div id="app" class="hidden">
 
-<div class="max-w-5xl mx-auto p-4">
+<div class="sidebar">
+  <h3>Poiema</h3>
+  <div class="menu-item active" onclick="show('dashboard')">Dashboard</div>
+  <div class="menu-item" onclick="show('estoque')">Estoque</div>
+  <div class="menu-item" onclick="show('mov')">Movimentar</div>
+  <div class="menu-item" onclick="show('hist')">Histórico</div>
+  <hr>
+  <div class="menu-item" onclick="logout()">Sair</div>
+</div>
 
-<!-- HEADER -->
-<div class="bg-gray-800 p-4 flex justify-between items-center rounded mb-4">
-  <div>
-    <div id="user-name"></div>
-    <div id="user-role" class="text-sm text-gray-400"></div>
+<div class="main">
+
+<div id="dashboard">
+  <h1>Dashboard</h1>
+
+  <div class="grid">
+    <div class="card"><h3>Total</h3><h1 id="total"></h1></div>
+    <div class="card"><h3>OK</h3><h1 id="ok"></h1></div>
+    <div class="card"><h3>Baixo</h3><h1 id="low"></h1></div>
+    <div class="card"><h3>Zerado</h3><h1 id="zero"></h1></div>
   </div>
-  <button onclick="logout()" class="bg-red-600 px-4 py-2 rounded">Sair</button>
+
+  <canvas id="chart" style="margin-top:30px;"></canvas>
 </div>
 
-<!-- DASHBOARD -->
-<div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-  <div class="bg-gray-800 p-4 rounded">Produtos: <span id="total-products">0</span></div>
-  <div class="bg-gray-800 p-4 rounded">Baixo estoque: <span id="low-stock">0</span></div>
-  <div class="bg-gray-800 p-4 rounded">Movimentações: <span id="total-mov">0</span></div>
+<div id="estoque" class="hidden">
+  <h1>Estoque</h1>
+  <table class="table" id="table"></table>
 </div>
 
-<!-- GRÁFICO -->
-<canvas id="chartStock" class="bg-gray-800 p-4 rounded mb-6"></canvas>
-
-<!-- FILTRO -->
-<select id="filter-category" onchange="loadProducts()" class="p-3 text-black mb-4 w-full rounded">
-  <option value="">Todas categorias</option>
-</select>
-
-<!-- NOVO PRODUTO -->
-<div class="bg-gray-800 p-4 rounded mb-4">
-  <h3 class="mb-2">Novo Produto</h3>
-  <input id="p-name" class="p-3 text-black w-full mb-2 rounded" placeholder="Nome" />
-  <input id="p-category" class="p-3 text-black w-full mb-2 rounded" placeholder="Categoria" />
-  <input id="p-qty" type="number" class="p-3 text-black w-full mb-2 rounded" placeholder="Quantidade" />
-  <input id="p-min" type="number" class="p-3 text-black w-full mb-2 rounded" placeholder="Estoque mínimo" />
-  <button onclick="addProduct()" class="bg-green-600 w-full p-3 rounded text-lg">Salvar</button>
+<div id="mov" class="hidden">
+  <h1>Movimentar</h1>
 </div>
 
-<!-- PRODUTOS -->
-<div id="products" class="mb-6"></div>
-
-<!-- HISTÓRICO -->
-<h3 class="mb-2">Histórico</h3>
-<div id="movements"></div>
-
-<!-- ADMIN -->
-<div id="admin-panel" class="hidden mt-6">
-  <h3 class="mb-2">Usuários</h3>
-  <div id="users"></div>
+<div id="hist" class="hidden">
+  <h1>Histórico</h1>
 </div>
 
 </div>
 </div>
 
-<script type="module">
-import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm'
+<script>
+const supabase = supabase.createClient('https://lggbgqqnguoacuilbugm.supabase.co','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZ2JncXFuZ3VvYWN1aWxidWdtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4MzU3OTMsImV4cCI6MjA5MTQxMTc5M30.ma9mvlD4hZhXJheFbxEG5c9jvJahZ2_PAh2rWZnCa8k');
 
-const sb = createClient(
-  'https://lggbgqqnguoacuilbugm.supabase.co',
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZ2JncXFuZ3VvYWN1aWxidWdtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4MzU3OTMsImV4cCI6MjA5MTQxMTc5M30.ma9mvlD4hZhXJheFbxEG5c9jvJahZ2_PAh2rWZnCa8k'
-)
+async function login(){
+  const email=document.getElementById('email').value;
+  const password=document.getElementById('password').value;
 
-let user = null
-let profile = null
-let chart = null
+  const {data,error}=await supabase.auth.signInWithPassword({email,password});
 
-// AUTO LOGIN
-const { data } = await sb.auth.getSession()
-if (data.session) enterApp(data.session.user)
+  if(error) return alert(error.message);
 
-// LOGIN
-window.doLogin = async () => {
-  const email = document.getElementById('login-email').value
-  const password = document.getElementById('login-password').value
+  document.getElementById('login').classList.add('hidden');
+  document.getElementById('app').classList.remove('hidden');
 
-  const { data, error } = await sb.auth.signInWithPassword({ email, password })
-  if (error) return alert(error.message)
-
-  enterApp(data.user)
+  load();
 }
 
-// ENTRAR
-async function enterApp(u) {
-  user = u
-
-  document.getElementById('login-screen').style.display = 'none'
-  document.getElementById('app').style.display = 'block'
-
-  const { data } = await sb.from('profiles').select('*').eq('id', user.id).single()
-  profile = data
-
-  document.getElementById('user-name').innerText = profile?.name || user.email
-  document.getElementById('user-role').innerText = profile?.role || 'user'
-
-  if (profile?.role === 'admin') {
-    document.getElementById('admin-panel').style.display = 'block'
-    loadUsers()
-  }
-
-  loadProducts()
-  loadMovements()
+function logout(){
+  supabase.auth.signOut();
+  location.reload();
 }
 
-// LOGOUT
-window.logout = async () => {
-  await sb.auth.signOut()
-  location.reload()
+function show(id){
+  ['dashboard','estoque','mov','hist'].forEach(x=>{
+    document.getElementById(x).classList.add('hidden');
+  });
+  document.getElementById(id).classList.remove('hidden');
 }
 
-// PRODUTOS
-async function loadProducts() {
-  let query = sb.from('products').select('*').eq('church_id', profile.church_id)
+async function load(){
+  const {data}=await supabase.from('produtos').select('*');
 
-  const cat = document.getElementById('filter-category').value
-  if (cat) query = query.eq('category', cat)
+  let total=data.length;
+  let ok=0,low=0,zero=0;
 
-  const { data } = await query
+  let html='<tr><th>Produto</th><th>Qtd</th><th>Status</th><th></th></tr>';
 
-  const el = document.getElementById('products')
-  el.innerHTML = ''
+  data.forEach(p=>{
+    let status='OK';
+    if(p.qtd==0){status='Zerado';zero++;}
+    else if(p.qtd<=p.min){status='Baixo';low++;}
+    else ok++;
 
-  let low = 0
-  let cats = new Set()
+    html+=`<tr>
+      <td>${p.nome}</td>
+      <td>${p.qtd}</td>
+      <td><span class="badge ${status=='OK'?'badge-success':'badge-danger'}">${status}</span></td>
+      <td><button class="btn btn-success">+ Entrada</button></td>
+    </tr>`;
+  });
 
-  data.forEach(p => {
-    if (p.quantity <= p.min_stock) low++
-    cats.add(p.category)
+  document.getElementById('table').innerHTML=html;
 
-    el.innerHTML += `
-      <div class="bg-gray-700 p-4 mb-2 rounded">
-        <b>${p.name}</b> (${p.category})<br>
-        Estoque: ${p.quantity}
-        <div class="mt-2 flex gap-2">
-          <button onclick="mov('${p.id}',1)" class="bg-green-600 px-4 py-2 rounded">+</button>
-          <button onclick="mov('${p.id}',-1)" class="bg-red-600 px-4 py-2 rounded">-</button>
-        </div>
-      </div>
-    `
-  })
+  document.getElementById('total').innerText=total;
+  document.getElementById('ok').innerText=ok;
+  document.getElementById('low').innerText=low;
+  document.getElementById('zero').innerText=zero;
 
-  document.getElementById('total-products').innerText = data.length
-  document.getElementById('low-stock').innerText = low
-
-  // categorias
-  const select = document.getElementById('filter-category')
-  select.innerHTML = '<option value="">Todas categorias</option>'
-  cats.forEach(c => select.innerHTML += `<option>${c}</option>`)
-
-  renderChart(data)
-}
-
-// ADD PRODUTO
-window.addProduct = async () => {
-  await sb.from('products').insert([{
-    name: document.getElementById('p-name').value,
-    category: document.getElementById('p-category').value,
-    quantity: Number(document.getElementById('p-qty').value),
-    min_stock: Number(document.getElementById('p-min').value),
-    church_id: profile.church_id
-  }])
-
-  loadProducts()
-}
-
-// MOVIMENTAÇÃO
-window.mov = async (id, val) => {
-
-  const { data: p } = await sb.from('products')
-    .select('*')
-    .eq('id', id)
-    .eq('church_id', profile.church_id)
-    .single()
-
-  await sb.from('products')
-    .update({ quantity: p.quantity + val })
-    .eq('id', id)
-
-  await sb.from('stock_movements').insert([{
-    product_id: id,
-    quantity: val,
-    type: val > 0 ? 'in' : 'out',
-    church_id: profile.church_id
-  }])
-
-  loadProducts()
-  loadMovements()
-}
-
-// HISTÓRICO
-async function loadMovements() {
-  const { data } = await sb
-    .from('stock_movements')
-    .select('*, products(name)')
-    .eq('church_id', profile.church_id)
-    .order('created_at', { ascending: false })
-    .limit(20)
-
-  const el = document.getElementById('movements')
-  el.innerHTML = ''
-
-  document.getElementById('total-mov').innerText = data.length
-
-  data.forEach(m => {
-    el.innerHTML += `
-      <div class="bg-gray-800 p-3 mb-2 rounded">
-        ${m.products?.name} 
-        ${m.type === 'in' ? '⬆️ Entrada' : '⬇️ Saída'} 
-        (${m.quantity})
-      </div>
-    `
-  })
-}
-
-// GRÁFICO
-function renderChart(products) {
-  const ctx = document.getElementById('chartStock')
-
-  if (chart) chart.destroy()
-
-  chart = new Chart(ctx, {
-    type: 'bar',
-    data: {
-      labels: products.map(p => p.name),
-      datasets: [{
-        label: 'Estoque',
-        data: products.map(p => p.quantity)
-      }]
+  new Chart(document.getElementById('chart'),{
+    type:'doughnut',
+    data:{
+      labels:['OK','Baixo','Zerado'],
+      datasets:[{data:[ok,low,zero]}]
     }
-  })
-}
-
-// ADMIN
-async function loadUsers() {
-  const { data } = await sb.from('profiles')
-    .select('*')
-    .eq('church_id', profile.church_id)
-
-  const el = document.getElementById('users')
-  el.innerHTML = ''
-
-  data.forEach(u => {
-    el.innerHTML += `
-      <div class="bg-gray-700 p-3 mb-2 rounded">
-        ${u.name} - ${u.role}
-      </div>
-    `
-  })
+  });
 }
 </script>
 
