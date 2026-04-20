@@ -192,7 +192,7 @@ let profile=null;
 let user=null;
 
 // LOGIN
-async function login(){
+window.login = async function(){
   const {error} = await client.auth.signInWithPassword({
     email:email.value,
     password:password.value
