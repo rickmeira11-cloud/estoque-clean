@@ -131,10 +131,10 @@ async function init(){
   user = u;
 
   const { data: p, error } = await client
-    .from("profiles")
-    .select("id, church_id, role, name")
-    .eq("id", user.id)
-    .maybeSingle();
+  .from("profiles")
+  .select("*")
+  .eq("id", user.id)
+  .maybeSingle();
 
   if(error){
     alert("Erro perfil (RLS?)");
