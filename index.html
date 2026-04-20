@@ -1,63 +1,104 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8" />
-  <title>Estoque SaaS</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Estoque PRO</title>
 
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-  <style>
-    body { margin:0; font-family:Arial; background:#0f172a; color:white; }
-    .hidden { display:none; }
-    .container { padding:20px; }
-    input, button { padding:10px; margin:5px; border-radius:8px; border:none; }
-    button { background:#22c55e; color:white; cursor:pointer; }
-    .card { background:#1e293b; padding:15px; border-radius:12px; margin-bottom:10px; }
-    .menu { display:flex; gap:10px; margin-bottom:20px; }
-    .menu button { background:#334155; }
-    table { width:100%; border-collapse:collapse; }
-    td, th { padding:8px; border-bottom:1px solid #334155; }
-    .danger { color:#f87171; font-weight:bold; }
-  </style>
+<style>
+body { margin:0; font-family:Arial; background:#0f172a; color:white; }
+
+.hidden { display:none; }
+
+.layout { display:flex; height:100vh; }
+
+.sidebar {
+  width:240px;
+  background:#020617;
+  padding:20px;
+}
+
+.sidebar h2 { margin-bottom:20px; }
+
+.sidebar button {
+  width:100%;
+  margin-bottom:10px;
+  background:#1e293b;
+}
+
+.main {
+  flex:1;
+  padding:20px;
+  overflow:auto;
+}
+
+.card {
+  background:#1e293b;
+  padding:15px;
+  border-radius:12px;
+  margin-bottom:15px;
+}
+
+input, button {
+  padding:10px;
+  margin:5px;
+  border-radius:8px;
+  border:none;
+}
+
+button { cursor:pointer; }
+
+table { width:100%; margin-top:10px; }
+td, th { padding:8px; border-bottom:1px solid #334155; }
+
+.low { color:#f87171; font-weight:bold; }
+.ok { color:#22c55e; }
+
+</style>
 </head>
 
 <body>
 
-<div id="loginScreen" class="container">
-  <h2>Login</h2>
-  <input id="email" placeholder="Email" />
-  <input id="password" type="password" placeholder="Senha" />
-  <button onclick="login()">Entrar</button>
+<!-- LOGIN -->
+<div id="loginScreen" class="card">
+<h2>Login</h2>
+<input id="email" placeholder="Email">
+<input id="password" type="password" placeholder="Senha">
+<button onclick="login()">Entrar</button>
 </div>
 
-<div id="app" class="hidden container">
+<!-- APP -->
+<div id="app" class="layout hidden">
+
+<div class="sidebar">
   <h2 id="churchName"></h2>
 
-  <div class="menu">
-    <button onclick="loadProducts()">Produtos</button>
-    <button onclick="loadMovements()">Movimentações</button>
-    <button onclick="logout()">Sair</button>
-  </div>
+  <button onclick="dashboard()">Dashboard</button>
+  <button onclick="loadProducts()">Produtos</button>
+  <button onclick="loadMovements()">Movimentações</button>
+  <button onclick="logout()">Sair</button>
+</div>
 
-  <div id="content"></div>
+<div class="main" id="content"></div>
+
 </div>
 
 <script>
 const SUPABASE_URL = "https://lggbgqqnguoacuilbugm.supabase.co";
-const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZ2JncXFuZ3VvYWN1aWxidWdtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4MzU3OTMsImV4cCI6MjA5MTQxMTc5M30.ma9mvlD4hZhXJheFbxEG5c9jvJahZ2_PAh2rWZnCa8k";
-
+const SUPABASE_KEY = "SUA_ANON_KEY";
 const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 let profile = null;
 
 // ================= LOGIN =================
 async function login() {
-  const email = document.getElementById('email').value;
-  const password = document.getElementById('password').value;
+  const email = emailEl().value;
+  const password = passwordEl().value;
 
   const { error } = await client.auth.signInWithPassword({ email, password });
-
   if (error) return alert(error.message);
 
   init();
@@ -65,175 +106,205 @@ async function login() {
 
 // ================= INIT =================
 async function init() {
-  try {
-    const { data } = await client.auth.getUser();
-    if (!data.user) return;
+  const { data } = await client.auth.getUser();
+  if (!data.user) return;
 
-    const user = data.user;
+  const user = data.user;
 
-    // tenta buscar profile
-    let { data: p, error } = await client
+  let { data: p } = await client
+    .from('profiles')
+    .select('*')
+    .eq('id', user.id)
+    .maybeSingle();
+
+  if (!p) {
+    const { data: newProfile } = await client
       .from('profiles')
-      .select('*')
-      .eq('id', user.id)
-      .maybeSingle();
+      .insert({ id:user.id, name:user.email })
+      .select().single();
+    p = newProfile;
+  }
 
-    // se não existir, cria
-    if (!p) {
-      const { data: newProfile } = await client
-        .from('profiles')
-        .insert({
-          id: user.id,
-          name: user.email
-        })
-        .select()
-        .single();
+  profile = p;
 
-      p = newProfile;
-    }
-
-    profile = p;
-
-    // se não tiver igreja, cria automaticamente
-    if (!profile.church_id) {
-      const { data: church } = await client
-        .from('churches')
-        .insert({ name: 'Minha Igreja' })
-        .select()
-        .single();
-
-      await client
-        .from('profiles')
-        .update({ church_id: church.id })
-        .eq('id', profile.id);
-
-      profile.church_id = church.id;
-    }
-
-    // pega igreja
+  if (!profile.church_id) {
     const { data: church } = await client
       .from('churches')
-      .select('*')
-      .eq('id', profile.church_id)
-      .single();
+      .insert({ name:"Minha Igreja" })
+      .select().single();
 
-    document.getElementById('churchName').innerText = church?.name || 'Igreja';
+    await client.from('profiles')
+      .update({ church_id: church.id })
+      .eq('id', profile.id);
 
-    document.getElementById('loginScreen').classList.add('hidden');
-    document.getElementById('app').classList.remove('hidden');
-
-    loadProducts();
-
-  } catch (err) {
-    console.error(err);
-    alert("Erro ao iniciar sistema");
+    profile.church_id = church.id;
   }
+
+  const { data: church } = await client
+    .from('churches')
+    .select('*')
+    .eq('id', profile.church_id)
+    .single();
+
+  document.getElementById("churchName").innerText = church.name;
+
+  showApp();
+  dashboard();
 }
 
-// ================= LOGOUT =================
-async function logout() {
-  await client.auth.signOut();
-  location.reload();
+// ================= DASHBOARD =================
+async function dashboard() {
+  const { data: products } = await client.from('products').select('*');
+
+  const total = products.length;
+  const low = products.filter(p => p.quantity <= p.min_stock).length;
+
+  content().innerHTML = `
+    <div class="card">
+      <h3>Resumo</h3>
+      <p>Total Produtos: ${total}</p>
+      <p>Estoque Baixo: ${low}</p>
+    </div>
+
+    <div class="card">
+      <canvas id="chart"></canvas>
+    </div>
+  `;
+
+  new Chart(document.getElementById('chart'), {
+    type:'bar',
+    data:{
+      labels:['OK','Baixo'],
+      datasets:[{
+        data:[total-low, low]
+      }]
+    }
+  });
 }
 
 // ================= PRODUTOS =================
 async function loadProducts() {
-  const { data } = await client
-    .from('products')
-    .select('*')
-    .order('created_at', { ascending: false });
+  const { data } = await client.from('products').select('*');
 
   let html = `
+    <div class="card">
     <h3>Produtos</h3>
 
-    <input id="name" placeholder="Nome" />
-    <input id="qty" type="number" placeholder="Qtd" />
-    <input id="min" type="number" placeholder="Mínimo" />
+    <input id="name" placeholder="Nome">
+    <input id="qty" type="number" placeholder="Qtd">
+    <input id="min" type="number" placeholder="Min">
 
     <button onclick="addProduct()">Adicionar</button>
 
     <table>
-      <tr>
-        <th>Nome</th>
-        <th>Qtd</th>
-        <th>Status</th>
-      </tr>
+      <tr><th>Nome</th><th>Qtd</th><th>Status</th><th>Ação</th></tr>
   `;
 
-  data?.forEach(p => {
+  data.forEach(p => {
     const low = p.quantity <= p.min_stock;
 
     html += `
       <tr>
         <td>${p.name}</td>
         <td>${p.quantity}</td>
-        <td class="${low ? 'danger' : ''}">
-          ${low ? 'BAIXO' : 'OK'}
+        <td class="${low?'low':'ok'}">${low?'BAIXO':'OK'}</td>
+        <td>
+          <button onclick="entrada('${p.id}')">+</button>
+          <button onclick="saida('${p.id}')">-</button>
         </td>
       </tr>
     `;
   });
 
-  html += "</table>";
-
-  document.getElementById('content').innerHTML = html;
+  html += "</table></div>";
+  content().innerHTML = html;
 }
 
-// ================= ADD PRODUTO =================
-async function addProduct() {
-  const name = document.getElementById('name').value;
-  const qty = parseInt(document.getElementById('qty').value);
-  const min = parseInt(document.getElementById('min').value);
+// ================= MOVIMENTAÇÃO =================
+async function entrada(id){
+  const q = parseInt(prompt("Qtd entrada"));
+  if(!q) return;
 
-  if (!name) return alert("Nome obrigatório");
+  await client.from('stock_movements').insert({
+    product_id:id,
+    quantity:q,
+    type:'in',
+    church_id:profile.church_id
+  });
 
+  await client.rpc('increment_stock', { pid:id, qty:q });
+  loadProducts();
+}
+
+async function saida(id){
+  const q = parseInt(prompt("Qtd saída"));
+  if(!q) return;
+
+  await client.from('stock_movements').insert({
+    product_id:id,
+    quantity:q,
+    type:'out',
+    church_id:profile.church_id
+  });
+
+  await client.rpc('decrement_stock', { pid:id, qty:q });
+  loadProducts();
+}
+
+// ================= ADD =================
+async function addProduct(){
   await client.from('products').insert({
-    name,
-    quantity: qty || 0,
-    min_stock: min || 1,
-    church_id: profile.church_id
+    name:nameEl().value,
+    quantity:parseInt(qtyEl().value)||0,
+    min_stock:parseInt(minEl().value)||1,
+    church_id:profile.church_id
   });
 
   loadProducts();
 }
 
-// ================= MOVIMENTAÇÕES =================
-async function loadMovements() {
+// ================= MOVEMENTS =================
+async function loadMovements(){
   const { data } = await client
     .from('stock_movements')
-    .select('*, products(name)')
-    .order('created_at', { ascending: false })
-    .limit(50);
+    .select('*,products(name)')
+    .order('created_at',{ascending:false});
 
-  let html = `
-    <h3>Movimentações</h3>
+  let html = `<div class="card"><h3>Movimentações</h3><table>
+  <tr><th>Produto</th><th>Tipo</th><th>Qtd</th></tr>`;
 
-    <table>
-      <tr>
-        <th>Produto</th>
-        <th>Tipo</th>
-        <th>Qtd</th>
-      </tr>
-  `;
-
-  data?.forEach(m => {
-    html += `
-      <tr>
-        <td>${m.products?.name || '-'}</td>
-        <td>${m.type}</td>
-        <td>${m.quantity}</td>
-      </tr>
-    `;
+  data.forEach(m=>{
+    html += `<tr>
+      <td>${m.products?.name||'-'}</td>
+      <td>${m.type}</td>
+      <td>${m.quantity}</td>
+    </tr>`;
   });
 
-  html += "</table>";
-
-  document.getElementById('content').innerHTML = html;
+  html += "</table></div>";
+  content().innerHTML = html;
 }
 
-// ================= AUTO INIT =================
-init();
+// ================= HELPERS =================
+function content(){ return document.getElementById('content'); }
+function emailEl(){ return document.getElementById('email'); }
+function passwordEl(){ return document.getElementById('password'); }
+function nameEl(){ return document.getElementById('name'); }
+function qtyEl(){ return document.getElementById('qty'); }
+function minEl(){ return document.getElementById('min'); }
 
+function showApp(){
+  document.getElementById('loginScreen').classList.add('hidden');
+  document.getElementById('app').classList.remove('hidden');
+}
+
+// ================= LOGOUT =================
+async function logout(){
+  await client.auth.signOut();
+  location.reload();
+}
+
+init();
 </script>
 
 </body>
