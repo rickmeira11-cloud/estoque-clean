@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>ERP Estoque SaaS</title>
+<title>ERP SaaS 2.0</title>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -130,8 +130,6 @@ input, select {
 </div>
 
 <script>
-console.log("ERP START");
-
 const client = supabase.createClient(
   "https://lggbgqqnguoacuilbugm.supabase.co",
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZ2JncXFuZ3VvYWN1aWxidWdtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4MzU3OTMsImV4cCI6MjA5MTQxMTc5M30.ma9mvlD4hZhXJheFbxEG5c9jvJahZ2_PAh2rWZnCa8k"
@@ -161,11 +159,11 @@ async function init() {
   if (initialized) return;
   initialized = true;
 
-  const { data: sessionData } = await client.auth.getSession();
-  if (!sessionData.session) return;
+  const { data: session } = await client.auth.getSession();
+  if (!session.session) return;
 
-  const { data: userData } = await client.auth.getUser();
-  user = userData.user;
+  const { data: u } = await client.auth.getUser();
+  user = u.user;
 
   const { data: p, error } = await client
     .from("profiles")
@@ -207,7 +205,9 @@ async function dashboard() {
 
   document.getElementById("content").innerHTML = `
     <div class="card">
-      Total: ${list.length} | Baixo estoque: ${low.length}
+      <h3>Resumo</h3>
+      Total produtos: ${list.length}<br/>
+      Estoque baixo: ${low.length}
     </div>
   `;
 }
@@ -220,7 +220,8 @@ async function products() {
 
   document.getElementById("content").innerHTML = `
     <div class="card">
-      <input id="name" placeholder="Produto">
+      <h3>Novo Produto</h3>
+      <input id="name" placeholder="Nome">
       <input id="qty" type="number" placeholder="Qtd">
       <button onclick="saveProduct()" class="btn btn-primary">Salvar</button>
     </div>
@@ -247,11 +248,65 @@ async function saveProduct() {
   products();
 }
 
-/* USERS */
+/* USERS (SAAS REAL) */
 async function users() {
+  if (profile.role !== "admin") {
+    content.innerHTML = "<div class='card'>Sem permissão</div>";
+    return;
+  }
+
+  const { data } = await client.from("profiles").select("*");
+
   document.getElementById("content").innerHTML = `
-    <div class="card">Módulo de usuários (base pronta)</div>
+    <div class="card">
+      <h3>Criar usuário</h3>
+
+      <input id="u_email" placeholder="Email">
+      <input id="u_password" type="password" placeholder="Senha">
+      <input id="u_name" placeholder="Nome">
+
+      <select id="u_role">
+        <option value="user">User</option>
+        <option value="admin">Admin</option>
+      </select>
+
+      <button onclick="createUser()" class="btn btn-primary">
+        Criar usuário
+      </button>
+    </div>
+
+    <div class="card">
+      <h3>Usuários</h3>
+      ${data.map(u => `
+        <div>${u.name || ''} - ${u.role}</div>
+      `).join("")}
+    </div>
   `;
+}
+
+/* CREATE USER VIA RPC */
+async function createUser() {
+  const email = document.getElementById("u_email").value;
+  const password = document.getElementById("u_password").value;
+  const name = document.getElementById("u_name").value;
+  const role = document.getElementById("u_role").value;
+
+  const { error } = await client.rpc("create_user_saas", {
+    email,
+    password,
+    user_name: name,
+    user_role: role,
+    church: profile.church_id
+  });
+
+  if (error) {
+    console.error(error);
+    alert("Erro ao criar usuário");
+    return;
+  }
+
+  alert("Usuário criado!");
+  users();
 }
 
 /* LOGOUT */
@@ -260,11 +315,9 @@ async function logout() {
   location.reload();
 }
 
-/* AUTO START */
-client.auth.onAuthStateChange(async (event) => {
-  if (event === "SIGNED_IN") {
-    await init();
-  }
+/* AUTO INIT */
+client.auth.onAuthStateChange((event) => {
+  if (event === "SIGNED_IN") init();
 });
 </script>
 
