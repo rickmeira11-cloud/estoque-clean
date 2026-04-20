@@ -1,193 +1,248 @@
 <!DOCTYPE html>
-<html lang="pt-br">
+<html lang="pt-BR">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Poiema Estoque PRO</title>
+  <meta charset="UTF-8" />
+  <title>Estoque SaaS</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-<style>
-body {margin:0;font-family:'Inter',sans-serif;background:linear-gradient(135deg,#0b0f1a,#111827);color:#e5e7eb;}
-.sidebar {width:260px;height:100vh;position:fixed;background:rgba(17,24,39,0.7);backdrop-filter:blur(12px);border-right:1px solid rgba(255,255,255,0.05);padding:20px;}
-.menu-item {padding:12px;border-radius:10px;cursor:pointer;margin-bottom:8px;}
-.menu-item:hover {background:rgba(139,92,246,0.15);} 
-.menu-item.active {background:linear-gradient(90deg,#7c3aed,#6366f1);} 
-.main {margin-left:260px;padding:20px;}
-.card {background:rgba(17,24,39,0.6);border:1px solid rgba(255,255,255,0.05);border-radius:14px;padding:20px;}
-.grid {display:grid;grid-template-columns:repeat(4,1fr);gap:15px;}
-.table {width:100%;margin-top:20px;border-collapse:collapse;}
-.table th,.table td {padding:12px;border-bottom:1px solid rgba(255,255,255,0.05);} 
-.badge {padding:4px 10px;border-radius:999px;font-size:12px;} 
-.badge-danger {background:rgba(239,68,68,0.2);color:#ef4444;} 
-.badge-success {background:rgba(34,197,94,0.2);color:#22c55e;} 
-.btn {padding:8px 12px;border:none;border-radius:8px;cursor:pointer;} 
-.btn-success {background:#22c55e;color:#fff;} 
-.hidden {display:none;}
-</style>
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial;
+      background: #0f172a;
+      color: white;
+    }
+
+    .hidden { display: none; }
+
+    .container { padding: 20px; }
+
+    input, button {
+      padding: 10px;
+      margin: 5px;
+      border-radius: 8px;
+      border: none;
+    }
+
+    button {
+      background: #22c55e;
+      color: white;
+      cursor: pointer;
+    }
+
+    .card {
+      background: #1e293b;
+      padding: 15px;
+      border-radius: 12px;
+      margin-bottom: 10px;
+    }
+
+    .menu {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    .menu button {
+      background: #334155;
+    }
+
+    table {
+      width: 100%;
+      margin-top: 10px;
+      border-collapse: collapse;
+    }
+
+    td, th {
+      padding: 8px;
+      border-bottom: 1px solid #334155;
+    }
+
+    .danger {
+      color: #f87171;
+      font-weight: bold;
+    }
+  </style>
 </head>
+
 <body>
 
-<div id="login">
-  <div style="display:flex;justify-content:center;align-items:center;height:100vh;">
-    <div class="card" style="width:300px;">
-      <h2>Login</h2>
-      <input id="email" placeholder="email" style="width:100%;margin-bottom:10px;">
-      <input id="password" type="password" placeholder="senha" style="width:100%;margin-bottom:10px;">
-      <button onclick="login()" class="btn btn-success" style="width:100%;">Entrar</button>
-    </div>
+<!-- LOGIN -->
+<div id="loginScreen" class="container">
+  <h2>Login</h2>
+  <input id="email" placeholder="Email" />
+  <input id="password" type="password" placeholder="Senha" />
+  <button onclick="login()">Entrar</button>
+</div>
+
+<!-- DASHBOARD -->
+<div id="app" class="hidden container">
+
+  <h2 id="churchName"></h2>
+
+  <div class="menu">
+    <button onclick="loadProducts()">Produtos</button>
+    <button onclick="loadMovements()">Movimentações</button>
+    <button onclick="logout()">Sair</button>
   </div>
-</div>
 
-<div id="app" class="hidden">
+  <div id="content"></div>
 
-<div class="sidebar">
-  <h3>Poiema</h3>
-  <div class="menu-item active" onclick="show('dashboard')">Dashboard</div>
-  <div class="menu-item" onclick="show('estoque')">Estoque</div>
-  <div class="menu-item" onclick="show('mov')">Movimentar</div>
-  <div class="menu-item" onclick="show('hist')">Histórico</div>
-  <hr>
-  <div class="menu-item" onclick="logout()">Sair</div>
-</div>
-
-<div class="main">
-
-<div id="dashboard">
-  <h1>Dashboard</h1>
-  <div class="grid">
-    <div class="card"><h3>Total</h3><h1 id="total"></h1></div>
-    <div class="card"><h3>OK</h3><h1 id="ok"></h1></div>
-    <div class="card"><h3>Baixo</h3><h1 id="low"></h1></div>
-    <div class="card"><h3>Zerado</h3><h1 id="zero"></h1></div>
-  </div>
-  <canvas id="chart" style="margin-top:30px;"></canvas>
-</div>
-
-<div id="estoque" class="hidden">
-  <h1>Estoque</h1>
-  <table class="table" id="table"></table>
-</div>
-
-<div id="mov" class="hidden"><h1>Movimentar</h1></div>
-<div id="hist" class="hidden"><h1>Histórico</h1></div>
-
-</div>
 </div>
 
 <script>
+const SUPABASE_URL = "https://lggbgqqnguoacuilbugm.supabase.co";
+const SUPABASE_KEY = "SUA_ANON_KEY";
 
-// ✅ CONFIGURAÇÃO CORRETA
-const SUPABASE_URL = 'https://lggbgqqnguoacuilbugm.supabase.co';
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZ2JncXFuZ3VvYWN1aWxidWdtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4MzU3OTMsImV4cCI6MjA5MTQxMTc5M30.ma9mvlD4hZhXJheFbxEG5c9jvJahZ2_PAh2rWZnCa8k';
 const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-// ✅ LOGIN GLOBAL
-window.login = async function(){
+let profile = null;
+
+// ================= LOGIN =================
+async function login() {
   const email = document.getElementById('email').value;
   const password = document.getElementById('password').value;
 
-  const { data, error } = await client.auth.signInWithPassword({ email, password });
+  const { error } = await client.auth.signInWithPassword({ email, password });
 
-  if(error){
-    alert(error.message);
-    return;
-  }
+  if (error) return alert(error.message);
 
-  await loadUser();
+  init();
 }
 
-// ✅ AUTO LOGIN (SESSÃO)
-window.onload = async function(){
-  const { data } = await client.auth.getSession();
+// ================= INIT =================
+async function init() {
+  const { data } = await client.auth.getUser();
 
-  if(data.session){
-    await loadUser();
-  }
-}
+  if (!data.user) return;
 
-// ✅ CARREGAR PERFIL + APP
-async function loadUser(){
-  const { data: { user } } = await client.auth.getUser();
-
-  if(!user){
-    logout();
-    return;
-  }
-
-  // 🔥 GARANTE PROFILE
-  let { data: profile } = await client
+  // busca profile
+  let { data: p } = await client
     .from('profiles')
     .select('*')
-    .eq('id', user.id)
+    .eq('id', data.user.id)
     .single();
 
-  if(!profile){
-    await client.from('profiles').insert({ id: user.id, nome: user.email });
-  }
+  profile = p;
 
-  document.getElementById('login').classList.add('hidden');
+  // pega igreja
+  const { data: church } = await client
+    .from('churches')
+    .select('*')
+    .eq('id', profile.church_id)
+    .single();
+
+  document.getElementById('churchName').innerText = church.name;
+
+  document.getElementById('loginScreen').classList.add('hidden');
   document.getElementById('app').classList.remove('hidden');
 
-  load();
+  loadProducts();
 }
 
-// ✅ LOGOUT
-window.logout = async function(){
+// ================= LOGOUT =================
+async function logout() {
   await client.auth.signOut();
   location.reload();
 }
 
-// ✅ MENU
-function show(id){
-  ['dashboard','estoque','mov','hist'].forEach(x=>{
-    document.getElementById(x).classList.add('hidden');
+// ================= PRODUTOS =================
+async function loadProducts() {
+  const { data } = await client
+    .from('products')
+    .select('*')
+    .order('created_at', { ascending: false });
+
+  let html = `
+    <h3>Produtos</h3>
+
+    <input id="name" placeholder="Nome" />
+    <input id="qty" type="number" placeholder="Qtd" />
+    <input id="min" type="number" placeholder="Mínimo" />
+
+    <button onclick="addProduct()">Adicionar</button>
+
+    <table>
+      <tr>
+        <th>Nome</th>
+        <th>Qtd</th>
+        <th>Status</th>
+      </tr>
+  `;
+
+  data.forEach(p => {
+    const low = p.quantity <= p.min_stock;
+
+    html += `
+      <tr>
+        <td>${p.name}</td>
+        <td>${p.quantity}</td>
+        <td class="${low ? 'danger' : ''}">
+          ${low ? 'BAIXO' : 'OK'}
+        </td>
+      </tr>
+    `;
   });
-  document.getElementById(id).classList.remove('hidden');
+
+  html += "</table>";
+
+  document.getElementById('content').innerHTML = html;
 }
 
-// ✅ LOAD DADOS
-async function load(){
-  const { data } = await client.from('produtos').select('*');
+// ================= ADD PRODUTO =================
+async function addProduct() {
+  const name = document.getElementById('name').value;
+  const qty = parseInt(document.getElementById('qty').value);
+  const min = parseInt(document.getElementById('min').value);
 
-  if(!data) return;
-
-  let total = data.length;
-  let ok=0, low=0, zero=0;
-
-  let html = '<tr><th>Produto</th><th>Qtd</th><th>Status</th><th></th></tr>';
-
-  data.forEach(p=>{
-    let status='OK';
-
-    if(p.qtd==0){ status='Zerado'; zero++; }
-    else if(p.qtd<=p.min){ status='Baixo'; low++; }
-    else { ok++; }
-
-    html += `<tr>
-      <td>${p.nome}</td>
-      <td>${p.qtd}</td>
-      <td><span class="badge ${status=='OK'?'badge-success':'badge-danger'}">${status}</span></td>
-      <td><button class="btn btn-success">+ Entrada</button></td>
-    </tr>`;
+  await client.from('products').insert({
+    name,
+    quantity: qty,
+    min_stock: min,
+    church_id: profile.church_id
   });
 
-  document.getElementById('table').innerHTML = html;
-  document.getElementById('total').innerText = total;
-  document.getElementById('ok').innerText = ok;
-  document.getElementById('low').innerText = low;
-  document.getElementById('zero').innerText = zero;
-
-  new Chart(document.getElementById('chart'),{
-    type:'doughnut',
-    data:{
-      labels:['OK','Baixo','Zerado'],
-      datasets:[{data:[ok,low,zero]}]
-    }
-  });
+  loadProducts();
 }
+
+// ================= MOVIMENTAÇÕES =================
+async function loadMovements() {
+  const { data } = await client
+    .from('stock_movements')
+    .select('*, products(name)')
+    .order('created_at', { ascending: false })
+    .limit(50);
+
+  let html = `
+    <h3>Movimentações</h3>
+
+    <table>
+      <tr>
+        <th>Produto</th>
+        <th>Tipo</th>
+        <th>Qtd</th>
+      </tr>
+  `;
+
+  data.forEach(m => {
+    html += `
+      <tr>
+        <td>${m.products?.name || '-'}</td>
+        <td>${m.type}</td>
+        <td>${m.quantity}</td>
+      </tr>
+    `;
+  });
+
+  html += "</table>";
+
+  document.getElementById('content').innerHTML = html;
+}
+
+// ================= AUTO LOGIN =================
+init();
 
 </script>
 
