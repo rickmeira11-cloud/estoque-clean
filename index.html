@@ -8,68 +8,22 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
   <style>
-    body {
-      margin: 0;
-      font-family: Arial;
-      background: #0f172a;
-      color: white;
-    }
-
-    .hidden { display: none; }
-
-    .container { padding: 20px; }
-
-    input, button {
-      padding: 10px;
-      margin: 5px;
-      border-radius: 8px;
-      border: none;
-    }
-
-    button {
-      background: #22c55e;
-      color: white;
-      cursor: pointer;
-    }
-
-    .card {
-      background: #1e293b;
-      padding: 15px;
-      border-radius: 12px;
-      margin-bottom: 10px;
-    }
-
-    .menu {
-      display: flex;
-      gap: 10px;
-      margin-bottom: 20px;
-    }
-
-    .menu button {
-      background: #334155;
-    }
-
-    table {
-      width: 100%;
-      margin-top: 10px;
-      border-collapse: collapse;
-    }
-
-    td, th {
-      padding: 8px;
-      border-bottom: 1px solid #334155;
-    }
-
-    .danger {
-      color: #f87171;
-      font-weight: bold;
-    }
+    body { margin:0; font-family:Arial; background:#0f172a; color:white; }
+    .hidden { display:none; }
+    .container { padding:20px; }
+    input, button { padding:10px; margin:5px; border-radius:8px; border:none; }
+    button { background:#22c55e; color:white; cursor:pointer; }
+    .card { background:#1e293b; padding:15px; border-radius:12px; margin-bottom:10px; }
+    .menu { display:flex; gap:10px; margin-bottom:20px; }
+    .menu button { background:#334155; }
+    table { width:100%; border-collapse:collapse; }
+    td, th { padding:8px; border-bottom:1px solid #334155; }
+    .danger { color:#f87171; font-weight:bold; }
   </style>
 </head>
 
 <body>
 
-<!-- LOGIN -->
 <div id="loginScreen" class="container">
   <h2>Login</h2>
   <input id="email" placeholder="Email" />
@@ -77,9 +31,7 @@
   <button onclick="login()">Entrar</button>
 </div>
 
-<!-- DASHBOARD -->
 <div id="app" class="hidden container">
-
   <h2 id="churchName"></h2>
 
   <div class="menu">
@@ -89,12 +41,11 @@
   </div>
 
   <div id="content"></div>
-
 </div>
 
 <script>
 const SUPABASE_URL = "https://lggbgqqnguoacuilbugm.supabase.co";
-const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZ2JncXFuZ3VvYWN1aWxidWdtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4MzU3OTMsImV4cCI6MjA5MTQxMTc5M30.ma9mvlD4hZhXJheFbxEG5c9jvJahZ2_PAh2rWZnCa8k";
+const SUPABASE_KEY = "SUA_ANON_KEY";
 
 const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
@@ -114,32 +65,69 @@ async function login() {
 
 // ================= INIT =================
 async function init() {
-  const { data } = await client.auth.getUser();
+  try {
+    const { data } = await client.auth.getUser();
+    if (!data.user) return;
 
-  if (!data.user) return;
+    const user = data.user;
 
-  // busca profile
-  let { data: p } = await client
-    .from('profiles')
-    .select('*')
-    .eq('id', data.user.id)
-    .single();
+    // tenta buscar profile
+    let { data: p, error } = await client
+      .from('profiles')
+      .select('*')
+      .eq('id', user.id)
+      .maybeSingle();
 
-  profile = p;
+    // se não existir, cria
+    if (!p) {
+      const { data: newProfile } = await client
+        .from('profiles')
+        .insert({
+          id: user.id,
+          name: user.email
+        })
+        .select()
+        .single();
 
-  // pega igreja
-  const { data: church } = await client
-    .from('churches')
-    .select('*')
-    .eq('id', profile.church_id)
-    .single();
+      p = newProfile;
+    }
 
-  document.getElementById('churchName').innerText = church.name;
+    profile = p;
 
-  document.getElementById('loginScreen').classList.add('hidden');
-  document.getElementById('app').classList.remove('hidden');
+    // se não tiver igreja, cria automaticamente
+    if (!profile.church_id) {
+      const { data: church } = await client
+        .from('churches')
+        .insert({ name: 'Minha Igreja' })
+        .select()
+        .single();
 
-  loadProducts();
+      await client
+        .from('profiles')
+        .update({ church_id: church.id })
+        .eq('id', profile.id);
+
+      profile.church_id = church.id;
+    }
+
+    // pega igreja
+    const { data: church } = await client
+      .from('churches')
+      .select('*')
+      .eq('id', profile.church_id)
+      .single();
+
+    document.getElementById('churchName').innerText = church?.name || 'Igreja';
+
+    document.getElementById('loginScreen').classList.add('hidden');
+    document.getElementById('app').classList.remove('hidden');
+
+    loadProducts();
+
+  } catch (err) {
+    console.error(err);
+    alert("Erro ao iniciar sistema");
+  }
 }
 
 // ================= LOGOUT =================
@@ -172,7 +160,7 @@ async function loadProducts() {
       </tr>
   `;
 
-  data.forEach(p => {
+  data?.forEach(p => {
     const low = p.quantity <= p.min_stock;
 
     html += `
@@ -197,10 +185,12 @@ async function addProduct() {
   const qty = parseInt(document.getElementById('qty').value);
   const min = parseInt(document.getElementById('min').value);
 
+  if (!name) return alert("Nome obrigatório");
+
   await client.from('products').insert({
     name,
-    quantity: qty,
-    min_stock: min,
+    quantity: qty || 0,
+    min_stock: min || 1,
     church_id: profile.church_id
   });
 
@@ -226,7 +216,7 @@ async function loadMovements() {
       </tr>
   `;
 
-  data.forEach(m => {
+  data?.forEach(m => {
     html += `
       <tr>
         <td>${m.products?.name || '-'}</td>
@@ -241,7 +231,7 @@ async function loadMovements() {
   document.getElementById('content').innerHTML = html;
 }
 
-// ================= AUTO LOGIN =================
+// ================= AUTO INIT =================
 init();
 
 </script>
