@@ -1,40 +1,83 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Estoque PRO</title>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <style>
-body { margin:0; font-family:Arial; background:#0f172a; color:white; }
+body {
+  margin:0;
+  font-family:Inter, Arial;
+  background:#0f172a;
+  color:#e2e8f0;
+}
 
 .hidden { display:none; }
 
+/* LAYOUT */
 .layout { display:flex; height:100vh; }
 
+/* SIDEBAR */
 .sidebar {
-  width:240px;
+  width:250px;
   background:#020617;
   padding:20px;
+  display:flex;
+  flex-direction:column;
 }
 
-.sidebar h2 { margin-bottom:20px; }
+.logo {
+  font-size:18px;
+  font-weight:bold;
+  margin-bottom:20px;
+}
 
-.sidebar button {
+.menu button {
   width:100%;
-  margin-bottom:10px;
+  background:none;
+  border:none;
+  color:#cbd5f5;
+  text-align:left;
+  padding:10px;
+  border-radius:8px;
+  margin-bottom:5px;
+  cursor:pointer;
+}
+
+.menu button:hover {
   background:#1e293b;
 }
 
+/* MAIN */
 .main {
+  flex:1;
+  display:flex;
+  flex-direction:column;
+}
+
+/* HEADER */
+.header {
+  height:60px;
+  background:#020617;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:0 20px;
+  border-bottom:1px solid #1e293b;
+}
+
+/* CONTENT */
+.content {
   flex:1;
   padding:20px;
   overflow:auto;
 }
 
+/* CARD */
 .card {
   background:#1e293b;
   padding:15px;
@@ -42,19 +85,27 @@ body { margin:0; font-family:Arial; background:#0f172a; color:white; }
   margin-bottom:15px;
 }
 
-input, button {
+/* INPUT */
+input {
   padding:10px;
   margin:5px;
   border-radius:8px;
   border:none;
 }
 
-button { cursor:pointer; }
+button.primary {
+  background:#3b82f6;
+  color:white;
+}
 
-table { width:100%; margin-top:10px; }
-td, th { padding:8px; border-bottom:1px solid #334155; }
+/* TABLE */
+table { width:100%; }
+td, th {
+  padding:10px;
+  border-bottom:1px solid #334155;
+}
 
-.low { color:#f87171; font-weight:bold; }
+.low { color:#f87171; }
 .ok { color:#22c55e; }
 
 </style>
@@ -67,22 +118,42 @@ td, th { padding:8px; border-bottom:1px solid #334155; }
 <h2>Login</h2>
 <input id="email" placeholder="Email">
 <input id="password" type="password" placeholder="Senha">
-<button onclick="login()">Entrar</button>
+<button class="primary" onclick="login()">Entrar</button>
 </div>
 
 <!-- APP -->
 <div id="app" class="layout hidden">
 
-<div class="sidebar">
-  <h2 id="churchName"></h2>
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <div class="logo" id="churchName">Sistema</div>
 
-  <button onclick="dashboard()">Dashboard</button>
-  <button onclick="loadProducts()">Produtos</button>
-  <button onclick="loadMovements()">Movimentações</button>
-  <button onclick="logout()">Sair</button>
-</div>
+    <div class="menu">
+      <button onclick="navigate('dashboard')">📊 Dashboard</button>
 
-<div class="main" id="content"></div>
+      <button onclick="navigate('products')">📦 Produtos</button>
+      <button onclick="navigate('movements')">🔄 Movimentações</button>
+
+      <button onclick="navigate('users')">👥 Usuários</button>
+      <button onclick="navigate('settings')">⚙️ Configurações</button>
+    </div>
+
+    <div style="margin-top:auto;">
+      <button onclick="logout()">Sair</button>
+    </div>
+  </div>
+
+  <!-- MAIN -->
+  <div class="main">
+
+    <div class="header">
+      <div id="pageTitle">Dashboard</div>
+      <div id="userEmail"></div>
+    </div>
+
+    <div class="content" id="content"></div>
+
+  </div>
 
 </div>
 
@@ -93,18 +164,18 @@ const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 let profile = null;
 
-// ================= LOGIN =================
+// LOGIN
 async function login() {
-  const email = emailEl().value;
-  const password = passwordEl().value;
+  const { error } = await client.auth.signInWithPassword({
+    email: email.value,
+    password: password.value
+  });
 
-  const { error } = await client.auth.signInWithPassword({ email, password });
   if (error) return alert(error.message);
-
   init();
 }
 
-// ================= INIT =================
+// INIT
 async function init() {
   const { data } = await client.auth.getUser();
   if (!data.user) return;
@@ -117,28 +188,7 @@ async function init() {
     .eq('id', user.id)
     .maybeSingle();
 
-  if (!p) {
-    const { data: newProfile } = await client
-      .from('profiles')
-      .insert({ id:user.id, name:user.email })
-      .select().single();
-    p = newProfile;
-  }
-
   profile = p;
-
-  if (!profile.church_id) {
-    const { data: church } = await client
-      .from('churches')
-      .insert({ name:"Minha Igreja" })
-      .select().single();
-
-    await client.from('profiles')
-      .update({ church_id: church.id })
-      .eq('id', profile.id);
-
-    profile.church_id = church.id;
-  }
 
   const { data: church } = await client
     .from('churches')
@@ -146,26 +196,37 @@ async function init() {
     .eq('id', profile.church_id)
     .single();
 
-  document.getElementById("churchName").innerText = church.name;
+  document.getElementById("churchName").innerText = church?.name || "Igreja";
+  document.getElementById("userEmail").innerText = user.email;
 
   showApp();
-  dashboard();
+  navigate('dashboard');
 }
 
-// ================= DASHBOARD =================
+// NAVIGATION
+function navigate(page) {
+  document.getElementById("pageTitle").innerText = page;
+
+  if (page === 'dashboard') dashboard();
+  if (page === 'products') loadProducts();
+  if (page === 'movements') loadMovements();
+  if (page === 'users') usersPage();
+  if (page === 'settings') settingsPage();
+}
+
+// DASHBOARD
 async function dashboard() {
-  const { data: products } = await client.from('products').select('*');
+  const { data } = await client.from('products').select('*');
 
-  const total = products.length;
-  const low = products.filter(p => p.quantity <= p.min_stock).length;
+  const total = data.length;
+  const low = data.filter(p => p.quantity <= p.min_stock).length;
 
-  content().innerHTML = `
+  content.innerHTML = `
     <div class="card">
       <h3>Resumo</h3>
-      <p>Total Produtos: ${total}</p>
-      <p>Estoque Baixo: ${low}</p>
+      <p>Total: ${total}</p>
+      <p>Baixo: ${low}</p>
     </div>
-
     <div class="card">
       <canvas id="chart"></canvas>
     </div>
@@ -175,130 +236,78 @@ async function dashboard() {
     type:'bar',
     data:{
       labels:['OK','Baixo'],
-      datasets:[{
-        data:[total-low, low]
-      }]
+      datasets:[{ data:[total-low, low] }]
     }
   });
 }
 
-// ================= PRODUTOS =================
+// PRODUTOS
 async function loadProducts() {
   const { data } = await client.from('products').select('*');
 
   let html = `
-    <div class="card">
+  <div class="card">
     <h3>Produtos</h3>
 
     <input id="name" placeholder="Nome">
     <input id="qty" type="number" placeholder="Qtd">
     <input id="min" type="number" placeholder="Min">
 
-    <button onclick="addProduct()">Adicionar</button>
+    <button class="primary" onclick="addProduct()">Adicionar</button>
 
     <table>
-      <tr><th>Nome</th><th>Qtd</th><th>Status</th><th>Ação</th></tr>
+      <tr><th>Nome</th><th>Qtd</th><th>Status</th></tr>
   `;
 
-  data.forEach(p => {
+  data.forEach(p=>{
     const low = p.quantity <= p.min_stock;
-
     html += `
       <tr>
         <td>${p.name}</td>
         <td>${p.quantity}</td>
         <td class="${low?'low':'ok'}">${low?'BAIXO':'OK'}</td>
-        <td>
-          <button onclick="entrada('${p.id}')">+</button>
-          <button onclick="saida('${p.id}')">-</button>
-        </td>
       </tr>
     `;
   });
 
   html += "</table></div>";
-  content().innerHTML = html;
+  content.innerHTML = html;
 }
 
-// ================= MOVIMENTAÇÃO =================
-async function entrada(id){
-  const q = parseInt(prompt("Qtd entrada"));
-  if(!q) return;
-
-  await client.from('stock_movements').insert({
-    product_id:id,
-    quantity:q,
-    type:'in',
-    church_id:profile.church_id
-  });
-
-  await client.rpc('increment_stock', { pid:id, qty:q });
-  loadProducts();
-}
-
-async function saida(id){
-  const q = parseInt(prompt("Qtd saída"));
-  if(!q) return;
-
-  await client.from('stock_movements').insert({
-    product_id:id,
-    quantity:q,
-    type:'out',
-    church_id:profile.church_id
-  });
-
-  await client.rpc('decrement_stock', { pid:id, qty:q });
-  loadProducts();
-}
-
-// ================= ADD =================
+// ADD
 async function addProduct(){
   await client.from('products').insert({
-    name:nameEl().value,
-    quantity:parseInt(qtyEl().value)||0,
-    min_stock:parseInt(minEl().value)||1,
-    church_id:profile.church_id
+    name: name.value,
+    quantity: parseInt(qty.value)||0,
+    min_stock: parseInt(min.value)||1,
+    church_id: profile.church_id
   });
 
   loadProducts();
 }
 
-// ================= MOVEMENTS =================
+// MOVEMENTS
 async function loadMovements(){
-  const { data } = await client
-    .from('stock_movements')
-    .select('*,products(name)')
-    .order('created_at',{ascending:false});
-
-  let html = `<div class="card"><h3>Movimentações</h3><table>
-  <tr><th>Produto</th><th>Tipo</th><th>Qtd</th></tr>`;
-
-  data.forEach(m=>{
-    html += `<tr>
-      <td>${m.products?.name||'-'}</td>
-      <td>${m.type}</td>
-      <td>${m.quantity}</td>
-    </tr>`;
-  });
-
-  html += "</table></div>";
-  content().innerHTML = html;
+  content.innerHTML = "<div class='card'>Movimentações em breve</div>";
 }
 
-// ================= HELPERS =================
-function content(){ return document.getElementById('content'); }
-function emailEl(){ return document.getElementById('email'); }
-function passwordEl(){ return document.getElementById('password'); }
-function nameEl(){ return document.getElementById('name'); }
-function qtyEl(){ return document.getElementById('qty'); }
-function minEl(){ return document.getElementById('min'); }
+// USERS
+function usersPage(){
+  content.innerHTML = "<div class='card'>Gestão de usuários em breve</div>";
+}
 
+// SETTINGS
+function settingsPage(){
+  content.innerHTML = "<div class='card'>Configurações em breve</div>";
+}
+
+// HELPERS
 function showApp(){
-  document.getElementById('loginScreen').classList.add('hidden');
-  document.getElementById('app').classList.remove('hidden');
+  loginScreen.classList.add('hidden');
+  app.classList.remove('hidden');
 }
 
-// ================= LOGOUT =================
+// LOGOUT
 async function logout(){
   await client.auth.signOut();
   location.reload();
