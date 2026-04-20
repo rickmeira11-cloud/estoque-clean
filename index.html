@@ -134,7 +134,7 @@ async function init(){
     .from("profiles")
     .select("id, church_id, role, name")
     .eq("id", user.id)
-    .single();
+    .maybeSingle();
 
   if(error){
     alert("Erro perfil (RLS?)");
@@ -147,7 +147,7 @@ async function init(){
     .from("churches")
     .select("name")
     .eq("id", profile.church_id)
-    .single();
+    .maybeSingle();
 
   document.getElementById("churchName").innerText = church?.name || "ERP";
   document.getElementById("userEmail").innerText = user.email;
@@ -345,7 +345,7 @@ async function church(){
     .from("churches")
     .select("id,name")
     .eq("id", profile.church_id)
-    .single();
+    .maybeSingle();
 
   content.innerHTML = `
     <div class="card">
