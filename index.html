@@ -1,5 +1,192 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ERP Estoque SaaS</title>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<style>
+:root{
+  --bg:#0f172a;
+  --card:#1e293b;
+  --primary:#3b82f6;
+  --text:#e2e8f0;
+  --muted:#94a3b8;
+}
+
+*{box-sizing:border-box;}
+
+body{
+  margin:0;
+  font-family:Inter, sans-serif;
+  background:var(--bg);
+  color:var(--text);
+}
+
+.hidden{display:none;}
+
+.layout{
+  display:flex;
+  height:100vh;
+}
+
+/* SIDEBAR */
+.sidebar{
+  width:240px;
+  background:#020617;
+  padding:16px;
+  display:flex;
+  flex-direction:column;
+}
+
+.menu button{
+  width:100%;
+  background:none;
+  border:none;
+  color:var(--muted);
+  padding:12px;
+  border-radius:8px;
+  text-align:left;
+  cursor:pointer;
+}
+
+.menu button:hover{
+  background:#1e293b;
+  color:white;
+}
+
+/* MAIN */
+.main{
+  flex:1;
+  display:flex;
+  flex-direction:column;
+}
+
+.header{
+  height:60px;
+  background:#020617;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  padding:0 16px;
+}
+
+.content{
+  flex:1;
+  padding:16px;
+  overflow:auto;
+}
+
+/* GRID */
+.grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(200px,1fr));
+  gap:16px;
+}
+
+.card{
+  background:var(--card);
+  padding:16px;
+  border-radius:12px;
+}
+
+.list-item{
+  display:flex;
+  justify-content:space-between;
+  padding:10px;
+  border-bottom:1px solid #334155;
+}
+
+.btn{
+  padding:8px 12px;
+  border-radius:8px;
+  border:none;
+  cursor:pointer;
+}
+
+.btn-primary{
+  background:var(--primary);
+  color:white;
+}
+
+.btn-danger{
+  background:#ef4444;
+  color:white;
+}
+
+.low{color:#f87171;}
+.ok{color:#22c55e;}
+
+input,select{
+  padding:8px;
+  margin:4px;
+  border-radius:6px;
+  border:none;
+}
+
+/* MOBILE */
+@media(max-width:768px){
+  .sidebar{
+    position:absolute;
+    left:-100%;
+    top:0;
+    height:100%;
+    z-index:10;
+  }
+
+  .sidebar.open{
+    left:0;
+  }
+}
+</style>
+</head>
+
+<body>
+
+<!-- LOGIN -->
+<div id="loginScreen" class="card">
+  <h2>Login</h2>
+  <input id="email" placeholder="Email">
+  <input id="password" type="password" placeholder="Senha">
+  <button class="btn btn-primary" onclick="login()">Entrar</button>
+</div>
+
+<!-- APP -->
+<div id="app" class="layout hidden">
+
+  <div class="sidebar" id="sidebar">
+    <h3 id="churchName">ERP</h3>
+
+    <div class="menu">
+      <button onclick="nav('dashboard')">📊 Dashboard</button>
+      <button onclick="nav('products')">📦 Produtos</button>
+      <button onclick="nav('movements')">🔄 Movimentações</button>
+      <button onclick="nav('users')">👥 Usuários</button>
+      <button onclick="nav('church')">⚙️ Igreja</button>
+    </div>
+
+    <div style="margin-top:auto;">
+      <button onclick="logout()">Sair</button>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="header">
+      <div id="pageTitle"></div>
+      <div id="userEmail"></div>
+    </div>
+
+    <div id="content" class="content"></div>
+  </div>
+
+</div>
+
 <script>
 const client = supabase.createClient("https://lggbgqqnguoacuilbugm.supabase.co","eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZ2JncXFuZ3VvYWN1aWxidWdtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4MzU3OTMsImV4cCI6MjA5MTQxMTc5M30.ma9mvlD4hZhXJheFbxEG5c9jvJahZ2_PAh2rWZnCa8k");
+
 let profile=null;
 let user=null;
 
@@ -13,39 +200,25 @@ async function login(){
   init();
 }
 
-// INIT SEGURO
+// INIT
 async function init(){
-  const {data, error} = await client.auth.getUser();
-
-  if(error || !data.user) return;
+  const {data} = await client.auth.getUser();
+  if(!data.user) return;
 
   user = data.user;
 
-  const {data: p, error: errP} = await client
-    .from('profiles')
-    .select('*')
-    .eq('id', user.id)
-    .single();
+  const {data:p, error:errP} = await client.from('profiles')
+    .select('*').eq('id', user.id).single();
 
   if(errP || !p){
-    console.error("Erro profile:", errP);
-    alert("Usuário sem profile. Verifique o banco.");
+    alert("Erro profile");
     return;
   }
 
   profile = p;
 
-  const {data: church, error: errC} = await client
-    .from('churches')
-    .select('*')
-    .eq('id', profile.church_id)
-    .single();
-
-  if(errC || !church){
-    console.error("Erro church:", errC);
-    alert("Erro ao carregar igreja");
-    return;
-  }
+  const {data:church} = await client.from('churches')
+    .select('*').eq('id', profile.church_id).single();
 
   churchName.innerText = church.name;
   userEmail.innerText = user.email + " ("+profile.role+")";
@@ -59,6 +232,7 @@ async function init(){
 // NAV
 function nav(page){
   pageTitle.innerText = page;
+
   if(page==='dashboard') dashboard();
   if(page==='products') products();
   if(page==='movements') movements();
@@ -68,213 +242,174 @@ function nav(page){
 
 // DASHBOARD
 async function dashboard(){
-  const {data, error} = await client.from('products').select('*');
-
-  if(error){
-    console.error(error);
-    content.innerHTML = "Erro ao carregar dashboard";
-    return;
-  }
-
+  const {data} = await client.from('products').select('*');
   const list = data || [];
 
-  const low = list.filter(p=>p.quantity <= p.min_stock);
-  const expiring = list.filter(p=>p.expiration_date && new Date(p.expiration_date) < new Date(Date.now()+7*86400000));
+  const total = list.length;
+  const low = list.filter(p=>p.quantity <= p.min_stock).length;
 
-  let html="";
+  content.innerHTML = `
+    <div class="grid">
+      <div class="card">
+        <h3>Total Produtos</h3>
+        <h1>${total}</h1>
+      </div>
 
-  if(low.length){
-    html+=`<div class="alert">⚠️ ${low.length} estoque baixo</div>`;
-  }
+      <div class="card">
+        <h3>Estoque Baixo</h3>
+        <h1 class="low">${low}</h1>
+      </div>
+    </div>
 
-  if(expiring.length){
-    html+=`<div class="alert">⏳ ${expiring.length} vencendo</div>`;
-  }
-
-  html+=`<div class="card"><canvas id="chart"></canvas></div>`;
-  content.innerHTML = html;
+    <div class="card">
+      <canvas id="chart"></canvas>
+    </div>
+  `;
 
   new Chart(chart,{
-    type:'doughnut',
+    type:'bar',
     data:{
       labels:['OK','Baixo'],
-      datasets:[{data:[list.length-low.length, low.length]}]
+      datasets:[{data:[total-low, low]}]
     }
   });
 }
 
 // PRODUTOS
 async function products(){
-  const {data, error} = await client.from('products').select('*');
-
-  if(error){
-    console.error(error);
-    content.innerHTML="Erro ao carregar produtos";
-    return;
-  }
-
+  const {data} = await client.from('products').select('*');
   const list = data || [];
 
-  let html=`
-  <div class="card">
-    <input id="name" placeholder="Nome">
-    <input id="qty" type="number" placeholder="Qtd">
-    <input id="min" type="number" placeholder="Min">
-    <input id="exp" type="date">
-    <button class="primary" onclick="saveProduct()">Salvar</button>
-  </div>
-  <div class="card">`;
+  content.innerHTML = `
+    <div class="card">
+      <input id="name" placeholder="Produto">
+      <input id="qty" type="number" placeholder="Qtd">
+      <button class="btn btn-primary" onclick="saveProduct()">Adicionar</button>
+    </div>
 
-  list.forEach(p=>{
-    const low = p.quantity <= p.min_stock;
+    <div class="card">
+      ${list.map(p=>`
+        <div class="list-item">
+          <div>
+            <strong>${p.name}</strong><br>
+            <small>${p.quantity} unidades</small>
+          </div>
 
-    html+=`
-    <div>
-      ${p.name} | ${p.quantity}
-      <span class="${low?'low':'ok'}">${low?'BAIXO':'OK'}</span>
-      ${profile.role==='admin' ? `<button onclick="del('${p.id}')">X</button>` : ''}
-    </div>`;
-  });
+          <div>
+            <span class="${p.quantity <= p.min_stock ? 'low':'ok'}">
+              ${p.quantity <= p.min_stock ? 'Baixo':'OK'}
+            </span>
 
-  html+="</div>";
-  content.innerHTML=html;
+            ${profile.role==='admin'
+              ? `<button class="btn btn-danger" onclick="del('${p.id}')">X</button>`
+              : ''
+            }
+          </div>
+        </div>
+      `).join('')}
+    </div>
+  `;
 }
 
-// SAVE PRODUCT (SEM church_id)
 async function saveProduct(){
   const {error} = await client.from('products').insert({
     name:name.value,
-    quantity:parseInt(qty.value||0),
-    min_stock:parseInt(min.value||1),
-    expiration_date:exp.value || null
+    quantity:parseInt(qty.value||0)
   });
 
-  if(error){
-    console.error(error);
-    return alert("Erro ao salvar");
-  }
-
+  if(error) return alert("Erro ao salvar");
   products();
 }
 
-// DELETE (SÓ ADMIN)
 async function del(id){
   if(profile.role !== 'admin') return alert("Sem permissão");
 
-  const {error} = await client.from('products').delete().eq('id',id);
-
-  if(error){
-    console.error(error);
-    return alert("Erro ao deletar");
-  }
-
+  await client.from('products').delete().eq('id',id);
   products();
 }
 
 // MOVIMENTOS
 async function movements(){
-  const {data, error} = await client.from('products').select('*');
-
-  if(error){
-    console.error(error);
-    return content.innerHTML="Erro produtos";
-  }
-
+  const {data} = await client.from('products').select('*');
   const list = data || [];
 
-  let html=`
-  <div class="card">
-    <select id="p">
-      ${list.map(p=>`<option value="${p.id}">${p.name}</option>`).join('')}
-    </select>
-    <select id="t">
-      <option value="in">Entrada</option>
-      <option value="out">Saída</option>
-    </select>
-    <input id="q" type="number">
-    <button class="primary" onclick="mov()">Salvar</button>
-  </div>`;
+  content.innerHTML = `
+    <div class="card">
+      <select id="p">
+        ${list.map(p=>`<option value="${p.id}">${p.name}</option>`).join('')}
+      </select>
 
-  content.innerHTML=html;
+      <select id="t">
+        <option value="in">Entrada</option>
+        <option value="out">Saída</option>
+      </select>
+
+      <input id="q" type="number">
+      <button class="btn btn-primary" onclick="mov()">Salvar</button>
+    </div>
+  `;
 }
 
 async function mov(){
-  const pid=p.value;
-  const qtyVal=parseInt(q.value||0);
+  const pid = p.value;
+  const qtyVal = parseInt(q.value||0);
 
-  const {error} = await client.from('stock_movements').insert({
+  await client.from('stock_movements').insert({
     product_id:pid,
     quantity:qtyVal,
     type:t.value
   });
 
-  if(error){
-    console.error(error);
-    return alert("Erro movimentação");
-  }
+  const {data:prod} = await client.from('products')
+    .select('*').eq('id',pid).single();
 
-  const {data:prod} = await client.from('products').select('*').eq('id',pid).single();
+  let newQty = t.value==='in'
+    ? prod.quantity + qtyVal
+    : prod.quantity - qtyVal;
 
-  let newQty = t.value==='in' ? prod.quantity+qtyVal : prod.quantity-qtyVal;
-
-  await client.from('products').update({quantity:newQty}).eq('id',pid);
+  await client.from('products')
+    .update({quantity:newQty})
+    .eq('id',pid);
 
   alert("Movimentado");
 }
 
-// USERS (ADMIN)
+// USERS
 async function users(){
   if(profile.role !== 'admin'){
     content.innerHTML="Sem permissão";
     return;
   }
 
-  const {data, error} = await client.from('profiles').select('*');
-
-  if(error){
-    console.error(error);
-    return content.innerHTML="Erro usuários";
-  }
-
+  const {data} = await client.from('profiles').select('*');
   const list = data || [];
 
   content.innerHTML = `
-  <div class="card">
-    ${list.map(u=>`<div>${u.name} - ${u.role}</div>`).join('')}
-  </div>`;
+    <div class="card">
+      ${list.map(u=>`<div>${u.name} - ${u.role}</div>`).join('')}
+    </div>
+  `;
 }
 
 // CHURCH
 async function church(){
-  const {data, error} = await client
-    .from('churches')
-    .select('*')
-    .eq('id',profile.church_id)
-    .single();
+  const {data} = await client.from('churches')
+    .select('*').eq('id',profile.church_id).single();
 
-  if(error){
-    console.error(error);
-    return content.innerHTML="Erro igreja";
-  }
-
-  content.innerHTML=`
-  <div class="card">
-    <input id="cname" value="${data.name}">
-    <button class="primary" onclick="saveChurch('${data.id}')">Salvar</button>
-  </div>`;
+  content.innerHTML = `
+    <div class="card">
+      <input id="cname" value="${data.name}">
+      <button class="btn btn-primary" onclick="saveChurch('${data.id}')">Salvar</button>
+    </div>
+  `;
 }
 
 async function saveChurch(id){
   if(profile.role !== 'admin') return alert("Sem permissão");
 
-  const {error} = await client.from('churches')
+  await client.from('churches')
     .update({name:cname.value})
     .eq('id',id);
-
-  if(error){
-    console.error(error);
-    return alert("Erro ao salvar");
-  }
 
   alert("Salvo");
 }
@@ -287,3 +422,6 @@ async function logout(){
 
 init();
 </script>
+
+</body>
+</html>
