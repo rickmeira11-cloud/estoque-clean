@@ -1,36 +1,95 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ERP Estoque SaaS 2.0</title>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>ERP Estoque SaaS</title>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <style>
-body{margin:0;font-family:Inter;background:#0f172a;color:#e2e8f0;}
-.hidden{display:none;}
+body {
+  margin: 0;
+  font-family: Inter, sans-serif;
+  background: #0f172a;
+  color: #e2e8f0;
+}
 
-.layout{display:flex;height:100vh;}
-.sidebar{width:240px;background:#020617;padding:16px;display:flex;flex-direction:column;}
-.menu button{width:100%;background:none;border:none;color:#94a3b8;padding:12px;border-radius:8px;text-align:left;cursor:pointer;}
-.menu button:hover{background:#1e293b;color:white;}
+.hidden { display: none; }
 
-.main{flex:1;display:flex;flex-direction:column;}
-.header{height:60px;background:#020617;display:flex;justify-content:space-between;align-items:center;padding:0 16px;}
-.content{flex:1;padding:16px;overflow:auto;}
+.layout {
+  display: flex;
+  height: 100vh;
+}
 
-.card{background:#1e293b;padding:16px;border-radius:12px;margin-bottom:16px;}
-.btn{padding:8px 12px;border-radius:8px;border:none;cursor:pointer;}
-.btn-primary{background:#3b82f6;color:white;}
-.btn-danger{background:#ef4444;color:white;}
+.sidebar {
+  width: 240px;
+  background: #020617;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+}
 
-.item{display:flex;justify-content:space-between;padding:10px;border-bottom:1px solid #334155;}
-.low{color:#f87171;}
-.ok{color:#22c55e;}
+.menu button {
+  width: 100%;
+  background: none;
+  border: none;
+  color: #94a3b8;
+  padding: 12px;
+  border-radius: 8px;
+  text-align: left;
+  cursor: pointer;
+}
 
-input,select{padding:8px;margin:5px;border-radius:6px;border:none;}
+.menu button:hover {
+  background: #1e293b;
+  color: white;
+}
+
+.main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.header {
+  height: 60px;
+  background: #020617;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 16px;
+}
+
+.content {
+  flex: 1;
+  padding: 16px;
+  overflow: auto;
+}
+
+.card {
+  background: #1e293b;
+  padding: 16px;
+  border-radius: 12px;
+  margin-bottom: 16px;
+}
+
+.btn {
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+}
+
+.btn-primary { background: #3b82f6; color: white; }
+
+input, select {
+  padding: 8px;
+  margin: 5px;
+  border-radius: 6px;
+  border: none;
+}
 </style>
 </head>
 
@@ -39,8 +98,8 @@ input,select{padding:8px;margin:5px;border-radius:6px;border:none;}
 <!-- LOGIN -->
 <div id="loginScreen" class="card">
   <h2>Login</h2>
-  <input id="email" placeholder="Email">
-  <input id="password" type="password" placeholder="Senha">
+  <input id="email" placeholder="Email" />
+  <input id="password" type="password" placeholder="Senha" />
   <button id="btnLogin" class="btn btn-primary">Entrar</button>
 </div>
 
@@ -51,16 +110,12 @@ input,select{padding:8px;margin:5px;border-radius:6px;border:none;}
     <h3 id="churchName">ERP</h3>
 
     <div class="menu">
-      <button data-page="dashboard">📊 Dashboard</button>
-      <button data-page="products">📦 Produtos</button>
-      <button data-page="movements">🔄 Movimentações</button>
-      <button data-page="users">👥 Usuários</button>
-      <button data-page="church">⚙️ Igreja</button>
+      <button onclick="nav('dashboard')">📊 Dashboard</button>
+      <button onclick="nav('products')">📦 Produtos</button>
+      <button onclick="nav('users')">👥 Usuários</button>
     </div>
 
-    <div style="margin-top:auto;">
-      <button id="btnLogout" class="btn btn-danger">Sair</button>
-    </div>
+    <button onclick="logout()">Sair</button>
   </div>
 
   <div class="main">
@@ -68,17 +123,15 @@ input,select{padding:8px;margin:5px;border-radius:6px;border:none;}
       <div id="pageTitle"></div>
       <div id="userEmail"></div>
     </div>
+
     <div id="content" class="content"></div>
   </div>
 
 </div>
 
 <script>
-console.log("ERP SaaS 2.0 START");
+console.log("ERP START");
 
-// =====================
-// CONFIG
-// =====================
 const client = supabase.createClient(
   "https://lggbgqqnguoacuilbugm.supabase.co",
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZ2JncXFuZ3VvYWN1aWxidWdtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4MzU3OTMsImV4cCI6MjA5MTQxMTc5M30.ma9mvlD4hZhXJheFbxEG5c9jvJahZ2_PAh2rWZnCa8k"
@@ -86,24 +139,10 @@ const client = supabase.createClient(
 
 let user = null;
 let profile = null;
+let initialized = false;
 
-// FIX IMPORTANTE
-const content = document.getElementById("content");
-
-// =====================
-// EVENTS
-// =====================
-document.getElementById("btnLogin").addEventListener("click", login);
-document.getElementById("btnLogout").addEventListener("click", logout);
-
-document.querySelectorAll(".menu button").forEach(btn=>{
-  btn.addEventListener("click", ()=>nav(btn.dataset.page));
-});
-
-// =====================
-// LOGIN
-// =====================
-async function login(){
+/* LOGIN */
+document.getElementById("btnLogin").onclick = async () => {
   const email = document.getElementById("email").value;
   const password = document.getElementById("password").value;
 
@@ -112,268 +151,121 @@ async function login(){
     password
   });
 
-  if(error){
-    alert(error.message);
-    return;
-  }
+  if (error) return alert(error.message);
 
-  await let initialized = false;
-}
+  await init();
+};
 
-// =====================
-// INIT AUTH
-// =====================
-async function init(){
+/* INIT */
+async function init() {
+  if (initialized) return;
+  initialized = true;
 
-  const { data: { user: u } } = await client.auth.getUser();
-  if(!u) return;
+  const { data: sessionData } = await client.auth.getSession();
+  if (!sessionData.session) return;
 
-  user = u;
+  const { data: userData } = await client.auth.getUser();
+  user = userData.user;
 
   const { data: p, error } = await client
-  .from("profiles")
-  .select("*")
-  .eq("id", user.id)
-  .maybeSingle();
+    .from("profiles")
+    .select("*")
+    .eq("id", user.id)
+    .maybeSingle();
 
-  if(error){
+  if (error || !p) {
+    console.error(error);
     alert("Erro perfil (RLS?)");
     return;
   }
 
   profile = p;
 
-  const { data: church } = await client
-    .from("churches")
-    .select("name")
-    .eq("id", profile.church_id)
-    .maybeSingle();
-
-  document.getElementById("churchName").innerText = church?.name || "ERP";
-  document.getElementById("userEmail").innerText = user.email;
-
   document.getElementById("loginScreen").classList.add("hidden");
   document.getElementById("app").classList.remove("hidden");
+
+  document.getElementById("userEmail").innerText = user.email;
 
   nav("dashboard");
 }
 
-// =====================
-// NAV
-// =====================
-function nav(page){
+/* NAV */
+function nav(page) {
   document.getElementById("pageTitle").innerText = page;
 
-  if(page==="dashboard") dashboard();
-  if(page==="products") products();
-  if(page==="movements") movements();
-  if(page==="users") users();
-  if(page==="church") church();
+  if (page === "dashboard") dashboard();
+  if (page === "products") products();
+  if (page === "users") users();
 }
 
-// =====================
-// DASHBOARD (VIEW READY)
-// =====================
-async function dashboard(){
-
-  const { data, error } = await client
-    .from("products")
-    .select("quantity, min_stock");
-
-  if(error){
-    content.innerHTML = "Erro dashboard";
-    return;
-  }
+/* DASHBOARD */
+async function dashboard() {
+  const { data } = await client.from("products").select("*");
 
   const list = data || [];
   const low = list.filter(p => p.quantity <= p.min_stock);
 
-  content.innerHTML = `
+  document.getElementById("content").innerHTML = `
     <div class="card">
-      <h3>Resumo Estoque</h3>
-      <p>Total: ${list.length} | Baixo: ${low.length}</p>
-      <canvas id="chart"></canvas>
+      Total: ${list.length} | Baixo estoque: ${low.length}
     </div>
   `;
-
-  new Chart(document.getElementById("chart"),{
-    type:'bar',
-    data:{
-      labels:['OK','Baixo'],
-      datasets:[{
-        data:[list.length - low.length, low.length]
-      }]
-    }
-  });
 }
 
-// =====================
-// PRODUCTS
-// =====================
-async function products(){
-
-  const { data } = await client
-    .from("products")
-    .select("id,name,quantity,min_stock");
+/* PRODUCTS */
+async function products() {
+  const { data } = await client.from("products").select("*");
 
   const list = data || [];
 
-  content.innerHTML = `
+  document.getElementById("content").innerHTML = `
     <div class="card">
       <input id="name" placeholder="Produto">
-      <input id="qty" type="number" placeholder="Qtd inicial">
-      <button id="saveProduct" class="btn btn-primary">Salvar</button>
+      <input id="qty" type="number" placeholder="Qtd">
+      <button onclick="saveProduct()" class="btn btn-primary">Salvar</button>
     </div>
 
     <div class="card">
-      ${list.map(p=>`
-        <div class="item">
-          <div>
-            ${p.name} (${p.quantity})
-          </div>
-          <span class="${p.quantity<=p.min_stock?'low':'ok'}">
-            ${p.quantity<=p.min_stock?'BAIXO':'OK'}
-          </span>
-          ${profile.role==='admin'
-            ? `<button onclick="deleteProduct('${p.id}')" class="btn btn-danger">X</button>`
-            : ''
-          }
-        </div>
+      ${list.map(p => `
+        <div>${p.name} - ${p.quantity}</div>
       `).join("")}
     </div>
   `;
-
-  document.getElementById("saveProduct").onclick = saveProduct;
 }
 
-async function saveProduct(){
+async function saveProduct() {
   const name = document.getElementById("name").value;
   const qty = parseInt(document.getElementById("qty").value || 0);
 
-  const { error } = await client
-    .from("products")
-    .insert({
-      name,
-      quantity: qty,
-      min_stock: 1,
-      church_id: profile.church_id
-    });
-
-  if(error){
-    alert("Erro ao salvar");
-    return;
-  }
+  await client.from("products").insert({
+    name,
+    quantity: qty,
+    min_stock: 0,
+    church_id: profile.church_id
+  });
 
   products();
 }
 
-window.deleteProduct = async function(id){
-  await client.from("products").delete().eq("id", id);
-  products();
-}
-
-// =====================
-// MOVEMENTS (SEM LÓGICA DE ESTOQUE AQUI!)
-// =====================
-async function movements(){
-
-  const { data: products } = await client
-    .from("products")
-    .select("id,name");
-
-  content.innerHTML = `
-    <div class="card">
-      <select id="p">
-        ${products.map(p=>`<option value="${p.id}">${p.name}</option>`).join("")}
-      </select>
-
-      <select id="t">
-        <option value="in">Entrada</option>
-        <option value="out">Saída</option>
-      </select>
-
-      <input id="q" type="number" placeholder="Qtd">
-
-      <button id="saveMov" class="btn btn-primary">Salvar</button>
-    </div>
-  `;
-
-  document.getElementById("saveMov").onclick = async ()=>{
-    const product_id = document.getElementById("p").value;
-    const type = document.getElementById("t").value;
-    const quantity = parseInt(document.getElementById("q").value || 0);
-
-    await client.from("stock_movements").insert({
-      product_id,
-      type,
-      quantity,
-      church_id: profile.church_id,
-      user_id: user.id
-    });
-
-    alert("Movimentado (estoque atualizado via TRIGGER)");
-  };
-}
-
-// =====================
-// USERS
-// =====================
-async function users(){
-
-  if(profile.role !== "admin"){
-    content.innerHTML = "Sem permissão";
-    return;
-  }
-
-  const { data } = await client
-    .from("profiles")
-    .select("name, role");
-
-  content.innerHTML = `
-    <div class="card">
-      ${data.map(u=>`<div>${u.name} - ${u.role}</div>`).join("")}
-    </div>
+/* USERS */
+async function users() {
+  document.getElementById("content").innerHTML = `
+    <div class="card">Módulo de usuários (base pronta)</div>
   `;
 }
 
-// =====================
-// CHURCH
-// =====================
-async function church(){
-
-  const { data } = await client
-    .from("churches")
-    .select("id,name")
-    .eq("id", profile.church_id)
-    .maybeSingle();
-
-  content.innerHTML = `
-    <div class="card">
-      <input id="cname" value="${data.name}">
-      <button id="saveChurch" class="btn btn-primary">Salvar</button>
-    </div>
-  `;
-
-  document.getElementById("saveChurch").onclick = async ()=>{
-    await client
-      .from("churches")
-      .update({ name: document.getElementById("cname").value })
-      .eq("id", data.id);
-
-    alert("Salvo");
-  };
-}
-
-// =====================
-// LOGOUT
-// =====================
-async function logout(){
+/* LOGOUT */
+async function logout() {
   await client.auth.signOut();
   location.reload();
 }
 
-// AUTO INIT
-let initialized = false;
+/* AUTO START */
+client.auth.onAuthStateChange(async (event) => {
+  if (event === "SIGNED_IN") {
+    await init();
+  }
+});
 </script>
 
 </body>
