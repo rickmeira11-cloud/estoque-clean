@@ -9,138 +9,24 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <style>
-:root{
-  --bg:#0f172a;
-  --card:#1e293b;
-  --primary:#3b82f6;
-  --text:#e2e8f0;
-  --muted:#94a3b8;
-}
-
-*{box-sizing:border-box;}
-
-body{
-  margin:0;
-  font-family:Inter, sans-serif;
-  background:var(--bg);
-  color:var(--text);
-}
-
+body{margin:0;font-family:Inter;background:#0f172a;color:#e2e8f0;}
 .hidden{display:none;}
-
-.layout{
-  display:flex;
-  height:100vh;
-}
-
-/* SIDEBAR */
-.sidebar{
-  width:240px;
-  background:#020617;
-  padding:16px;
-  display:flex;
-  flex-direction:column;
-}
-
-.menu button{
-  width:100%;
-  background:none;
-  border:none;
-  color:var(--muted);
-  padding:12px;
-  border-radius:8px;
-  text-align:left;
-  cursor:pointer;
-}
-
-.menu button:hover{
-  background:#1e293b;
-  color:white;
-}
-
-/* MAIN */
-.main{
-  flex:1;
-  display:flex;
-  flex-direction:column;
-}
-
-.header{
-  height:60px;
-  background:#020617;
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-  padding:0 16px;
-}
-
-.content{
-  flex:1;
-  padding:16px;
-  overflow:auto;
-}
-
-/* GRID */
-.grid{
-  display:grid;
-  grid-template-columns:repeat(auto-fit,minmax(200px,1fr));
-  gap:16px;
-}
-
-.card{
-  background:var(--card);
-  padding:16px;
-  border-radius:12px;
-}
-
-.list-item{
-  display:flex;
-  justify-content:space-between;
-  padding:10px;
-  border-bottom:1px solid #334155;
-}
-
-.btn{
-  padding:8px 12px;
-  border-radius:8px;
-  border:none;
-  cursor:pointer;
-}
-
-.btn-primary{
-  background:var(--primary);
-  color:white;
-}
-
-.btn-danger{
-  background:#ef4444;
-  color:white;
-}
-
+.layout{display:flex;height:100vh;}
+.sidebar{width:240px;background:#020617;padding:16px;display:flex;flex-direction:column;}
+.menu button{width:100%;background:none;border:none;color:#94a3b8;padding:12px;border-radius:8px;text-align:left;cursor:pointer;}
+.menu button:hover{background:#1e293b;color:white;}
+.main{flex:1;display:flex;flex-direction:column;}
+.header{height:60px;background:#020617;display:flex;justify-content:space-between;align-items:center;padding:0 16px;}
+.content{flex:1;padding:16px;overflow:auto;}
+.card{background:#1e293b;padding:16px;border-radius:12px;margin-bottom:16px;}
+.btn{padding:8px 12px;border-radius:8px;border:none;cursor:pointer;}
+.btn-primary{background:#3b82f6;color:white;}
+.btn-danger{background:#ef4444;color:white;}
+.list{margin-top:10px;}
+.item{display:flex;justify-content:space-between;padding:10px;border-bottom:1px solid #334155;}
 .low{color:#f87171;}
 .ok{color:#22c55e;}
-
-input,select{
-  padding:8px;
-  margin:4px;
-  border-radius:6px;
-  border:none;
-}
-
-/* MOBILE */
-@media(max-width:768px){
-  .sidebar{
-    position:absolute;
-    left:-100%;
-    top:0;
-    height:100%;
-    z-index:10;
-  }
-
-  .sidebar.open{
-    left:0;
-  }
-}
+input,select{padding:8px;margin:5px;border-radius:6px;border:none;}
 </style>
 </head>
 
@@ -151,25 +37,25 @@ input,select{
   <h2>Login</h2>
   <input id="email" placeholder="Email">
   <input id="password" type="password" placeholder="Senha">
-  <button class="btn btn-primary" onclick="login()">Entrar</button>
+  <button id="btnLogin" class="btn btn-primary">Entrar</button>
 </div>
 
 <!-- APP -->
 <div id="app" class="layout hidden">
 
-  <div class="sidebar" id="sidebar">
+  <div class="sidebar">
     <h3 id="churchName">ERP</h3>
 
     <div class="menu">
-      <button onclick="nav('dashboard')">📊 Dashboard</button>
-      <button onclick="nav('products')">📦 Produtos</button>
-      <button onclick="nav('movements')">🔄 Movimentações</button>
-      <button onclick="nav('users')">👥 Usuários</button>
-      <button onclick="nav('church')">⚙️ Igreja</button>
+      <button data-page="dashboard">📊 Dashboard</button>
+      <button data-page="products">📦 Produtos</button>
+      <button data-page="movements">🔄 Movimentações</button>
+      <button data-page="users">👥 Usuários</button>
+      <button data-page="church">⚙️ Igreja</button>
     </div>
 
     <div style="margin-top:auto;">
-      <button onclick="logout()">Sair</button>
+      <button id="btnLogout">Sair</button>
     </div>
   </div>
 
@@ -178,26 +64,44 @@ input,select{
       <div id="pageTitle"></div>
       <div id="userEmail"></div>
     </div>
-
     <div id="content" class="content"></div>
   </div>
 
 </div>
 
 <script>
-const client = supabase.createClient("https://lggbgqqnguoacuilbugm.supabase.co","eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZ2JncXFuZ3VvYWN1aWxidWdtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4MzU3OTMsImV4cCI6MjA5MTQxMTc5M30.ma9mvlD4hZhXJheFbxEG5c9jvJahZ2_PAh2rWZnCa8k
-");
+console.log("APP START");
 
-let profile=null;
-let user=null;
+// CONFIG
+const client = supabase.createClient(
+  "https://lggbgqqnguoacuilbugm.supabase.co",
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZ2JncXFuZ3VvYWN1aWxidWdtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4MzU3OTMsImV4cCI6MjA5MTQxMTc5M30.ma9mvlD4hZhXJheFbxEG5c9jvJahZ2_PAh2rWZnCa8k
+"
+);
+
+let profile = null;
+let user = null;
+
+// EVENTOS
+document.getElementById("btnLogin").addEventListener("click", login);
+document.getElementById("btnLogout").addEventListener("click", logout);
+
+document.querySelectorAll(".menu button").forEach(btn=>{
+  btn.addEventListener("click", ()=>nav(btn.dataset.page));
+});
 
 // LOGIN
-window.login = async function(){
-  const {error} = await client.auth.signInWithPassword({
-    email:email.value,
-    password:password.value
-  });
-  if(error) return alert(error.message);
+async function login(){
+  const email = document.getElementById("email").value;
+  const password = document.getElementById("password").value;
+
+  const {error} = await client.auth.signInWithPassword({email,password});
+
+  if(error){
+    alert(error.message);
+    return;
+  }
+
   init();
 }
 
@@ -208,211 +112,207 @@ async function init(){
 
   user = data.user;
 
-  const {data:p, error:errP} = await client.from('profiles')
-    .select('*').eq('id', user.id).single();
+  const {data:p, error} = await client
+    .from("profiles")
+    .select("*")
+    .eq("id", user.id)
+    .single();
 
-  if(errP || !p){
-    alert("Erro profile");
+  if(error || !p){
+    alert("Erro ao carregar perfil (RLS?)");
     return;
   }
 
   profile = p;
 
-  const {data:church} = await client.from('churches')
-    .select('*').eq('id', profile.church_id).single();
+  const {data:church} = await client
+    .from("churches")
+    .select("*")
+    .eq("id", profile.church_id)
+    .single();
 
-  churchName.innerText = church.name;
-  userEmail.innerText = user.email + " ("+profile.role+")";
+  document.getElementById("churchName").innerText = church?.name || "ERP";
+  document.getElementById("userEmail").innerText = user.email;
 
-  loginScreen.classList.add('hidden');
-  app.classList.remove('hidden');
+  document.getElementById("loginScreen").classList.add("hidden");
+  document.getElementById("app").classList.remove("hidden");
 
-  nav('dashboard');
+  nav("dashboard");
 }
 
 // NAV
 function nav(page){
-  pageTitle.innerText = page;
+  document.getElementById("pageTitle").innerText = page;
 
-  if(page==='dashboard') dashboard();
-  if(page==='products') products();
-  if(page==='movements') movements();
-  if(page==='users') users();
-  if(page==='church') church();
+  if(page==="dashboard") dashboard();
+  if(page==="products") products();
+  if(page==="movements") movements();
+  if(page==="users") users();
+  if(page==="church") church();
 }
 
 // DASHBOARD
 async function dashboard(){
-  const {data} = await client.from('products').select('*');
-  const list = data || [];
+  const {data,error} = await client.from("products").select("*");
 
-  const total = list.length;
-  const low = list.filter(p=>p.quantity <= p.min_stock).length;
+  if(error){
+    content.innerHTML = "Erro ao carregar dados";
+    return;
+  }
+
+  const list = data || [];
+  const low = list.filter(p=>p.quantity <= p.min_stock);
 
   content.innerHTML = `
-    <div class="grid">
-      <div class="card">
-        <h3>Total Produtos</h3>
-        <h1>${total}</h1>
-      </div>
-
-      <div class="card">
-        <h3>Estoque Baixo</h3>
-        <h1 class="low">${low}</h1>
-      </div>
-    </div>
-
     <div class="card">
+      Total: ${list.length} | Baixo: ${low.length}
       <canvas id="chart"></canvas>
     </div>
   `;
 
-  new Chart(chart,{
+  new Chart(document.getElementById("chart"),{
     type:'bar',
-    data:{
-      labels:['OK','Baixo'],
-      datasets:[{data:[total-low, low]}]
-    }
+    data:{labels:['OK','Baixo'],datasets:[{data:[list.length-low.length, low.length]}]}
   });
 }
 
 // PRODUTOS
 async function products(){
-  const {data} = await client.from('products').select('*');
+  const {data,error} = await client.from("products").select("*");
+
+  if(error){
+    content.innerHTML="Erro RLS";
+    return;
+  }
+
   const list = data || [];
 
   content.innerHTML = `
     <div class="card">
       <input id="name" placeholder="Produto">
       <input id="qty" type="number" placeholder="Qtd">
-      <button class="btn btn-primary" onclick="saveProduct()">Adicionar</button>
+      <button id="saveProduct" class="btn btn-primary">Salvar</button>
     </div>
 
-    <div class="card">
+    <div class="card list">
       ${list.map(p=>`
-        <div class="list-item">
-          <div>
-            <strong>${p.name}</strong><br>
-            <small>${p.quantity} unidades</small>
-          </div>
-
-          <div>
-            <span class="${p.quantity <= p.min_stock ? 'low':'ok'}">
-              ${p.quantity <= p.min_stock ? 'Baixo':'OK'}
-            </span>
-
-            ${profile.role==='admin'
-              ? `<button class="btn btn-danger" onclick="del('${p.id}')">X</button>`
-              : ''
-            }
-          </div>
+        <div class="item">
+          ${p.name} (${p.quantity})
+          <span class="${p.quantity<=p.min_stock?'low':'ok'}">
+            ${p.quantity<=p.min_stock?'BAIXO':'OK'}
+          </span>
+          ${profile.role==='admin'
+            ? `<button onclick="deleteProduct('${p.id}')" class="btn btn-danger">X</button>`
+            : ''
+          }
         </div>
-      `).join('')}
+      `).join("")}
     </div>
   `;
+
+  document.getElementById("saveProduct").onclick = saveProduct;
 }
 
 async function saveProduct(){
-  const {error} = await client.from('products').insert({
-    name:name.value,
-    quantity:parseInt(qty.value||0)
-  });
+  const name = document.getElementById("name").value;
+  const qty = parseInt(document.getElementById("qty").value || 0);
 
-  if(error) return alert("Erro ao salvar");
+  const {error} = await client.from("products").insert({name, quantity:qty});
+
+  if(error){
+    alert("Erro ao salvar");
+    return;
+  }
+
   products();
 }
 
-async function del(id){
-  if(profile.role !== 'admin') return alert("Sem permissão");
-
-  await client.from('products').delete().eq('id',id);
+window.deleteProduct = async function(id){
+  await client.from("products").delete().eq("id",id);
   products();
 }
 
 // MOVIMENTOS
 async function movements(){
-  const {data} = await client.from('products').select('*');
+  const {data} = await client.from("products").select("*");
   const list = data || [];
 
   content.innerHTML = `
     <div class="card">
       <select id="p">
-        ${list.map(p=>`<option value="${p.id}">${p.name}</option>`).join('')}
+        ${list.map(p=>`<option value="${p.id}">${p.name}</option>`).join("")}
       </select>
-
       <select id="t">
         <option value="in">Entrada</option>
         <option value="out">Saída</option>
       </select>
-
       <input id="q" type="number">
-      <button class="btn btn-primary" onclick="mov()">Salvar</button>
+      <button id="saveMov" class="btn btn-primary">Salvar</button>
     </div>
   `;
+
+  document.getElementById("saveMov").onclick = mov;
 }
 
 async function mov(){
-  const pid = p.value;
-  const qtyVal = parseInt(q.value||0);
+  const pid = document.getElementById("p").value;
+  const type = document.getElementById("t").value;
+  const qty = parseInt(document.getElementById("q").value || 0);
 
-  await client.from('stock_movements').insert({
+  await client.from("stock_movements").insert({
     product_id:pid,
-    quantity:qtyVal,
-    type:t.value
+    quantity:qty,
+    type:type
   });
 
-  const {data:prod} = await client.from('products')
-    .select('*').eq('id',pid).single();
+  const {data:prod} = await client.from("products")
+    .select("*").eq("id",pid).single();
 
-  let newQty = t.value==='in'
-    ? prod.quantity + qtyVal
-    : prod.quantity - qtyVal;
+  let newQty = type==="in" ? prod.quantity+qty : prod.quantity-qty;
 
-  await client.from('products')
-    .update({quantity:newQty})
-    .eq('id',pid);
+  await client.from("products").update({quantity:newQty}).eq("id",pid);
 
   alert("Movimentado");
 }
 
 // USERS
 async function users(){
-  if(profile.role !== 'admin'){
+  if(profile.role !== "admin"){
     content.innerHTML="Sem permissão";
     return;
   }
 
-  const {data} = await client.from('profiles').select('*');
+  const {data} = await client.from("profiles").select("*");
   const list = data || [];
 
   content.innerHTML = `
     <div class="card">
-      ${list.map(u=>`<div>${u.name} - ${u.role}</div>`).join('')}
+      ${list.map(u=>`<div>${u.name} - ${u.role}</div>`).join("")}
     </div>
   `;
 }
 
 // CHURCH
 async function church(){
-  const {data} = await client.from('churches')
-    .select('*').eq('id',profile.church_id).single();
+  const {data} = await client.from("churches")
+    .select("*")
+    .eq("id", profile.church_id)
+    .single();
 
   content.innerHTML = `
     <div class="card">
       <input id="cname" value="${data.name}">
-      <button class="btn btn-primary" onclick="saveChurch('${data.id}')">Salvar</button>
+      <button id="saveChurch" class="btn btn-primary">Salvar</button>
     </div>
   `;
-}
 
-async function saveChurch(id){
-  if(profile.role !== 'admin') return alert("Sem permissão");
+  document.getElementById("saveChurch").onclick = async ()=>{
+    await client.from("churches")
+      .update({name:document.getElementById("cname").value})
+      .eq("id", data.id);
 
-  await client.from('churches')
-    .update({name:cname.value})
-    .eq('id',id);
-
-  alert("Salvo");
+    alert("Salvo");
+  }
 }
 
 // LOGOUT
@@ -421,6 +321,7 @@ async function logout(){
   location.reload();
 }
 
+// AUTO INIT
 init();
 </script>
 
