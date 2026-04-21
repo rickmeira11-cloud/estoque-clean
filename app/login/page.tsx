@@ -1,19 +1,33 @@
 ﻿'use client'
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-export default function LoginPage() {
+import { Suspense } from 'react'
+
+function LoginForm() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (searchParams.get('motivo') === 'inativo') {
+      setError('Sua conta está inativa. Entre em contato com o administrador.')
+    }
+  }, [searchParams])
+
   async function handleLogin(e: React.FormEvent) {
-    e.preventDefault(); setLoading(true); setError(null)
-    const { error } = await createClient().auth.signInWithPassword({ email, password })
+    e.preventDefault()
+    setLoading(true)
+    setError(null)
+    const supabase = createClient()
+    const { error } = await supabase.auth.signInWithPassword({ email, password })
     if (error) { setError('E-mail ou senha incorretos.'); setLoading(false); return }
-    router.push('/dashboard'); router.refresh()
+    window.location.href = '/dashboard'
   }
+
   return (
     <div style={{minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center',background:'var(--bg)'}}>
       <div style={{position:'fixed',top:'20%',left:'50%',transform:'translateX(-50%)',width:'500px',height:'300px',background:'radial-gradient(ellipse,rgba(91,60,245,0.12) 0%,transparent 70%)',pointerEvents:'none'}}/>
@@ -31,5 +45,13 @@ export default function LoginPage() {
         </form>
       </div>
     </div>
+  )
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense>
+      <LoginForm />
+    </Suspense>
   )
 }

@@ -1,7 +1,14 @@
-﻿import { redirect } from 'next/navigation'
-import { createClient } from '@/lib/supabase/server'
-export default async function RootPage() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  redirect(user ? '/dashboard' : '/login')
+﻿'use client'
+import { useEffect } from 'react'
+import { useRouter } from 'next/navigation'
+import { createClient } from '@/lib/supabase/client'
+
+export default function RootPage() {
+  const router = useRouter()
+  useEffect(() => {
+    createClient().auth.getSession().then(({ data: { session } }) => {
+      router.replace(session ? '/dashboard' : '/login')
+    })
+  }, [])
+  return null
 }
