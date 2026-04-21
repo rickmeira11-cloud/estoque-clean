@@ -1,15 +1,24 @@
 ﻿'use client'
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import type { Church } from '@/types'
+
+type ChurchRow = {
+  id: string
+  name: string
+  slug: string | null
+  city: string | null
+  state: string | null
+  is_active: boolean
+  created_at: string
+  updated_at: string
+  _users?: number
+}
 
 const toSlug=(s:string)=>s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'')
 const blank={name:'',slug:'',city:'',state:''}
 
-type ChurchWithCount = Church & { _users: number }
-
 export default function IgrejasPage() {
-  const [churches,setChurches]=useState<ChurchWithCount[]>([])
+  const [churches,setChurches]=useState<ChurchRow[]>([])
   const [loading,setLoading]=useState(true)
   const [showForm,setShowForm]=useState(false)
   const [editId,setEditId]=useState<string|null>(null)
@@ -24,9 +33,10 @@ export default function IgrejasPage() {
     const sb=createClient()
     const {data}=await sb.from('churches').select('*').order('name')
     if(data){
-      const wc:ChurchWithCount[]=await Promise.all(data.map(async (c)=>{
-        const {count}=await sb.from('profiles').select('*',{count:'exact',head:true}).eq('church_id',c.id as string)
-        return{...c,slug:c.slug||'',is_active:c.is_active??true,updated_at:c.updated_at||c.created_at||'',_users:count||0} as ChurchWithCount
+      const rows = data as ChurchRow[]
+      const wc:ChurchRow[]=await Promise.all(rows.map(async (c:ChurchRow)=>{
+        const {count}=await sb.from('profiles').select('*',{count:'exact',head:true}).eq('church_id',c.id)
+        return{...c,_users:count||0}
       }))
       setChurches(wc)
     }
@@ -34,7 +44,7 @@ export default function IgrejasPage() {
   }
 
   function openNew(){setEditId(null);setForm(blank);setError(null);setShowForm(true)}
-  function openEdit(c:ChurchWithCount){setEditId(c.id);setForm({name:c.name,slug:c.slug||'',city:c.city||'',state:c.state||''});setError(null);setShowForm(true)}
+  function openEdit(c:ChurchRow){setEditId(c.id);setForm({name:c.name,slug:c.slug||'',city:c.city||'',state:c.state||''});setError(null);setShowForm(true)}
 
   async function save(){
     if(!form.name.trim()){setError('Nome obrigatório');return}
@@ -45,7 +55,7 @@ export default function IgrejasPage() {
     setSaving(false)
   }
 
-  async function toggleActive(c:ChurchWithCount){
+  async function toggleActive(c:ChurchRow){
     await createClient().from('churches').update({is_active:!c.is_active}).eq('id',c.id)
     await load()
   }
