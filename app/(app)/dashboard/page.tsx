@@ -38,13 +38,12 @@ export default function DashboardPage() {
   const empty    = products.filter(p=>p.quantity===0).length
   const total    = products.length
   const critical = products.filter(p=>p.quantity<=p.min_stock).sort((a,b)=>a.quantity-b.quantity).slice(0,5)
-  const hora     = new Date().getHours()
-  const greeting = hora<12?'Bom dia':hora<18?'Boa tarde':'Boa noite'
+  const firstName = profile?.name?.split(' ')[0] || ''
 
   if (loading) return (
     <div>
       <div style={{marginBottom:'24px'}}>
-        <div className="skeleton" style={{width:'220px',height:'26px',marginBottom:'8px'}}/>
+        <div className="skeleton" style={{width:'260px',height:'26px',marginBottom:'8px'}}/>
         <div className="skeleton" style={{width:'180px',height:'13px'}}/>
       </div>
       <div className="stats-grid" style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:'12px',marginBottom:'12px'}}>
@@ -62,7 +61,7 @@ export default function DashboardPage() {
       {/* Header */}
       <div style={{marginBottom:'22px'}}>
         <h1 style={{fontSize:'22px',fontWeight:'600',color:'var(--text-1)',letterSpacing:'-0.02em'}}>
-          {greeting}{profile?.name?`, ${profile.name.split(' ')[0]}`:''}.
+          Você está feliz{firstName ? `, ${firstName}` : ''}?
         </h1>
         <p style={{fontSize:'13px',color:'var(--text-3)',marginTop:'4px'}}>
           {profile?.church?.name} · {new Date().toLocaleDateString('pt-BR',{weekday:'long',day:'numeric',month:'long'})}
@@ -88,8 +87,6 @@ export default function DashboardPage() {
 
       {/* Grid inferior */}
       <div className="bottom-grid" style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'14px'}}>
-
-        {/* Críticos */}
         <div style={{background:'var(--bg-card)',border:'1px solid var(--border)',borderRadius:'var(--radius)',padding:'18px'}}>
           <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'14px'}}>
             <span style={{fontSize:'13px',fontWeight:'500',color:'var(--text-1)'}}>Atenção necessária</span>
@@ -112,7 +109,6 @@ export default function DashboardPage() {
           }
         </div>
 
-        {/* Movimentações */}
         <div style={{background:'var(--bg-card)',border:'1px solid var(--border)',borderRadius:'var(--radius)',padding:'18px'}}>
           <div style={{fontSize:'13px',fontWeight:'500',color:'var(--text-1)',marginBottom:'14px'}}>Últimas movimentações</div>
           {movements.length===0
@@ -120,12 +116,9 @@ export default function DashboardPage() {
             :movements.map((m:any)=>(
               <div key={m.id} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'9px 0',borderBottom:'1px solid var(--border)'}}>
                 <div style={{display:'flex',alignItems:'center',gap:'10px',minWidth:0}}>
-                  <div style={{
-                    width:'30px',height:'30px',borderRadius:'8px',flexShrink:0,
-                    display:'flex',alignItems:'center',justifyContent:'center',fontSize:'14px',
-                    background:m.type==='in'?'var(--ok-dim)':m.type==='out'?'var(--empty-dim)':'var(--info-dim)',
-                    color:m.type==='in'?'var(--ok)':m.type==='out'?'var(--empty)':'var(--info)',
-                  }}>{m.type==='in'?'↑':m.type==='out'?'↓':'⇄'}</div>
+                  <div style={{width:'30px',height:'30px',borderRadius:'8px',flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center',fontSize:'14px',background:m.type==='in'?'var(--ok-dim)':m.type==='out'?'var(--empty-dim)':'var(--info-dim)',color:m.type==='in'?'var(--ok)':m.type==='out'?'var(--empty)':'var(--info)'}}>
+                    {m.type==='in'?'↑':m.type==='out'?'↓':'⇄'}
+                  </div>
                   <div style={{minWidth:0}}>
                     <div style={{fontSize:'12px',fontWeight:'500',color:'var(--text-1)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{m.product?.name||'—'}</div>
                     <div style={{fontSize:'10px',color:'var(--text-3)',marginTop:'1px'}}>{new Date(m.created_at).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}</div>
