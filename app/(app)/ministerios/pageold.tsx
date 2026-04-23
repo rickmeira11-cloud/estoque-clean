@@ -22,7 +22,7 @@ function Avatar({ name, photo, size = 36 }: { name: string; photo: string | null
 }
 
 const blankMin = { name: '', description: '', meeting_schedule: '', location: '' }
-const blankMem = { name: '', role: 'membro' as MemberRole, phone: '', email: '', bio: '', photo_url: null as string | null }
+const blankMem = { name: '', role: 'membro' as MemberRole, phone: '', email: '', bio: '' }
 
 export default function MinisteriosAdminPage() {
   const { profile, isAdmin } = useProfile()
@@ -40,8 +40,6 @@ export default function MinisteriosAdminPage() {
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
   const photoRef = useRef<HTMLInputElement>(null)
-  const modalPhotoRef = useRef<HTMLInputElement>(null)
-  const [modalPhotoPreview, setModalPhotoPreview] = useState<string | null>(null)
 
   useEffect(() => { if (profile?.church_id) load() }, [profile?.church_id])
 
@@ -86,32 +84,18 @@ export default function MinisteriosAdminPage() {
   }
 
   // ── Membros ──
-  function openNewMem() { setEditMemId(null); setMemForm(blankMem); setModalPhotoPreview(null); setError(null); setShowMemForm(true) }
-  function openEditMem(mem: Member) { setEditMemId(mem.id); setMemForm({ name: mem.name, role: mem.role, phone: mem.phone || '', email: mem.email || '', bio: mem.bio || '', photo_url: mem.photo_url }); setModalPhotoPreview(mem.photo_url); setError(null); setShowMemForm(true) }
+  function openNewMem() { setEditMemId(null); setMemForm(blankMem); setError(null); setShowMemForm(true) }
+  function openEditMem(mem: Member) { setEditMemId(mem.id); setMemForm({ name: mem.name, role: mem.role, phone: mem.phone || '', email: mem.email || '', bio: mem.bio || '' }); setError(null); setShowMemForm(true) }
 
   async function saveMem() {
     if (!selected) return
     if (!memForm.name.trim()) { setError('Nome obrigatório'); return }
     setSaving(true); setError(null)
     const sb = createClient()
-    let photo_url = memForm.photo_url || null
-
-    // Upload de foto se selecionada no modal
-    const modalFile = modalPhotoRef.current?.files?.[0]
-    if (modalFile) {
-      const ext = modalFile.name.split('.').pop()
-      const tempId = editMemId || crypto.randomUUID()
-      const path = `${profile!.church_id}/${tempId}.${ext}`
-      const { error: upErr } = await sb.storage.from('ministry-photos').upload(path, modalFile, { upsert: true })
-      if (upErr) { setError('Erro no upload: ' + upErr.message); setSaving(false); return }
-      const { data: urlData } = sb.storage.from('ministry-photos').getPublicUrl(path)
-      photo_url = urlData.publicUrl
-    }
-
-    const payload = { ministry_id: selected.id, church_id: profile!.church_id, name: memForm.name.trim(), role: memForm.role, phone: memForm.phone || null, email: memForm.email || null, bio: memForm.bio || null, photo_url }
+    const payload = { ministry_id: selected.id, church_id: profile!.church_id, name: memForm.name.trim(), role: memForm.role, phone: memForm.phone || null, email: memForm.email || null, bio: memForm.bio || null }
     const { error: err } = editMemId ? await sb.from('ministry_members').update(payload).eq('id', editMemId) : await sb.from('ministry_members').insert(payload)
     if (err) setError(err.message)
-    else { setShowMemForm(false); setModalPhotoPreview(null); await load(); flash(editMemId ? 'Membro atualizado!' : 'Membro adicionado!') }
+    else { setShowMemForm(false); await load(); flash(editMemId ? 'Membro atualizado!' : 'Membro adicionado!') }
     setSaving(false)
   }
 
@@ -295,31 +279,6 @@ export default function MinisteriosAdminPage() {
           <div className="fade-up" style={{ background: 'var(--bg-2)', border: '1px solid var(--border-md)', borderRadius: '16px', padding: '28px', width: '100%', maxWidth: '440px' }}>
             <h2 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '20px' }}>{editMemId ? 'Editar' : 'Adicionar'} membro</h2>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              {/* Avatar com preview e clique para upload */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '4px' }}>
-                <div style={{ position: 'relative', cursor: 'pointer' }} onClick={() => modalPhotoRef.current?.click()}>
-                  <div style={{ width: '64px', height: '64px', borderRadius: '50%', overflow: 'hidden', border: '2px solid var(--border-md)', background: 'var(--bg-3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '22px', fontWeight: 600, color: '#fff' }}
-                    style={{ background: modalPhotoPreview ? 'transparent' : '#6366f1' }}>
-                    {modalPhotoPreview
-                      ? <img src={modalPhotoPreview} alt="foto" style={{ width: '100%', height: '100%', objectFit: 'cover' }}/>
-                      : (memForm.name.charAt(0).toUpperCase() || '?')
-                    }
-                  </div>
-                  <div style={{ position: 'absolute', bottom: 0, right: 0, width: '22px', height: '22px', background: 'var(--brand)', borderRadius: '50%', border: '2px solid var(--bg-2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
-                  </div>
-                </div>
-                <div>
-                  <div style={{ fontSize: '13px', fontWeight: '500', color: 'var(--text-1)' }}>Foto do membro</div>
-                  <div style={{ fontSize: '11px', color: 'var(--text-3)', marginTop: '2px' }}>Clique no avatar para selecionar</div>
-                  <input ref={modalPhotoRef} type="file" accept="image/*" style={{ display: 'none' }}
-                    onChange={e => {
-                      const file = e.target.files?.[0]
-                      if (file) setModalPhotoPreview(URL.createObjectURL(file))
-                    }}
-                  />
-                </div>
-              </div>
               <div><label style={L}>Nome *</label><input value={memForm.name} onChange={e => setMemForm(f => ({ ...f, name: e.target.value }))} placeholder="Nome completo"/></div>
               <div>
                 <label style={L}>Papel no ministério</label>
