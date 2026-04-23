@@ -21,7 +21,7 @@ type Ministry = {
   members: Member[]
 }
 
-const ROLE_LABEL = { lider: 'Líder', lider_assistente: 'Líder de Equipe', membro: 'Membro' }
+const ROLE_LABEL = { lider: 'LÃ­der', lider_assistente: 'LÃ­der de Equipe', membro: 'Membro' }
 const ROLE_ORDER = { lider: 0, lider_assistente: 1, membro: 2 }
 
 const COLORS = [
@@ -105,7 +105,7 @@ export default function MinisteriosPublicPage() {
 
   return (
     <div style={{ minHeight: '100vh', background: '#09090b', color: '#fafafa', fontFamily: 'system-ui, sans-serif' }}>
-      {/* Header público */}
+      {/* Header pÃºblico */}
       <div style={{ borderBottom: '1px solid rgba(255,255,255,0.06)', background: 'rgba(17,17,19,0.9)', backdropFilter: 'blur(20px)', position: 'sticky', top: 0, zIndex: 40 }}>
         <div style={{ maxWidth: '1000px', margin: '0 auto', padding: '0 20px', height: '56px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -114,25 +114,15 @@ export default function MinisteriosPublicPage() {
             </div>
             <div>
               <div style={{ fontSize: '13px', fontWeight: '600', color: '#fafafa', lineHeight: 1 }}>Poiema</div>
-              <div style={{ fontSize: '10px', color: '#52525b', marginTop: '2px' }}>Ministérios</div>
+              <div style={{ fontSize: '10px', color: '#52525b', marginTop: '2px' }}>MinistÃ©rios</div>
             </div>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <input
-              placeholder="Buscar ministério..."
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              style={{ maxWidth: '200px', padding: '7px 12px', fontSize: '13px', background: '#18181b', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px', color: '#fafafa', outline: 'none' }}
-            />
-            <a href="/dashboard" style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '7px 12px', background: '#18181b', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px', fontSize: '12px', color: '#a1a1aa', textDecoration: 'none', whiteSpace: 'nowrap', transition: 'border-color 0.15s' }}
-              onMouseEnter={e => (e.currentTarget.style.borderColor = 'rgba(99,102,241,0.5)')}
-              onMouseLeave={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)')}>
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
-              </svg>
-              Voltar ao app
-            </a>
-          </div>
+          <input
+            placeholder="Buscar ministÃ©rio..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            style={{ maxWidth: '240px', padding: '7px 12px', fontSize: '13px', background: '#18181b', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px', color: '#fafafa', outline: 'none' }}
+          />
         </div>
       </div>
 
@@ -140,10 +130,10 @@ export default function MinisteriosPublicPage() {
         {/* Hero */}
         <div style={{ marginBottom: '28px', textAlign: 'center' }}>
           <h1 style={{ fontSize: '26px', fontWeight: '700', color: '#fafafa', letterSpacing: '-0.02em', margin: 0 }}>
-            Ministérios
+            MinistÃ©rios
           </h1>
           <p style={{ fontSize: '14px', color: '#52525b', marginTop: '6px' }}>
-            Conheça as pessoas que servem na Poiema Blumenau
+            ConheÃ§a as pessoas que servem na Poiema Blumenau
           </p>
         </div>
 
@@ -155,7 +145,7 @@ export default function MinisteriosPublicPage() {
           </div>
         ) : filtered.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '60px 0', color: '#52525b', fontSize: '14px' }}>
-            Nenhum ministério encontrado.
+            Nenhum ministÃ©rio encontrado.
           </div>
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px,1fr))', gap: '16px' }}>
@@ -190,7 +180,7 @@ export default function MinisteriosPublicPage() {
                     </div>
                   )}
 
-                  {/* Membros — fotos circulares */}
+                  {/* Membros â€” fotos circulares */}
                   {m.members.length === 0 ? (
                     <div style={{ fontSize: '12px', color: '#52525b' }}>Nenhum membro cadastrado</div>
                   ) : (
@@ -224,14 +214,14 @@ export default function MinisteriosPublicPage() {
         )}
       </div>
 
-      {/* Modal de detalhe do ministério */}
+      {/* Modal de detalhe do ministÃ©rio */}
       {selected && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: '20px' }}
           onClick={e => e.target === e.currentTarget && setSelected(null)}>
           <div style={{ background: '#111113', border: '1px solid rgba(255,255,255,0.10)', borderRadius: '16px', width: '100%', maxWidth: '560px', maxHeight: '85vh', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
             {/* Cover do modal */}
             <div style={{ height: '100px', background: selected.cover_image_url ? `url(${selected.cover_image_url}) center/cover` : 'linear-gradient(135deg, #1a1a2e 0%, #16213e 60%, #0f3460 100%)', position: 'relative', flexShrink: 0 }}>
-              <button onClick={() => setSelected(null)} style={{ position: 'absolute', top: '12px', right: '12px', width: '30px', height: '30px', borderRadius: '50%', background: 'rgba(0,0,0,0.5)', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px' }}>✕</button>
+              <button onClick={() => setSelected(null)} style={{ position: 'absolute', top: '12px', right: '12px', width: '30px', height: '30px', borderRadius: '50%', background: 'rgba(0,0,0,0.5)', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px' }}>âœ•</button>
               <div style={{ position: 'absolute', bottom: '12px', left: '16px' }}>
                 <div style={{ fontSize: '18px', fontWeight: '700', color: '#fff', textShadow: '0 1px 6px rgba(0,0,0,0.7)' }}>{selected.name}</div>
               </div>
@@ -260,10 +250,10 @@ export default function MinisteriosPublicPage() {
                 <p style={{ fontSize: '13px', color: '#a1a1aa', lineHeight: '1.6', marginBottom: '18px' }}>{selected.description}</p>
               )}
 
-              {/* Líderes */}
+              {/* LÃ­deres */}
               {selected.members.filter(m => m.role === 'lider' || m.role === 'lider_assistente').length > 0 && (
                 <div style={{ marginBottom: '18px' }}>
-                  <div style={{ fontSize: '10px', fontWeight: '600', color: '#52525b', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '10px' }}>Liderança</div>
+                  <div style={{ fontSize: '10px', fontWeight: '600', color: '#52525b', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '10px' }}>LideranÃ§a</div>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px' }}>
                     {selected.members.filter(m => m.role === 'lider' || m.role === 'lider_assistente').map(mem => (
                       <div key={mem.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.2)', borderRadius: '10px', padding: '10px 14px', flex: '1', minWidth: '180px' }}>
@@ -304,3 +294,4 @@ export default function MinisteriosPublicPage() {
     </div>
   )
 }
+
