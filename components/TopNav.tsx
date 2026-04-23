@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname } from 'next/navigation'
@@ -13,12 +13,12 @@ const NAV = [
   { href:'/movimentacoes', label:'Movimentação',   icon:'M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4' },
   { href:'/historico',     label:'Histórico',    icon:'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z' },
   { href:'/relatorios',    label:'Relatórios',   icon:'M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z' },
-  { href:'/mural',         label:'Mural',        icon:'M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75M9 7a4 4 0 110 8 4 4 0 010-8z' },
+  { href:'/mural',         label:'Ministério',  icon:'M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75M9 7a4 4 0 110 8 4 4 0 010-8z' },
 ]
 
-const NAV_Cadastro = [
+const NAV_CADASTROS = [
   { href:'/admin/igrejas',   label:'Igreja',      icon:'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-2 10v-5a1 1 0 00-1-1h-2a1 1 0 00-1 1v5m4 0H9' },
-  { href:'/ministerios', label:'Ministério', icon:'M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75M9 7a4 4 0 110 8 4 4 0 010-8z' },
+  { href:'/ministerios',     label:'Ministério',  icon:'M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75M9 7a4 4 0 110 8 4 4 0 010-8z' },
   { href:'/admin/usuarios',  label:'Usuário',     icon:'M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z' },
 ]
 
@@ -59,11 +59,11 @@ export function TopNav() {
   const [menuOpen,     setMenuOpen]     = useState(false)
   const [userOpen,     setUserOpen]     = useState(false)
   const [alertOpen,    setAlertOpen]    = useState(false)
-  const [CadastroOpen,setCadastroOpen] = useState(false)
+  const [cadastrosOpen,setCadastroOpen] = useState(false)
   const menuRef     = useRef<HTMLDivElement>(null)
   const userRef     = useRef<HTMLDivElement>(null)
   const alertRef    = useRef<HTMLDivElement>(null)
-  const CadastroRef = useRef<HTMLDivElement>(null)
+  const cadastrosRef = useRef<HTMLDivElement>(null)
 
   async function logout() {
     await createClient().auth.signOut()
@@ -75,7 +75,7 @@ export function TopNav() {
       if (menuRef.current      && !menuRef.current.contains(e.target as Node))      setMenuOpen(false)
       if (userRef.current      && !userRef.current.contains(e.target as Node))      setUserOpen(false)
       if (alertRef.current     && !alertRef.current.contains(e.target as Node))     setAlertOpen(false)
-      if (CadastroRef.current && !CadastroRef.current.contains(e.target as Node)) setCadastroOpen(false)
+      if (cadastrosRef.current && !cadastrosRef.current.contains(e.target as Node)) setCadastroOpen(false)
     }
     document.addEventListener('mousedown', handleClick)
     return () => document.removeEventListener('mousedown', handleClick)
@@ -83,11 +83,11 @@ export function TopNav() {
 
   useEffect(() => { setMenuOpen(false); setAlertOpen(false); setCadastroOpen(false) }, [pathname])
 
-  const allNav = [...NAV, ...(isAdmin ? NAV_Cadastro : [])]
+  const allNav = [...NAV, ...(isAdmin ? NAV_CADASTROS : [])]
   const currentPage = allNav.find(n => pathname === n.href || (n.href !== '/dashboard' && pathname.startsWith(n.href)))
   const active = (href: string) => pathname === href || (href !== '/dashboard' && pathname.startsWith(href))
   const churchName = profile?.church?.name || ''
-  const isCadastroActive = NAV_Cadastro.some(n => active(n.href))
+  const isCadastroActive = NAV_CADASTROS.some(n => active(n.href))
 
   return (
     <header style={{position:'fixed',top:0,left:0,right:0,zIndex:50,height:'var(--topbar-h)',background:'rgba(17,17,19,0.92)',backdropFilter:'blur(20px)',borderBottom:'1px solid var(--border)'}}>
@@ -99,9 +99,13 @@ export function TopNav() {
             <Image src="/logo.png" alt="Poiema" width={20} height={20} style={{objectFit:'contain',filter:'brightness(0) invert(1) opacity(0.85)'}}/>
           </div>
           <div>
-            <div>
-  <span style={{fontSize:'13px',fontWeight:'600',color:'var(--brand-light)',lineHeight:1}}>{churchName}</span>
-</div>
+            <div style={{display:'flex',alignItems:'center',gap:'6px'}}>
+              <span style={{fontSize:'13px',fontWeight:'600',color:'var(--text-1)',lineHeight:1,letterSpacing:'-0.01em'}}>Poiema</span>
+              {churchName && (
+                <>
+                  <span style={{fontSize:'13px',color:'var(--text-3)'}}>·</span>
+                  <span style={{fontSize:'13px',fontWeight:'500',color:'var(--brand-light)',lineHeight:1}}>{churchName}</span>
+                </>
               )}
             </div>
             <div style={{fontSize:'10px',color:'var(--text-3)',marginTop:'3px'}}>Gestão de Estoque</div>
@@ -114,13 +118,13 @@ export function TopNav() {
 
           {/* Menu Cadastro */}
           {isAdmin && (
-            <div ref={CadastroRef} style={{position:'relative',flexShrink:0}}>
+            <div ref={cadastrosRef} style={{position:'relative',flexShrink:0}}>
               <button onClick={() => setCadastroOpen(o => !o)} style={{
                 display:'flex', alignItems:'center', gap:'6px',
                 padding:'6px 12px', borderRadius:'var(--radius-sm)',
                 fontSize:'13px', fontWeight: isCadastroActive ? '500' : '400',
                 color: isCadastroActive ? 'var(--text-1)' : 'var(--text-2)',
-                background: isCadastroActive || CadastroOpen ? 'var(--bg-3)' : 'transparent',
+                background: isCadastroActive || cadastrosOpen ? 'var(--bg-3)' : 'transparent',
                 border: isCadastroActive ? '1px solid var(--border-md)' : '1px solid transparent',
                 cursor:'pointer', transition:'all 0.15s', whiteSpace:'nowrap',
               }}>
@@ -130,18 +134,18 @@ export function TopNav() {
                   </svg>
                 </span>
                 Cadastro
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{transition:'transform 0.15s',transform: CadastroOpen ? 'rotate(180deg)' : 'rotate(0deg)'}}>
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{transition:'transform 0.15s',transform: cadastrosOpen ? 'rotate(180deg)' : 'rotate(0deg)'}}>
                   <path d="M19 9l-7 7-7-7"/>
                 </svg>
                 {isCadastroActive && <span style={{width:'4px',height:'4px',borderRadius:'50%',background:'var(--brand-light)',marginLeft:'2px'}}/>}
               </button>
 
-              {CadastroOpen && (
+              {cadastrosOpen && (
                 <div className="slide-down" style={{position:'absolute',top:'calc(100% + 8px)',left:0,background:'var(--bg-2)',border:'1px solid var(--border-md)',borderRadius:'var(--radius)',minWidth:'200px',overflow:'hidden',zIndex:100}}>
                   <div style={{padding:'8px 10px 4px',fontSize:'10px',fontWeight:'600',color:'var(--text-3)',textTransform:'uppercase',letterSpacing:'0.06em'}}>
                     Cadastro
                   </div>
-                  {NAV_Cadastro.map(n => {
+                  {NAV_CADASTROS.map(n => {
                     const act = active(n.href)
                     return (
                       <Link key={n.href} href={n.href} style={{display:'flex',alignItems:'center',gap:'10px',padding:'10px 14px',textDecoration:'none',fontSize:'13px',color:act?'var(--text-1)':'var(--text-2)',background:act?'rgba(99,102,241,0.08)':'transparent',transition:'background 0.1s'}}
@@ -294,7 +298,7 @@ export function TopNav() {
                     <div style={{padding:'8px 14px 4px',fontSize:'10px',fontWeight:'600',color:'var(--text-3)',textTransform:'uppercase',letterSpacing:'0.06em',borderBottom:'1px solid var(--border)'}}>
                       Cadastro
                     </div>
-                    {NAV_Cadastro.map(n => {
+                    {NAV_CADASTROS.map(n => {
                       const act = active(n.href)
                       return (
                         <Link key={n.href} href={n.href} style={{display:'flex',alignItems:'center',gap:'10px',padding:'11px 14px',textDecoration:'none',fontSize:'13px',color:act?'var(--text-1)':'var(--text-2)',background:act?'rgba(99,102,241,0.08)':'transparent',borderBottom:'1px solid var(--border)',transition:'background 0.1s'}}>
@@ -322,5 +326,3 @@ export function TopNav() {
     </header>
   )
 }
-
-
