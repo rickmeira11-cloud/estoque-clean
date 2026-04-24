@@ -6,24 +6,25 @@ import type { Product } from '@/types'
 
 type MovType = 'in' | 'out' | 'adjustment'
 const CFG = {
-  in:         { label:'Entrada',   color:'var(--ok)',    icon:'↑', desc:'Adicionar ao estoque' },
-  out:        { label:'Saída',     color:'var(--empty)', icon:'↓', desc:'Retirar do estoque' },
-  adjustment: { label:'Ajuste',   color:'var(--info)',  icon:'⇄', desc:'Corrigir quantidade' },
+  in:         { label:'Entrada',  color:'var(--ok)',    icon:'↑', desc:'Adicionar ao estoque' },
+  out:        { label:'Saída',    color:'var(--empty)', icon:'↓', desc:'Retirar do estoque' },
+  adjustment: { label:'Ajuste',  color:'var(--info)',  icon:'⇄', desc:'Corrigir quantidade' },
 }
 
 export default function MovimentacoesPage() {
   const { profile } = useProfile()
-  const [products,   setProducts]   = useState<Product[]>([])
-  const [search,     setSearch]     = useState('')
-  const [selected,   setSelected]   = useState<Product | null>(null)
-  const [type,       setType]       = useState<MovType>('in')
-  const [qty,        setQty]        = useState('')
-  const [note,       setNote]       = useState('')
-  const [locationId, setLocationId] = useState('')
-  const [locations,  setLocations]  = useState<{id:string,name:string}[]>([])
-  const [saving,     setSaving]     = useState(false)
-  const [success,    setSuccess]    = useState(false)
-  const [error,      setError]      = useState<string | null>(null)
+  const [products,       setProducts]       = useState<Product[]>([])
+  const [search,         setSearch]         = useState('')
+  const [selected,       setSelected]       = useState<Product | null>(null)
+  const [type,           setType]           = useState<MovType>('in')
+  const [qty,            setQty]            = useState('')
+  const [note,           setNote]           = useState('')
+  const [locationId,     setLocationId]     = useState('')
+  const [destLocationId, setDestLocationId] = useState('')
+  const [locations,      setLocations]      = useState<{id:string,name:string}[]>([])
+  const [saving,         setSaving]         = useState(false)
+  const [success,        setSuccess]        = useState(false)
+  const [error,          setError]          = useState<string | null>(null)
 
   useEffect(() => {
     if (!profile?.church_id) return
@@ -51,21 +52,25 @@ export default function MovimentacoesPage() {
     if (!selected || !qty) return
     const n = parseInt(qty)
     if (isNaN(n) || n <= 0) { setError('Quantidade inválida'); return }
+    if (type === 'out' && destLocationId && destLocationId === locationId) {
+      setError('Depósito de origem e destino não podem ser iguais'); return
+    }
     setSaving(true); setError(null)
     const { error: err } = await createClient()
       .from('stock_movements')
       .insert({
-        church_id:   profile!.church_id,
-        product_id:  selected.id,
-        user_id:     profile!.id,
+        church_id:               profile!.church_id,
+        product_id:              selected.id,
+        user_id:                 profile!.id,
         type,
-        quantity:    n,
-        note:        note || null,
-        location_id: locationId || null,
+        quantity:                n,
+        note:                    note || null,
+        location_id:             locationId || null,
+        destination_location_id: type === 'out' ? (destLocationId || null) : null,
       })
     if (err) { setError(err.message); setSaving(false); return }
     setSuccess(true)
-    setQty(''); setNote(''); setLocationId('')
+    setQty(''); setNote(''); setLocationId(''); setDestLocationId('')
     setSelected(null); setSearch('')
     await load()
     setSaving(false)
@@ -84,6 +89,8 @@ export default function MovimentacoesPage() {
       : parseInt(qty)
     : null
 
+  const isTransfer = type === 'out' && !!destLocationId
+
   const L = { display: 'block' as const, fontSize: '11px', color: 'var(--text-3)', marginBottom: '6px' }
 
   return (
@@ -95,7 +102,8 @@ export default function MovimentacoesPage() {
 
       {success && (
         <div className="fade-up" style={{ marginBottom: '16px', padding: '12px 16px', borderRadius: '10px', background: 'var(--ok-dim)', border: '1px solid rgba(34,197,94,0.2)', fontSize: '13px', color: 'var(--ok)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span style={{ fontSize: '16px' }}>✓</span> Movimentação registrada com sucesso!
+          <span style={{ fontSize: '16px' }}>✓</span>
+          {isTransfer ? 'Transferência registrada com sucesso!' : 'Movimentação registrada com sucesso!'}
         </div>
       )}
 
@@ -152,7 +160,9 @@ export default function MovimentacoesPage() {
               {/* Produto selecionado */}
               <div style={{ padding: '10px 12px', borderRadius: 'var(--radius-sm)', background: 'var(--bg-3)', border: '1px solid var(--border-md)', marginBottom: '16px' }}>
                 <div style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-1)' }}>{selected.name}</div>
-                <div style={{ fontSize: '11px', color: 'var(--text-3)', marginTop: '2px' }}>Estoque atual: <strong style={{ color: 'var(--text-1)' }}>{selected.quantity}</strong> {selected.unit || 'un'}</div>
+                <div style={{ fontSize: '11px', color: 'var(--text-3)', marginTop: '2px' }}>
+                  Estoque atual: <strong style={{ color: 'var(--text-1)' }}>{selected.quantity}</strong> {selected.unit || 'un'}
+                </div>
               </div>
 
               {/* Tipo */}
@@ -160,7 +170,7 @@ export default function MovimentacoesPage() {
                 <label style={L}>Tipo de movimentação</label>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '6px' }}>
                   {(Object.entries(CFG) as [MovType, typeof CFG.in][]).map(([k, v]) => (
-                    <button key={k} onClick={() => setType(k)} style={{
+                    <button key={k} onClick={() => { setType(k); setDestLocationId('') }} style={{
                       padding: '8px 6px', borderRadius: 'var(--radius-sm)', cursor: 'pointer',
                       background: type === k ? `${v.color}1a` : 'var(--bg-3)',
                       border: `1px solid ${type === k ? v.color : 'var(--border)'}`,
@@ -191,14 +201,39 @@ export default function MovimentacoesPage() {
                 )}
               </div>
 
-              {/* Depósito */}
+              {/* Depósito origem */}
               <div style={{ marginBottom: '16px' }}>
-                <label style={L}>Depósito <span style={{ fontWeight: '400' }}>(opcional)</span></label>
+                <label style={L}>
+                  {type === 'out' ? 'Depósito de origem' : 'Depósito'}
+                  <span style={{ fontWeight: '400' }}> (opcional)</span>
+                </label>
                 <select value={locationId} onChange={e => setLocationId(e.target.value)}>
                   <option value="">Sem depósito específico</option>
                   {locations.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
                 </select>
               </div>
+
+              {/* Depósito destino — só para saída */}
+              {type === 'out' && (
+                <div style={{ marginBottom: '16px' }}>
+                  <label style={L}>
+                    Depósito de destino
+                    <span style={{ fontWeight: '400' }}> (opcional — para transferência)</span>
+                  </label>
+                  <select value={destLocationId} onChange={e => setDestLocationId(e.target.value)}>
+                    <option value="">Saída definitiva</option>
+                    {locations.filter(l => l.id !== locationId).map(l => (
+                      <option key={l.id} value={l.id}>{l.name}</option>
+                    ))}
+                  </select>
+                  {destLocationId && (
+                    <div style={{ marginTop: '6px', fontSize: '11px', color: 'var(--info)', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                      Transferência: {locations.find(l=>l.id===locationId)?.name||'Origem'} → {locations.find(l=>l.id===destLocationId)?.name}
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Observação */}
               <div style={{ marginBottom: '16px' }}>
@@ -211,12 +246,13 @@ export default function MovimentacoesPage() {
               )}
 
               <button onClick={handleSubmit} disabled={saving || !qty} style={{
-                width: '100%', padding: '11px', background: saving || !qty ? 'var(--bg-3)' : CFG[type].color,
+                width: '100%', padding: '11px',
+                background: saving || !qty ? 'var(--bg-3)' : isTransfer ? 'var(--info)' : CFG[type].color,
                 color: saving || !qty ? 'var(--text-3)' : '#fff',
                 border: 'none', borderRadius: 'var(--radius-sm)', fontSize: '14px', fontWeight: '600',
                 cursor: saving || !qty ? 'not-allowed' : 'pointer', transition: 'all 0.15s',
               }}>
-                {saving ? 'Registrando...' : `Registrar ${CFG[type].label}`}
+                {saving ? 'Registrando...' : isTransfer ? `Transferir para ${locations.find(l=>l.id===destLocationId)?.name}` : `Registrar ${CFG[type].label}`}
               </button>
             </>
           )}
