@@ -82,12 +82,6 @@ export default function MovimentacoesPage() {
     </div>
 <div>
   <label style={{display:'block',fontSize:'12px',color:'var(--text-2)',marginBottom:'6px',fontWeight:'500'}}>
-    Depósito <span style={{color:'var(--text-3)',fontWeight:'400'}}>(opcional)</span>
-  </label>
-  <select value={locationId} onChange={e => setLocationId(e.target.value)}>
-    <option value="">Sem depósito específico</option>
-    {locations.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
-  </select>
 </div>
   )
 }
