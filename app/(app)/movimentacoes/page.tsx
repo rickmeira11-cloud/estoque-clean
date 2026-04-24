@@ -13,6 +13,8 @@ export default function MovimentacoesPage() {
   const [type,setType]=useState<MovType>('in')
   const [qty,setQty]=useState('')
   const [note,setNote]=useState('')
+  const [locationId,setLocationId]=useState('')
+  const [locations,setLocations]=useState([])
   const [saving,setSaving]=useState(false)
   const [success,setSuccess]=useState(false)
   const [error,setError]=useState<string|null>(null)
@@ -23,9 +25,9 @@ export default function MovimentacoesPage() {
     const n=parseInt(qty)
     if(type==='out'&&n>selected.quantity){setError(`Estoque insuficiente. Disponível: ${selected.quantity}`);return}
     setSaving(true);setError(null)
-    const {error:err}=await createClient().from('stock_movements').insert({church_id:profile!.church_id,product_id:selected.id,user_id:profile!.id,type,quantity:n,note:note||null})
+    const {error:err}=await createClient().from('stock_movements').insert({church_id:profile!.church_id,product_id:selected.id,user_id:profile!.id,type,quantity:n,note:note||null,location_id:locationId||null})
     if(err){setError(err.message);setSaving(false);return}
-    setSuccess(true);setQty('');setNote('');setSelected(null);setSearch('');await load()
+    setSuccess(true);setQty('');setNote('');setLocationId('');setSelected(null);setSearch('');await load()
     setTimeout(()=>setSuccess(false),3500);setSaving(false)
   }
   const filtered=products.filter(p=>!search||p.name.toLowerCase().includes(search.toLowerCase())||(p.category||'').toLowerCase().includes(search.toLowerCase()))
@@ -72,11 +74,20 @@ export default function MovimentacoesPage() {
             {preview<0&&<div style={{fontSize:'11px',color:'var(--empty)'}}>Insuficiente</div>}
           </div>)}
         </div>
-        <div style={{marginBottom:'18px'}}><label style={{display:'block',fontSize:'11px',color:'var(--text-3)',marginBottom:'6px'}}>Observação (opcional)</label><input value={note} onChange={e=>setNote(e.target.value)} placeholder="Ex: Doação recebida, consumido no evento..."/></div>
+        <div style={{marginBottom:'18px'}}><label style={{display:'block',fontSize:'11px',color:'var(--text-3)',marginBottom:'6px'}}>Depósito <span style={{fontWeight:'400'}}>(opcional)</span></label><select value={locationId} onChange={e=>setLocationId(e.target.value)} style={{marginBottom:'18px'}}><option value=''>Sem depósito específico</option>{locations.map((l)=><option key={l.id} value={l.id}>{l.name}</option>)}</select></div><div style={{marginBottom:'18px'}}><label style={{display:'block',fontSize:'11px',color:'var(--text-3)',marginBottom:'6px'}}>Observação (opcional)</label><input value={note} onChange={e=>setNote(e.target.value)} placeholder="Ex: Doação recebida, consumido no evento..."/></div>
         <button onClick={submit} disabled={saving||!selected||!qty||parseInt(qty)<=0} style={{width:'100%',padding:'12px',background:(!selected||!qty)?'var(--bg-3)':CFG[type].color,color:'#fff',border:'none',borderRadius:'8px',fontSize:'14px',fontWeight:'600',cursor:(!selected||!qty||saving)?'not-allowed':'pointer',opacity:saving?0.7:1,transition:'all 0.15s'}}>
           {saving?'Registrando...':`Registrar ${CFG[type].label}`}
         </button>
       </div>
     </div>
+<div>
+  <label style={{display:'block',fontSize:'12px',color:'var(--text-2)',marginBottom:'6px',fontWeight:'500'}}>
+    Depósito <span style={{color:'var(--text-3)',fontWeight:'400'}}>(opcional)</span>
+  </label>
+  <select value={locationId} onChange={e => setLocationId(e.target.value)}>
+    <option value="">Sem depósito específico</option>
+    {locations.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
+  </select>
+</div>
   )
 }
