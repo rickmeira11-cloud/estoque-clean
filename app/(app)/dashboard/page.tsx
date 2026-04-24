@@ -2,56 +2,162 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useProfile } from '@/hooks/useProfile'
+import {
+  LineChart, Line, BarChart, Bar, PieChart, Pie, Cell,
+  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
+} from 'recharts'
 import type { Product } from '@/types'
 
-function Card({label,value,color,sub}:{label:string;value:number;color:string;sub?:string}) {
+// ── tipos ──────────────────────────────────────────────────────
+type Movement = {
+  id: string; type: string; quantity: number; created_at: string
+  product: { name: string; category: string | null } | null
+  location: { name: string } | null
+}
+
+// ── helpers ────────────────────────────────────────────────────
+function weekLabel(date: Date) {
+  return date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })
+}
+function startOf3Months() {
+  const d = new Date(); d.setMonth(d.getMonth() - 3); d.setHours(0,0,0,0); return d
+}
+
+const COLORS = ['#6366f1','#22c55e','#f59e0b','#ef4444','#a78bfa','#34d399','#fb923c','#60a5fa']
+
+function Card({ label, value, sub, color, icon }: { label:string; value:string|number; sub?:string; color:string; icon:string }) {
   return (
-    <div style={{background:'var(--bg-card)',border:'1px solid var(--border)',borderRadius:'var(--radius)',padding:'18px 20px',borderTop:`2px solid ${color}`}}>
-      <div style={{fontSize:'10px',color:'var(--text-3)',textTransform:'uppercase',letterSpacing:'0.06em',marginBottom:'10px',fontWeight:'600'}}>{label}</div>
-      <div style={{fontSize:'28px',fontWeight:'700',color:'var(--text-1)',lineHeight:1,fontFamily:'var(--font-mono)'}}>{value}</div>
-      {sub&&<div style={{fontSize:'11px',color:'var(--text-3)',marginTop:'6px'}}>{sub}</div>}
+    <div style={{ background:'var(--bg-card)', border:'1px solid var(--border)', borderRadius:'var(--radius)', padding:'16px 20px', borderTop:`2px solid ${color}` }}>
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:'10px' }}>
+        <div style={{ fontSize:'10px', color:'var(--text-3)', textTransform:'uppercase', letterSpacing:'0.06em', fontWeight:'600' }}>{label}</div>
+        <div style={{ fontSize:'18px' }}>{icon}</div>
+      </div>
+      <div style={{ fontSize:'26px', fontWeight:'700', color:'var(--text-1)', lineHeight:1, fontFamily:'var(--font-mono)' }}>{value}</div>
+      {sub && <div style={{ fontSize:'11px', color:'var(--text-3)', marginTop:'5px' }}>{sub}</div>}
     </div>
   )
 }
 
+const tooltipStyle = { background:'var(--bg-2)', border:'1px solid var(--border-md)', borderRadius:'8px', fontSize:'12px', color:'var(--text-1)' }
+
 export default function DashboardPage() {
   const { profile } = useProfile()
-  const [products,  setProducts]  = useState<Product[]>([])
-  const [movements, setMovements] = useState<any[]>([])
-  const [loading,   setLoading]   = useState(true)
+  const [products,   setProducts]   = useState<Product[]>([])
+  const [movements,  setMovements]  = useState<Movement[]>([])
+  const [loading,    setLoading]    = useState(true)
+  const [period,     setPeriod]     = useState<'7d'|'30d'|'90d'>('90d')
 
   useEffect(() => {
     if (!profile?.church_id) return
-    const sb = createClient()
-    Promise.all([
-      sb.from('products').select('id,name,quantity,min_stock,category').eq('church_id',profile.church_id).eq('is_active',true),
-      sb.from('stock_movements').select('id,type,quantity,created_at,product:products(name)').eq('church_id',profile.church_id).order('created_at',{ascending:false}).limit(8)
-    ]).then(([{data:prods},{data:movs}]) => {
-      if (prods) setProducts(prods as Product[])
-      if (movs)  setMovements(movs)
-      setLoading(false)
-    })
+    loadAll()
   }, [profile?.church_id])
 
-  const ok       = products.filter(p=>p.quantity>p.min_stock).length
-  const low      = products.filter(p=>p.quantity>0&&p.quantity<=p.min_stock).length
-  const empty    = products.filter(p=>p.quantity===0).length
-  const total    = products.length
-  const critical = products.filter(p=>p.quantity<=p.min_stock).sort((a,b)=>a.quantity-b.quantity).slice(0,5)
+  async function loadAll() {
+    setLoading(true)
+    const sb = createClient()
+    const since = startOf3Months().toISOString()
+
+    const [{ data: prods }, { data: movs }] = await Promise.all([
+      sb.from('products')
+        .select('id,name,quantity,min_stock,category,type,container,unit,last_purchase_value,expiration_date,notes,is_active,created_at,updated_at')
+        .eq('church_id', profile!.church_id)
+        .eq('is_active', true),
+      sb.from('stock_movements')
+        .select('id,type,quantity,created_at,product:products(name,category),location:locations(name)')
+        .eq('church_id', profile!.church_id)
+        .gte('created_at', since)
+        .order('created_at', { ascending: true }),
+    ])
+    if (prods) setProducts(prods as Product[])
+    if (movs)  setMovements(movs as Movement[])
+    setLoading(false)
+  }
+
+  // ── filtro de período ──────────────────────────────────────
+  const cutoff = new Date()
+  if (period === '7d')  cutoff.setDate(cutoff.getDate() - 7)
+  if (period === '30d') cutoff.setDate(cutoff.getDate() - 30)
+  if (period === '90d') cutoff.setMonth(cutoff.getMonth() - 3)
+  const filtered = movements.filter(m => new Date(m.created_at) >= cutoff)
+
+  // ── stats gerais ───────────────────────────────────────────
+  const total   = products.length
+  const ok      = products.filter(p => p.quantity > p.min_stock).length
+  const low     = products.filter(p => p.quantity > 0 && p.quantity <= p.min_stock).length
+  const empty   = products.filter(p => p.quantity === 0).length
+  const entries = filtered.filter(m => m.type === 'in').reduce((a, m) => a + m.quantity, 0)
+  const exits   = filtered.filter(m => m.type === 'out').reduce((a, m) => a + m.quantity, 0)
+  const critical = products.filter(p => p.quantity <= p.min_stock).sort((a,b) => a.quantity - b.quantity).slice(0, 6)
+
+  // ── gráfico de linha: entradas vs saídas por semana ────────
+  const weekMap: Record<string, { label:string; entradas:number; saidas:number }> = {}
+  filtered.forEach(m => {
+    const d = new Date(m.created_at)
+    const day = d.getDay()
+    const monday = new Date(d); monday.setDate(d.getDate() - (day === 0 ? 6 : day - 1))
+    const key = monday.toISOString().split('T')[0]
+    if (!weekMap[key]) weekMap[key] = { label: weekLabel(monday), entradas: 0, saidas: 0 }
+    if (m.type === 'in')  weekMap[key].entradas += m.quantity
+    if (m.type === 'out') weekMap[key].saidas   += m.quantity
+  })
+  const lineData = Object.entries(weekMap).sort(([a],[b]) => a.localeCompare(b)).map(([,v]) => v)
+
+  // ── gráfico de barras: top 8 produtos mais movimentados ────
+  const prodMap: Record<string, number> = {}
+  filtered.forEach(m => {
+    const name = m.product?.name || 'Desconhecido'
+    prodMap[name] = (prodMap[name] || 0) + m.quantity
+  })
+  const barData = Object.entries(prodMap).sort(([,a],[,b]) => b - a).slice(0, 8).map(([name, total]) => ({ name: name.length > 16 ? name.slice(0,14)+'…' : name, total }))
+
+  // ── gráfico de pizza: por categoria ───────────────────────
+  const catMap: Record<string, number> = {}
+  filtered.forEach(m => {
+    const cat = m.product?.category || 'Sem categoria'
+    catMap[cat] = (catMap[cat] || 0) + m.quantity
+  })
+  const pieData = Object.entries(catMap).sort(([,a],[,b]) => b - a).map(([name, value]) => ({ name, value }))
+
+  // ── tabela: movimentações por depósito ─────────────────────
+  const locMap: Record<string, { entradas:number; saidas:number }> = {}
+  filtered.forEach(m => {
+    const loc = m.location?.name || 'Sem depósito'
+    if (!locMap[loc]) locMap[loc] = { entradas: 0, saidas: 0 }
+    if (m.type === 'in')  locMap[loc].entradas += m.quantity
+    if (m.type === 'out') locMap[loc].saidas   += m.quantity
+  })
+  const locData = Object.entries(locMap).sort(([,a],[,b]) => (b.entradas+b.saidas) - (a.entradas+a.saidas))
+
+  // ── últimas movimentações ──────────────────────────────────
+  const recent = [...movements].reverse().slice(0, 6)
+
+  const hora = new Date().getHours()
+  const greeting = hora < 12 ? 'Bom dia' : hora < 18 ? 'Boa tarde' : 'Boa noite'
   const firstName = profile?.name?.split(' ')[0] || ''
+
+  const PeriodBtn = ({ v, label }: { v: typeof period; label: string }) => (
+    <button onClick={() => setPeriod(v)} style={{
+      padding: '5px 12px', borderRadius: '99px', fontSize: '12px', cursor: 'pointer',
+      background: period === v ? 'var(--brand)' : 'transparent',
+      color: period === v ? '#fff' : 'var(--text-2)',
+      border: period === v ? '1px solid var(--brand)' : '1px solid var(--border)',
+      transition: 'all 0.15s', fontWeight: period === v ? '500' : '400',
+    }}>{label}</button>
+  )
 
   if (loading) return (
     <div>
-      <div style={{marginBottom:'24px'}}>
-        <div className="skeleton" style={{width:'260px',height:'26px',marginBottom:'8px'}}/>
-        <div className="skeleton" style={{width:'180px',height:'13px'}}/>
+      <div style={{ marginBottom:'24px' }}>
+        <div className="skeleton" style={{ width:'240px', height:'28px', marginBottom:'8px' }}/>
+        <div className="skeleton" style={{ width:'180px', height:'13px' }}/>
       </div>
-      <div className="stats-grid" style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:'12px',marginBottom:'12px'}}>
-        {[1,2,3,4].map(i=><div key={i} className="skeleton" style={{height:'88px',borderRadius:'var(--radius)'}}/>)}
+      <div className="stats-grid" style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:'12px', marginBottom:'20px' }}>
+        {[1,2,3,4].map(i => <div key={i} className="skeleton" style={{ height:'90px', borderRadius:'12px' }}/>)}
       </div>
-      <div className="bottom-grid" style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'14px',marginTop:'14px'}}>
-        <div className="skeleton" style={{height:'220px',borderRadius:'var(--radius)'}}/>
-        <div className="skeleton" style={{height:'220px',borderRadius:'var(--radius)'}}/>
+      <div className="skeleton" style={{ height:'280px', borderRadius:'12px', marginBottom:'16px' }}/>
+      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'14px' }}>
+        <div className="skeleton" style={{ height:'240px', borderRadius:'12px' }}/>
+        <div className="skeleton" style={{ height:'240px', borderRadius:'12px' }}/>
       </div>
     </div>
   )
@@ -59,77 +165,163 @@ export default function DashboardPage() {
   return (
     <div>
       {/* Header */}
-      <div style={{marginBottom:'22px'}}>
-        <h1 style={{fontSize:'22px',fontWeight:'600',color:'var(--text-1)',letterSpacing:'-0.02em'}}>
-          Você está feliz{firstName ? `, ${firstName}` : ''}?
-        </h1>
-        <p style={{fontSize:'13px',color:'var(--text-3)',marginTop:'4px'}}>
-          {profile?.church?.name} · {new Date().toLocaleDateString('pt-BR',{weekday:'long',day:'numeric',month:'long'})}
-        </p>
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:'22px', flexWrap:'wrap', gap:'12px' }}>
+        <div>
+          <h1 style={{ fontSize:'22px', fontWeight:'600', letterSpacing:'-0.02em' }}>
+            Você está feliz{firstName ? `, ${firstName}` : ''}?
+          </h1>
+          <p style={{ fontSize:'13px', color:'var(--text-3)', marginTop:'4px' }}>
+            {profile?.church?.name} · {new Date().toLocaleDateString('pt-BR',{weekday:'long',day:'numeric',month:'long'})}
+          </p>
+        </div>
+        <div style={{ display:'flex', gap:'6px' }}>
+          <PeriodBtn v="7d"  label="7 dias"/>
+          <PeriodBtn v="30d" label="30 dias"/>
+          <PeriodBtn v="90d" label="3 meses"/>
+        </div>
       </div>
 
-      {/* Stats */}
-      <div className="stats-grid" style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:'12px',marginBottom:'12px'}}>
-        <Card label="Total" value={total} color="var(--brand)"/>
-        <Card label="Em estoque" value={ok} color="var(--ok)" sub={total?`${Math.round(ok/total*100)}%`:undefined}/>
-        <Card label="Baixo" value={low} color="var(--low)"/>
-        <Card label="Zerado" value={empty} color="var(--empty)"/>
+      {/* Cards */}
+      <div className="stats-grid" style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:'12px', marginBottom:'14px' }}>
+        <Card label="Total de itens"  value={total}   color="var(--brand)"  icon="📦" sub={`${ok} em estoque`}/>
+        <Card label="Estoque baixo"   value={low}     color="var(--low)"    icon="⚠️" sub={`${empty} zerado(s)`}/>
+        <Card label={`Entradas (${period === '7d' ? '7d' : period === '30d' ? '30d' : '3m'})`} value={entries} color="var(--ok)" icon="↑" sub="unidades recebidas"/>
+        <Card label={`Saídas (${period === '7d' ? '7d' : period === '30d' ? '30d' : '3m'})`}   value={exits}   color="var(--empty)" icon="↓" sub="unidades retiradas"/>
       </div>
 
-      {/* Barra */}
-      {total>0&&(
-        <div style={{display:'flex',height:'4px',borderRadius:'99px',overflow:'hidden',gap:'2px',marginBottom:'20px'}}>
-          <div style={{flex:ok||0.01,background:'var(--ok)',transition:'flex 0.6s'}}/>
-          <div style={{flex:low||0.01,background:'var(--low)',transition:'flex 0.6s'}}/>
-          <div style={{flex:empty||0.01,background:'var(--empty)',transition:'flex 0.6s'}}/>
+      {/* Barra de status */}
+      {total > 0 && (
+        <div style={{ display:'flex', height:'4px', borderRadius:'99px', overflow:'hidden', gap:'2px', marginBottom:'20px' }}>
+          <div style={{ flex:ok||0.01,    background:'var(--ok)',    transition:'flex 0.6s' }}/>
+          <div style={{ flex:low||0.01,   background:'var(--low)',   transition:'flex 0.6s' }}/>
+          <div style={{ flex:empty||0.01, background:'var(--empty)', transition:'flex 0.6s' }}/>
         </div>
       )}
 
-      {/* Grid inferior */}
-      <div className="bottom-grid" style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'14px'}}>
-        <div style={{background:'var(--bg-card)',border:'1px solid var(--border)',borderRadius:'var(--radius)',padding:'18px'}}>
-          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'14px'}}>
-            <span style={{fontSize:'13px',fontWeight:'500',color:'var(--text-1)'}}>Atenção necessária</span>
-            {critical.length>0&&<span style={{fontSize:'11px',background:'var(--empty-dim)',color:'var(--empty)',padding:'2px 9px',borderRadius:'99px',fontWeight:'500'}}>{critical.length}</span>}
+      {/* Gráfico de linha — entradas vs saídas por semana */}
+      {lineData.length > 0 && (
+        <div style={{ background:'var(--bg-card)', border:'1px solid var(--border)', borderRadius:'var(--radius)', padding:'18px', marginBottom:'14px' }}>
+          <div style={{ fontSize:'13px', fontWeight:'500', color:'var(--text-1)', marginBottom:'16px' }}>
+            Entradas vs Saídas — por semana
           </div>
-          {critical.length===0
-            ?<div style={{fontSize:'13px',color:'var(--text-3)',textAlign:'center',padding:'20px 0'}}>Tudo em ordem ✓</div>
-            :critical.map(p=>(
-              <div key={p.id} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'10px 12px',borderRadius:'var(--radius-sm)',marginBottom:'6px',background:p.quantity===0?'var(--empty-dim)':'var(--low-dim)',border:`1px solid ${p.quantity===0?'rgba(239,68,68,0.12)':'rgba(245,158,11,0.12)'}`}}>
-                <div>
-                  <div style={{fontSize:'13px',fontWeight:'500',color:'var(--text-1)'}}>{p.name}</div>
-                  <div style={{fontSize:'11px',color:'var(--text-3)',marginTop:'1px'}}>{p.category||'Sem categoria'}</div>
-                </div>
-                <div style={{textAlign:'right',flexShrink:0}}>
-                  <div style={{fontSize:'20px',fontWeight:'700',color:p.quantity===0?'var(--empty)':'var(--low)',fontFamily:'var(--font-mono)'}}>{p.quantity}</div>
-                  <div style={{fontSize:'10px',color:'var(--text-3)'}}>mín {p.min_stock}</div>
-                </div>
+          <ResponsiveContainer width="100%" height={220}>
+            <LineChart data={lineData}>
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)"/>
+              <XAxis dataKey="label" tick={{ fontSize:11, fill:'#71717a' }} axisLine={false} tickLine={false}/>
+              <YAxis tick={{ fontSize:11, fill:'#71717a' }} axisLine={false} tickLine={false}/>
+              <Tooltip contentStyle={tooltipStyle}/>
+              <Legend wrapperStyle={{ fontSize:'12px' }}/>
+              <Line type="monotone" dataKey="entradas" name="Entradas" stroke="var(--ok)"    strokeWidth={2} dot={false} activeDot={{ r:4 }}/>
+              <Line type="monotone" dataKey="saidas"   name="Saídas"   stroke="var(--empty)" strokeWidth={2} dot={false} activeDot={{ r:4 }}/>
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      )}
+
+      {/* Grid: barras + pizza */}
+      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'14px', marginBottom:'14px' }} className="bottom-grid">
+
+        {/* Top produtos */}
+        {barData.length > 0 && (
+          <div style={{ background:'var(--bg-card)', border:'1px solid var(--border)', borderRadius:'var(--radius)', padding:'18px' }}>
+            <div style={{ fontSize:'13px', fontWeight:'500', color:'var(--text-1)', marginBottom:'16px' }}>Top produtos movimentados</div>
+            <ResponsiveContainer width="100%" height={220}>
+              <BarChart data={barData} layout="vertical">
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" horizontal={false}/>
+                <XAxis type="number" tick={{ fontSize:10, fill:'#71717a' }} axisLine={false} tickLine={false}/>
+                <YAxis type="category" dataKey="name" tick={{ fontSize:10, fill:'#a1a1aa' }} axisLine={false} tickLine={false} width={90}/>
+                <Tooltip contentStyle={tooltipStyle}/>
+                <Bar dataKey="total" name="Qtd" fill="var(--brand)" radius={[0,4,4,0]}/>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+
+        {/* Pizza por categoria */}
+        {pieData.length > 0 && (
+          <div style={{ background:'var(--bg-card)', border:'1px solid var(--border)', borderRadius:'var(--radius)', padding:'18px' }}>
+            <div style={{ fontSize:'13px', fontWeight:'500', color:'var(--text-1)', marginBottom:'16px' }}>Distribuição por categoria</div>
+            <ResponsiveContainer width="100%" height={220}>
+              <PieChart>
+                <Pie data={pieData} cx="50%" cy="50%" outerRadius={80} dataKey="value" label={({ name, percent }) => `${name} ${(percent*100).toFixed(0)}%`} labelLine={false} style={{ fontSize:'10px' }}>
+                  {pieData.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]}/>)}
+                </Pie>
+                <Tooltip contentStyle={tooltipStyle}/>
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+      </div>
+
+      {/* Grid: depósitos + atenção + últimas movimentações */}
+      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:'14px', marginBottom:'14px' }} className="bottom-grid">
+
+        {/* Movimentações por depósito */}
+        <div style={{ background:'var(--bg-card)', border:'1px solid var(--border)', borderRadius:'var(--radius)', padding:'18px' }}>
+          <div style={{ fontSize:'13px', fontWeight:'500', color:'var(--text-1)', marginBottom:'14px' }}>Por depósito</div>
+          {locData.length === 0 ? (
+            <div style={{ fontSize:'12px', color:'var(--text-3)', textAlign:'center', padding:'20px 0' }}>Nenhuma movimentação com depósito</div>
+          ) : locData.map(([loc, d]) => (
+            <div key={loc} style={{ marginBottom:'10px' }}>
+              <div style={{ display:'flex', justifyContent:'space-between', marginBottom:'4px' }}>
+                <span style={{ fontSize:'12px', color:'var(--text-1)', fontWeight:'500' }}>{loc}</span>
+                <span style={{ fontSize:'11px', color:'var(--text-3)' }}>{d.entradas + d.saidas}</span>
               </div>
-            ))
-          }
+              <div style={{ height:'4px', borderRadius:'99px', background:'var(--bg-3)', overflow:'hidden', display:'flex', gap:'1px' }}>
+                <div style={{ flex:d.entradas||0.01, background:'var(--ok)' }}/>
+                <div style={{ flex:d.saidas||0.01,   background:'var(--empty)' }}/>
+              </div>
+              <div style={{ display:'flex', gap:'10px', marginTop:'3px' }}>
+                <span style={{ fontSize:'10px', color:'var(--ok)' }}>↑ {d.entradas}</span>
+                <span style={{ fontSize:'10px', color:'var(--empty)' }}>↓ {d.saidas}</span>
+              </div>
+            </div>
+          ))}
         </div>
 
-        <div style={{background:'var(--bg-card)',border:'1px solid var(--border)',borderRadius:'var(--radius)',padding:'18px'}}>
-          <div style={{fontSize:'13px',fontWeight:'500',color:'var(--text-1)',marginBottom:'14px'}}>Últimas movimentações</div>
-          {movements.length===0
-            ?<div style={{fontSize:'13px',color:'var(--text-3)',textAlign:'center',padding:'20px 0'}}>Nenhuma movimentação ainda</div>
-            :movements.map((m:any)=>(
-              <div key={m.id} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'9px 0',borderBottom:'1px solid var(--border)'}}>
-                <div style={{display:'flex',alignItems:'center',gap:'10px',minWidth:0}}>
-                  <div style={{width:'30px',height:'30px',borderRadius:'8px',flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center',fontSize:'14px',background:m.type==='in'?'var(--ok-dim)':m.type==='out'?'var(--empty-dim)':'var(--info-dim)',color:m.type==='in'?'var(--ok)':m.type==='out'?'var(--empty)':'var(--info)'}}>
-                    {m.type==='in'?'↑':m.type==='out'?'↓':'⇄'}
-                  </div>
-                  <div style={{minWidth:0}}>
-                    <div style={{fontSize:'12px',fontWeight:'500',color:'var(--text-1)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{m.product?.name||'—'}</div>
-                    <div style={{fontSize:'10px',color:'var(--text-3)',marginTop:'1px'}}>{new Date(m.created_at).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}</div>
-                  </div>
+        {/* Atenção necessária */}
+        <div style={{ background:'var(--bg-card)', border:'1px solid var(--border)', borderRadius:'var(--radius)', padding:'18px' }}>
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'14px' }}>
+            <span style={{ fontSize:'13px', fontWeight:'500', color:'var(--text-1)' }}>Atenção necessária</span>
+            {critical.length > 0 && <span style={{ fontSize:'11px', background:'var(--empty-dim)', color:'var(--empty)', padding:'2px 9px', borderRadius:'99px', fontWeight:'500' }}>{critical.length}</span>}
+          </div>
+          {critical.length === 0 ? (
+            <div style={{ fontSize:'13px', color:'var(--text-3)', textAlign:'center', padding:'20px 0' }}>Tudo em ordem ✓</div>
+          ) : critical.map(p => (
+            <div key={p.id} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'8px 10px', borderRadius:'var(--radius-sm)', marginBottom:'6px', background:p.quantity===0?'var(--empty-dim)':'var(--low-dim)', border:`1px solid ${p.quantity===0?'rgba(239,68,68,0.12)':'rgba(245,158,11,0.12)'}` }}>
+              <div>
+                <div style={{ fontSize:'12px', fontWeight:'500', color:'var(--text-1)' }}>{p.name}</div>
+                <div style={{ fontSize:'10px', color:'var(--text-3)' }}>{p.category||'—'}</div>
+              </div>
+              <div style={{ textAlign:'right' }}>
+                <div style={{ fontSize:'16px', fontWeight:'700', color:p.quantity===0?'var(--empty)':'var(--low)', fontFamily:'var(--font-mono)' }}>{p.quantity}</div>
+                <div style={{ fontSize:'9px', color:'var(--text-3)' }}>mín {p.min_stock}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Últimas movimentações */}
+        <div style={{ background:'var(--bg-card)', border:'1px solid var(--border)', borderRadius:'var(--radius)', padding:'18px' }}>
+          <div style={{ fontSize:'13px', fontWeight:'500', color:'var(--text-1)', marginBottom:'14px' }}>Últimas movimentações</div>
+          {recent.length === 0 ? (
+            <div style={{ fontSize:'13px', color:'var(--text-3)', textAlign:'center', padding:'20px 0' }}>Nenhuma movimentação</div>
+          ) : recent.map(m => (
+            <div key={m.id} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'8px 0', borderBottom:'1px solid var(--border)' }}>
+              <div style={{ display:'flex', alignItems:'center', gap:'8px', minWidth:0 }}>
+                <div style={{ width:'26px', height:'26px', borderRadius:'7px', flexShrink:0, display:'flex', alignItems:'center', justifyContent:'center', fontSize:'12px', background:m.type==='in'?'var(--ok-dim)':m.type==='out'?'var(--empty-dim)':'var(--info-dim)', color:m.type==='in'?'var(--ok)':m.type==='out'?'var(--empty)':'var(--info)' }}>
+                  {m.type==='in'?'↑':m.type==='out'?'↓':'⇄'}
                 </div>
-                <div style={{fontSize:'14px',fontWeight:'700',flexShrink:0,marginLeft:'10px',fontFamily:'var(--font-mono)',color:m.type==='in'?'var(--ok)':m.type==='out'?'var(--empty)':'var(--text-2)'}}>
-                  {m.type==='in'?'+':m.type==='out'?'-':''}{m.quantity}
+                <div style={{ minWidth:0 }}>
+                  <div style={{ fontSize:'11px', fontWeight:'500', color:'var(--text-1)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{m.product?.name||'—'}</div>
+                  <div style={{ fontSize:'10px', color:'var(--text-3)' }}>{new Date(m.created_at).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}</div>
                 </div>
               </div>
-            ))
-          }
+              <div style={{ fontSize:'13px', fontWeight:'700', flexShrink:0, marginLeft:'8px', fontFamily:'var(--font-mono)', color:m.type==='in'?'var(--ok)':m.type==='out'?'var(--empty)':'var(--text-2)' }}>
+                {m.type==='in'?'+':m.type==='out'?'-':''}{m.quantity}
+              </div>
+            </div>
+          ))}
         </div>
       </div>
     </div>
