@@ -6,6 +6,7 @@ import type { Product } from '@/types'
 const S={ok:{label:'OK',color:'var(--ok)',bg:'var(--ok-dim)'},low:{label:'Baixo',color:'var(--low)',bg:'var(--low-dim)'},empty:{label:'Zerado',color:'var(--empty)',bg:'var(--empty-dim)'}}
 const getStatus=(p:Product)=>p.quantity===0?'empty':p.quantity<=p.min_stock?'low':'ok'
 const blank={name:'',category:'',type:'non_perishable',container:'',unit:'un',min_stock:'1',quantity:'0',last_purchase_value:'',expiration_date:'',notes:''}
+function isDirty(form:typeof blank){return form.name!==blank.name||form.category!==blank.category||form.quantity!==blank.quantity||form.notes!==blank.notes}
 export default function EstoquePage() {
   const {profile,canEdit}=useProfile()
   const [products,setProducts]=useState<Product[]>([])
@@ -18,6 +19,7 @@ export default function EstoquePage() {
   const [editItem,setEditItem]=useState<Product|null>(null)
   const [form,setForm]=useState(blank)
   const [saving,setSaving]=useState(false)
+  function handleClose(){if(isDirty(form)&&!confirm('Existem dados preenchidos. Deseja fechar sem salvar?'))return;setShowModal(false);setEditItem(null);setForm(blank)}
   const [formError,setFormError]=useState<string|null>(null)
   useEffect(()=>{if(profile?.church_id)load()},[profile?.church_id])
   async function load() {
@@ -54,8 +56,10 @@ export default function EstoquePage() {
       </div>
       <div style={{display:'flex',gap:'10px',marginBottom:'16px',flexWrap:'wrap'}}>
         <input placeholder="Buscar..." value={search} onChange={e=>setSearch(e.target.value)} style={{flex:1,minWidth:'180px'}}/>
-        <select value={filterStatus} onChange={e=>setFilterStatus(e.target.value)} style={{minWidth:'130px'}}><option value="all">Todos status</option><option value="ok">OK</option><option value="low">Baixo</option><option value="empty">Zerado</option></select>
-        <select value={filterCat} onChange={e=>setFilterCat(e.target.value)} style={{minWidth:'150px'}}><option value="all">Todas categorias</option>{categories.map(c=><option key={c} value={c}>{c}</option>)}</select>
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'10px',flex:1}}>
+          <select value={filterStatus} onChange={e=>setFilterStatus(e.target.value)}><option value="all">Todos os status</option><option value="ok">OK</option><option value="low">Baixo</option><option value="empty">Zerado</option></select>
+          <select value={filterCat} onChange={e=>setFilterCat(e.target.value)}><option value="all">Todas as categorias</option>{categories.map(c=><option key={c} value={c}>{c}</option>)}</select>
+        </div>
       </div>
       {loading?(<div style={{display:'flex',flexDirection:'column',gap:'8px'}}>{[1,2,3,4,5].map(i=><div key={i} className="skeleton" style={{height:'52px',borderRadius:'8px'}}/>)}</div>):(
         <div style={{background:'var(--bg-card)',border:'1px solid var(--border)',borderRadius:'12px',overflow:'hidden'}}>
@@ -79,7 +83,7 @@ export default function EstoquePage() {
         </div>
       )}
       {showModal&&(
-        <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.65)',backdropFilter:'blur(4px)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:50,padding:'20px'}} onClick={e=>e.target===e.currentTarget&&setShowModal(false)}>
+        <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.65)',backdropFilter:'blur(4px)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:50,padding:'20px'}} onClick={handleClose}>
           <div className="fade-up" style={{background:'var(--bg-2)',border:'1px solid var(--border-md)',borderRadius:'16px',padding:'28px',width:'100%',maxWidth:'480px',maxHeight:'90vh',overflowY:'auto'}}>
             <h2 style={{fontSize:'16px',fontWeight:'600',marginBottom:'22px'}}>{editItem?'Editar produto':'Novo produto'}</h2>
             {formError&&<div style={{marginBottom:'14px',padding:'8px 12px',borderRadius:'8px',background:'var(--empty-dim)',fontSize:'13px',color:'var(--empty)'}}>{formError}</div>}
@@ -96,7 +100,7 @@ export default function EstoquePage() {
             </div>
             <div style={{display:'flex',gap:'10px',marginTop:'20px'}}>
               <button onClick={save} disabled={saving||!profile} style={{flex:1,padding:'10px',background:'var(--brand)',color:'#fff',border:'none',borderRadius:'8px',fontSize:'13px',fontWeight:'500',cursor:'pointer',opacity:saving?0.7:1}}>{saving?'Salvando...':editItem?'Salvar':'Cadastrar'}</button>
-              <button onClick={()=>setShowModal(false)} style={{padding:'10px 18px',background:'transparent',border:'1px solid var(--border)',borderRadius:'8px',fontSize:'13px',color:'var(--text-2)',cursor:'pointer'}}>Cancelar</button>
+              <button onClick={handleClose} style={{padding:'10px 18px',background:'transparent',border:'1px solid var(--border)',borderRadius:'8px',fontSize:'13px',color:'var(--text-2)',cursor:'pointer'}}>Cancelar</button>
             </div>
           </div>
         </div>
