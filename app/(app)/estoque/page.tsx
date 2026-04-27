@@ -122,7 +122,7 @@ export default function EstoquePage() {
     <div style={{maxWidth:'1100px'}}>
       <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'20px'}}>
         <div><h1 style={{fontSize:'22px',fontWeight:'600'}}>Estoque</h1><p style={{fontSize:'13px',color:'var(--text-3)',marginTop:'4px'}}>{products.length} {products.length===1?'item':'itens'} cadastrados</p></div>
-        {canEdit&&<button onClick={openNew} style={{padding:'9px 18px',background:'var(--brand)',color:'#fff',border:'none',borderRadius:'8px',fontSize:'13px',fontWeight:'500',cursor:'pointer'}}>+ Novo produto</button>}
+        <div style={{display:'flex',gap:'10px'}}><button onClick={gerarListaCompras} style={{padding:'9px 16px',background:'transparent',border:'1px solid var(--border)',borderRadius:'8px',fontSize:'13px',color:'var(--text-2)',cursor:'pointer',display:'flex',alignItems:'center',gap:'6px'}}>🛒 Lista de compras</button>{canEdit&&<button onClick={openNew} style={{padding:'9px 18px',background:'var(--brand)',color:'#fff',border:'none',borderRadius:'8px',fontSize:'13px',fontWeight:'500',cursor:'pointer'}}>+ Novo produto</button>}</div>
       </div>
       <div style={{display:'flex',gap:'10px',marginBottom:'16px',flexWrap:'wrap'}}>
         <input placeholder="Buscar..." value={search} onChange={e=>setSearch(e.target.value)} style={{flex:1,minWidth:'180px'}}/>
