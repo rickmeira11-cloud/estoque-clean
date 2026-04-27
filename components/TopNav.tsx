@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation'
 import { useState, useRef, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useProfile } from '@/hooks/useProfile'
-import { useStockAlerts } from '@/hooks/useStockAlerts'
+import { useStockAlerts, type StockAlert } from '@/hooks/useStockAlerts'
 
 const NAV = [
   { href:'/dashboard',     label:'Dashboard',   icon:'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6' },
@@ -56,7 +56,7 @@ function NavLink({ href, label, icon, small=false, isActive }: { href:string; la
 export function TopNav() {
   const pathname = usePathname()
   const { profile, isAdmin } = useProfile()
-  const { alerts, count, hasAlerts } = useStockAlerts()
+  const { alerts, expiryAlerts, count, stockCount, expiryCount, hasAlerts } = useStockAlerts()
   const [menuOpen,     setMenuOpen]     = useState(false)
   const [userOpen,     setUserOpen]     = useState(false)
   const [alertOpen,    setAlertOpen]    = useState(false)
@@ -175,38 +175,54 @@ export function TopNav() {
               )}
             </button>
             {alertOpen && (
-              <div className="slide-down" style={{position:'absolute',top:'calc(100% + 8px)',right:0,background:'var(--bg-2)',border:'1px solid var(--border-md)',borderRadius:'var(--radius)',minWidth:'280px',maxWidth:'320px',overflow:'hidden',zIndex:100}}>
-                <div style={{padding:'12px 14px',borderBottom:'1px solid var(--border)',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-                  <span style={{fontSize:'13px',fontWeight:'500',color:'var(--text-1)'}}>Alertas de estoque</span>
-                  {hasAlerts && <span style={{fontSize:'11px',background:'var(--empty-dim)',color:'var(--empty)',padding:'2px 8px',borderRadius:'99px',fontWeight:'500'}}>{count}</span>}
-                </div>
-                {alerts.length === 0 ? (
-                  <div style={{padding:'20px',textAlign:'center',fontSize:'13px',color:'var(--text-3)'}}>Estoque em dia â</div>
-                ) : (
-                  <div style={{maxHeight:'280px',overflowY:'auto'}}>
-                    {alerts.map((p:any) => (
-                      <Link key={p.id} href="/estoque" style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'10px 14px',borderBottom:'1px solid var(--border)',textDecoration:'none',transition:'background 0.1s'}}
-                        onMouseEnter={e=>(e.currentTarget.style.background='var(--bg-3)')}
-                        onMouseLeave={e=>(e.currentTarget.style.background='transparent')}>
-                        <div>
-                          <div style={{fontSize:'12px',fontWeight:'500',color:'var(--text-1)'}}>{p.name}</div>
-                          <div style={{fontSize:'10px',color:'var(--text-3)',marginTop:'1px'}}>{p.category||'Sem categoria'}</div>
-                        </div>
-                        <div style={{textAlign:'right',flexShrink:0}}>
-                          <div style={{fontSize:'16px',fontWeight:'700',color:p.quantity===0?'var(--empty)':'var(--low)',fontFamily:'var(--font-mono)'}}>{p.quantity}</div>
-                          <div style={{fontSize:'9px',color:'var(--text-3)'}}>mÃ­n {p.min_stock}</div>
-                        </div>
-                      </Link>
-                    ))}
+                <div className="slide-down" style={{position:'absolute',top:'calc(100% + 8px)',right:0,background:'var(--bg-2)',border:'1px solid var(--border-md)',borderRadius:'var(--radius)',minWidth:'300px',maxWidth:'340px',overflow:'hidden',zIndex:100}}>
+                  <div style={{padding:'12px 14px',borderBottom:'1px solid var(--border)',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                    <span style={{fontSize:'13px',fontWeight:'500',color:'var(--text-1)'}}>Alertas</span>
+                    {hasAlerts && <span style={{fontSize:'11px',background:'var(--empty-dim)',color:'var(--empty)',padding:'2px 8px',borderRadius:'99px',fontWeight:'500'}}>{count}</span>}
                   </div>
-                )}
-                <div style={{padding:'10px 14px',borderTop:'1px solid var(--border)'}}>
-                  <Link href="/relatorios" style={{fontSize:'12px',color:'var(--brand-light)',textDecoration:'none',display:'flex',alignItems:'center',gap:'4px'}} onClick={() => setAlertOpen(false)}>
-                    Ver relatÃ³rio de itens crÃ­ticos â
-                  </Link>
+                  {!hasAlerts ? (
+                    <div style={{padding:'20px',textAlign:'center',fontSize:'13px',color:'var(--text-3)'}}>Tudo em dia ✓</div>
+                  ) : (
+                    <div style={{maxHeight:'320px',overflowY:'auto'}}>
+                      {stockCount > 0 && <div style={{padding:'8px 14px 4px',fontSize:'10px',fontWeight:'600',color:'var(--text-3)',textTransform:'uppercase',letterSpacing:'0.06em',borderBottom:'1px solid var(--border)'}}>Estoque baixo ({stockCount})</div>}
+                      {alerts.map((p:StockAlert) => (
+                        <Link key={p.id} href="/estoque" style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'10px 14px',borderBottom:'1px solid var(--border)',textDecoration:'none',transition:'background 0.1s'}}
+                          onMouseEnter={e=>(e.currentTarget.style.background='var(--bg-3)')}
+                          onMouseLeave={e=>(e.currentTarget.style.background='transparent')}>
+                          <div>
+                            <div style={{fontSize:'12px',fontWeight:'500',color:'var(--text-1)'}}>{p.name}</div>
+                            <div style={{fontSize:'10px',color:'var(--text-3)',marginTop:'1px'}}>{p.category||'Sem categoria'}</div>
+                          </div>
+                          <div style={{textAlign:'right',flexShrink:0}}>
+                            <div style={{fontSize:'16px',fontWeight:'700',color:p.quantity===0?'var(--empty)':'var(--low)',fontFamily:'var(--font-mono)'}}>{p.quantity}</div>
+                            <div style={{fontSize:'9px',color:'var(--text-3)'}}>mín {p.min_stock}</div>
+                          </div>
+                        </Link>
+                      ))}
+                      {expiryCount > 0 && <div style={{padding:'8px 14px 4px',fontSize:'10px',fontWeight:'600',color:'var(--low)',textTransform:'uppercase',letterSpacing:'0.06em',borderBottom:'1px solid var(--border)'}}>Validade próxima ({expiryCount})</div>}
+                      {expiryAlerts.map((p:StockAlert) => (
+                        <Link key={"exp-"+p.id} href="/estoque" style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'10px 14px',borderBottom:'1px solid var(--border)',textDecoration:'none',transition:'background 0.1s'}}
+                          onMouseEnter={e=>(e.currentTarget.style.background='var(--bg-3)')}
+                          onMouseLeave={e=>(e.currentTarget.style.background='transparent')}>
+                          <div>
+                            <div style={{fontSize:'12px',fontWeight:'500',color:'var(--text-1)'}}>{p.name}</div>
+                            <div style={{fontSize:'10px',color:'var(--text-3)',marginTop:'1px'}}>{p.category||'Sem categoria'}</div>
+                          </div>
+                          <div style={{textAlign:'right',flexShrink:0}}>
+                            <div style={{fontSize:'12px',fontWeight:'700',color:(p.daysUntilExpiry||0)<0?'var(--empty)':'var(--low)'}}>{(p.daysUntilExpiry||0)<0?'VENCIDO':p.daysUntilExpiry+'d'}</div>
+                            <div style={{fontSize:'9px',color:'var(--text-3)'}}>{p.expiration_date?new Date(p.expiration_date+'T12:00:00').toLocaleDateString('pt-BR'):''}</div>
+                          </div>
+                        </Link>
+                      ))}
+                    </div>
+                  )}
+                  <div style={{padding:'10px 14px',borderTop:'1px solid var(--border)'}}>
+                    <Link href="/relatorios" style={{fontSize:'12px',color:'var(--brand-light)',textDecoration:'none'}} onClick={() => setAlertOpen(false)}>
+                      Ver relatório críticos →
+                    </Link>
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
           </div>
 
           {/* User dropdown */}
