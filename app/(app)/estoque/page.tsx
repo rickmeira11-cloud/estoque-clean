@@ -22,6 +22,76 @@ export default function EstoquePage() {
   function handleClose(){if(isDirty(form)&&!confirm('Existem dados preenchidos. Deseja fechar sem salvar?'))return;setShowModal(false);setEditItem(null);setForm(blank)}
   const [formError,setFormError]=useState<string|null>(null)
   useEffect(()=>{if(profile?.church_id)load()},[profile?.church_id])
+  async function gerarListaCompras() {
+    const criticos = products.filter(p => p.quantity <= p.min_stock).sort((a:any,b:any) => {
+      const ca = a.category||'Sem categoria'; const cb = b.category||'Sem categoria';
+      return ca.localeCompare(cb) || a.name.localeCompare(b.name);
+    });
+    if (criticos.length === 0) { alert('Nenhum item abaixo do mínimo no momento.'); return; }
+
+    const { default: jsPDF } = await import('jspdf');
+    const { default: autoTable } = await import('jspdf-autotable');
+    const doc = new jsPDF({ format:'a4' });
+    const today = new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'long',year:'numeric'});
+
+    // Header
+    doc.setFillColor(17,17,19); doc.rect(0,0,210,30,'F');
+    doc.setTextColor(250,250,250); doc.setFontSize(16); doc.setFont('helvetica','bold');
+    doc.text('Lista de Compras', 14, 12);
+    doc.setFontSize(10); doc.setFont('helvetica','normal'); doc.setTextColor(161,161,170);
+    doc.text('Poiema · Gestão de Estoque', 14, 20);
+    doc.text('Gerada em ' + today, 14, 26);
+
+    // Agrupar por categoria
+    const grupos: Record<string, any[]> = {};
+    criticos.forEach((p:any) => {
+      const cat = p.category || 'Sem categoria';
+      if (!grupos[cat]) grupos[cat] = [];
+      grupos[cat].push(p);
+    });
+
+    let y = 36;
+    Object.entries(grupos).forEach(([cat, itens]) => {
+      // Titulo da categoria
+      doc.setFillColor(99,102,241); doc.rect(14, y, 182, 7, 'F');
+      doc.setTextColor(255,255,255); doc.setFontSize(9); doc.setFont('helvetica','bold');
+      doc.text(cat.toUpperCase(), 17, y+5);
+      y += 9;
+
+      autoTable(doc, {
+        head: [['Produto','Qtd atual','Mínimo','Comprar (sugerido)','Observações']],
+        body: itens.map((p:any) => [
+          p.name,
+          p.quantity,
+          p.min_stock,
+          Math.max(p.min_stock - p.quantity, 1) + (p.unit ? ' ' + p.unit : ''),
+          '',
+        ]),
+        startY: y,
+        styles: { fontSize:9, cellPadding:4 },
+        headStyles: { fillColor:[40,40,50], textColor:[200,200,200], fontStyle:'bold', fontSize:8 },
+        alternateRowStyles: { fillColor:[248,248,250] },
+        columnStyles: { 3:{fontStyle:'bold'}, 4:{minCellWidth:40} },
+        didParseCell: (data:any) => {
+          if (data.section==='body' && data.column.index===1) {
+            const qty = Number(data.cell.text[0]);
+            if (qty === 0) data.cell.styles.textColor = [239,68,68];
+            else data.cell.styles.textColor = [245,158,11];
+          }
+        },
+        margin: { left:14, right:14 },
+      });
+      y = (doc as any).lastAutoTable.finalY + 8;
+    });
+
+    // Rodape
+    doc.setFontSize(8); doc.setTextColor(161,161,170); doc.setFont('helvetica','normal');
+    doc.text('Total de itens: ' + criticos.length + ' | ' + criticos.filter((p:any)=>p.quantity===0).length + ' zerado(s)', 14, doc.internal.pageSize.height - 10);
+    doc.text('Poiema Gestão de Estoque', 196, doc.internal.pageSize.height - 10, {align:'right'});
+
+    doc.save('lista-compras-' + new Date().toISOString().split('T')[0] + '.pdf');
+  }
+
   async function load() {
     setLoading(true)
     const {data,error}=await createClient().from('products').select('*').eq('church_id',profile!.church_id).eq('is_active',true).order('name')
