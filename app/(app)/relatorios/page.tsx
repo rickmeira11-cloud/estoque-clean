@@ -93,12 +93,19 @@ export default function RelatoriosPage() {
     setLoading(true)
     const { data } = await createClient()
       .from('stock_movements')
-      .select('id,type,quantity,created_at,note,product:products(name,category),location:locations(name),dest:destination_location_id')
+      .select('id,type,quantity,created_at,note,location_id,product:products(name,category)')
       .eq('church_id', profile!.church_id)
       .gte('created_at', dateFrom)
       .lte('created_at', dateTo + 'T23:59:59')
       .order('created_at', { ascending: false })
-    if (data) setMovements(data)
+    if (data) {
+      const { data: locs } = await createClient().from('locations').select('id,name').eq('church_id', profile!.church_id)
+      const withLoc = data.map((m: any) => ({
+        ...m,
+        location: locs?.find((l: any) => l.id === m.location_id) || null
+      }))
+      setMovements(withLoc)
+    }
     setLoading(false)
   }
 
