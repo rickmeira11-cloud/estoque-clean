@@ -142,7 +142,7 @@ export default function EstoquePage() {
         <div style={{display:'flex',flexDirection:'column',gap:'8px',flex:1}}><div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'10px'}}>
           <select value={filterStatus} onChange={e=>setFilterStatus(e.target.value)}><option value="all">Todos os status</option><option value="ok">OK</option><option value="low">Baixo</option><option value="empty">Zerado</option></select>
           <select value={filterCat} onChange={e=>setFilterCat(e.target.value)}><option value="all">Todas as categorias</option>{categories.map(c=><option key={c} value={c}>{c}</option>)}</select>
-          </div><select value={filterLoc} onChange={e=>setFilterLoc(e.target.value)}><option value="all">Todos os depósitos</option>{locations.map((l)=><option key={l.id} value={l.name}>{l.name}</option>)}</select>
+          </div>
         </div>
       </div>
       {loading?(<div style={{display:'flex',flexDirection:'column',gap:'8px'}}>{[1,2,3,4,5].map(i=><div key={i} className="skeleton" style={{height:'52px',borderRadius:'8px'}}/>)}</div>):(
