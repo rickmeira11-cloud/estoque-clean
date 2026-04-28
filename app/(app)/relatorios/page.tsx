@@ -266,7 +266,7 @@ export default function RelatoriosPage() {
       </div>
 
       {/* Tabs */}
-      <div style={{ display:'flex', gap:'6px', marginBottom:'20px', flexWrap:'wrap' }}>
+      <div className='report-tabs' style={{ display:'flex', gap:'6px', marginBottom:'20px', flexWrap:'wrap' }}>
         {TABS.map(t => (
           <button key={t.id} onClick={() => setTab(t.id)} style={{
             display:'flex', alignItems:'center', gap:'6px',
@@ -284,7 +284,7 @@ export default function RelatoriosPage() {
 
       {/* Filtros */}
       <div style={{ background:'var(--bg-card)', border:'1px solid var(--border)', borderRadius:'var(--radius)', padding:'16px', marginBottom:'16px' }}>
-        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr 1fr auto', gap:'10px', alignItems:'flex-end', flexWrap:'wrap' }}>
+        <div className='report-filters' style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr 1fr auto', gap:'10px', alignItems:'flex-end', flexWrap:'wrap' }}>
           {(tab==='movimentacoes'||tab==='consumo'||tab==='depositos') && (
             <>
               <div><label style={L}>De</label><input type="date" value={dateFrom} onChange={e=>setDateFrom(e.target.value)}/></div>

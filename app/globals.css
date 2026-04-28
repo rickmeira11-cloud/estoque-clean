@@ -58,3 +58,40 @@ select option { background: var(--bg-3); }
   .desktop-nav { display: flex !important; }
   .mobile-menu-btn { display: none !important; }
 }
+
+/* ── MOBILE RESPONSIVO ─────────────────────────────── */
+@media (max-width: 768px) {
+
+  /* Movimentacao — empilhar colunas */
+  .mov-grid { grid-template-columns: 1fr !important; }
+
+  /* Tabelas — scroll horizontal com min-width */
+  table { min-width: 500px; }
+  .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+  /* Cards de igrejas e depositos — remover overflow */
+  .card-actions { flex-wrap: wrap; gap: 6px !important; }
+  .card-actions button { font-size: 11px !important; padding: 4px 8px !important; }
+
+  /* Filtros dos relatorios — empilhar */
+  .report-filters { grid-template-columns: 1fr 1fr !important; }
+  .report-filters > div:last-child { grid-column: 1 / -1; }
+
+  /* Tabs dos relatorios — wrap */
+  .report-tabs { flex-wrap: wrap !important; }
+  .report-tabs button { flex: 1; min-width: 120px; font-size: 12px !important; padding: 7px 10px !important; }
+
+  /* Usuarios — esconder colunas menos importantes */
+  .users-table th:nth-child(3),
+  .users-table td:nth-child(3) { display: none; }
+
+  /* Botoes de acao — lado a lado menores */
+  .action-buttons { display: flex; flex-wrap: wrap; gap: 6px; }
+
+  /* Pagina content padding menor */
+  .page-content { padding: 12px !important; }
+
+  /* Titulos menores */
+  h1 { font-size: 20px !important; }
+  h2 { font-size: 16px !important; }
+}

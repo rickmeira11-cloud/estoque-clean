@@ -90,7 +90,7 @@ export default function IgrejasPage() {
                   </div>
                 </div>
               </div>
-              <div style={{display:'flex',alignItems:'center',gap:'8px'}}>
+              <div className='card-actions' style={{display:'flex',alignItems:'center',gap:'8px',flexShrink:0}}>
                 <span style={{fontSize:'11px',padding:'3px 10px',borderRadius:'99px',background:c.is_active?'var(--ok-dim)':'rgba(255,255,255,0.05)',color:c.is_active?'var(--ok)':'var(--text-3)'}}>{c.is_active?'Ativa':'Inativa'}</span>
                 <button onClick={()=>openEdit(c)} style={{padding:'5px 12px',background:'transparent',border:'1px solid var(--border)',borderRadius:'6px',fontSize:'12px',color:'var(--text-2)',cursor:'pointer'}}>Editar</button>
                 <button onClick={()=>toggleActive(c)} style={{padding:'5px 12px',background:'transparent',border:'1px solid var(--border)',borderRadius:'6px',fontSize:'12px',color:'var(--text-3)',cursor:'pointer'}}>{c.is_active?'Desativar':'Ativar'}</button>
