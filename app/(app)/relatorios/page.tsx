@@ -35,6 +35,8 @@ export default function RelatoriosPage() {
   const [products,   setProducts]   = useState<any[]>([])
   const [movements,  setMovements]  = useState<any[]>([])
   const [loading,    setLoading]    = useState(false)
+  const [sortCol,    setSortCol]    = useState('')
+  const [sortDir,    setSortDir]    = useState('asc')
   const [balances,   setBalances]   = useState<any[]>([])
 
   useEffect(() => { if (profile?.church_id) loadBase() }, [profile?.church_id])
@@ -49,6 +51,21 @@ export default function RelatoriosPage() {
     ])
     if (locs)  setLocations(locs)
     if (prods) setProducts(prods)
+  }
+
+  function toggleSort(col) {
+    if (sortCol === col) setSortDir(d => d === 'asc' ? 'desc' : 'asc')
+    else { setSortCol(col); setSortDir('asc') }
+  }
+
+  function sortData(data, col, dir) {
+    if (!col) return data
+    return [...data].sort((a, b) => {
+      const va = a[col] ?? ''
+      const vb = b[col] ?? ''
+      const cmp = typeof va === 'number' ? va - vb : String(va).localeCompare(String(vb))
+      return dir === 'asc' ? cmp : -cmp
+    })
   }
 
   async function loadBalances() {
@@ -257,6 +274,16 @@ export default function RelatoriosPage() {
   const L = { display:'block' as const, fontSize:'11px', color:'var(--text-3)', marginBottom:'5px' }
   const count = tab==='inventario'?filteredProds.length:tab==='criticos'?critical.length:tab==='depositos'?Object.keys(locMap).length:filteredMovs.length
 
+
+  function SortTh({ label, col, style = {} }: { label: string; col: string; style?: any }) {
+    const active = sortCol === col
+    return (
+      <th onClick={() => toggleSort(col)} style={{ padding:'10px 14px', textAlign:'left', fontSize:'11px', color: active ? 'var(--brand-light)' : 'var(--text-3)', fontWeight:'500', textTransform:'uppercase', letterSpacing:'0.04em', cursor:'pointer', userSelect:'none', whiteSpace:'nowrap', ...style }}>
+        {label}{active ? (sortDir === 'asc' ? ' ↑' : ' ↓') : ''}
+      </th>
+    )
+  }
+
   return (
     <div style={{ maxWidth:'1100px' }}>
       {/* Header */}
@@ -344,13 +371,13 @@ export default function RelatoriosPage() {
                 <table style={{ width:'100%', borderCollapse:'collapse' }}>
                   <thead>
                     <tr style={{ borderBottom:'1px solid var(--border)' }}>
-                      {['Produto','Categoria','Qtd','Mínimo','Status','Unidade','Tipo','Último preço'].map(h=>(
-                        <th key={h} style={{ padding:'10px 14px', textAlign:'left', fontSize:'11px', color:'var(--text-3)', fontWeight:'500', textTransform:'uppercase', letterSpacing:'0.04em', whiteSpace:'nowrap' }}>{h}</th>
+                      {([{l:'Produto',c:'name'},{l:'Categoria',c:'category'},{l:'Qtd',c:'quantity'},{l:'Mínimo',c:'min_stock'},{l:'Status',c:''},{l:'Unidade',c:'unit'},{l:'Tipo',c:'type'},{l:'Último preço',c:'last_purchase_value'}]).map(({l,c:col})=>(
+                        <th key={l} onClick={col?()=>toggleSort(col):undefined} style={{ padding:'10px 14px', textAlign:'left', fontSize:'11px', color:sortCol===col&&col?'var(--brand-light)':'var(--text-3)', fontWeight:'500', textTransform:'uppercase', letterSpacing:'0.04em', whiteSpace:'nowrap', cursor:col?'pointer':'default' }}>{l}{col&&sortCol===col?(sortDir==='asc'?' ↑':' ↓'):''}</th>
                       ))}
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredProds.map((p:any) => {
+                    {sortData(filteredProds, sortCol, sortDir).map((p:any) => {
                       const s = p.quantity===0?'empty':p.quantity<=p.min_stock?'low':'ok'
                       const sc = {ok:{l:'OK',c:'var(--ok)',b:'var(--ok-dim)'},low:{l:'Baixo',c:'var(--low)',b:'var(--low-dim)'},empty:{l:'Zerado',c:'var(--empty)',b:'var(--empty-dim)'}}[s]
                       return (
@@ -394,7 +421,7 @@ export default function RelatoriosPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredMovs.map((m:any) => {
+                    {sortData(filteredMovs, sortCol, sortDir).map((m:any) => {
                       const tc = {in:{l:'Entrada',c:'var(--ok)',b:'var(--ok-dim)'},out:{l:'Saída',c:'var(--empty)',b:'var(--empty-dim)'},adjustment:{l:'Ajuste',c:'var(--info)',b:'var(--info-dim)'}}[m.type as string]||{l:'—',c:'var(--text-2)',b:'transparent'}
                       return (
                         <tr key={m.id} style={{ borderBottom:'1px solid var(--border)' }}
@@ -436,7 +463,7 @@ export default function RelatoriosPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {critical.map((p:any) => {
+                      {sortData(critical, sortCol, sortDir).map((p:any) => {
                         const s = p.quantity===0?'empty':'low'
                         const sc = {low:{l:'Baixo',c:'var(--low)',b:'var(--low-dim)'},empty:{l:'Zerado',c:'var(--empty)',b:'var(--empty-dim)'}}[s]
                         return (
