@@ -14,6 +14,10 @@ export default function EstoquePage() {
   const [search,setSearch]=useState('')
   const [filterStatus,setFilterStatus]=useState('all')
   const [filterCat,setFilterCat]=useState('all')
+  const [filterLoc,setFilterLoc]=useState('all')
+  const [locations,setLocations]=useState([])
+  const [sortCol,setSortCol]=useState('name')
+  const [sortDir,setSortDir]=useState('asc')
   const [categories,setCategories]=useState<string[]>([])
   const [showModal,setShowModal]=useState(false)
   const [editItem,setEditItem]=useState<Product|null>(null)
@@ -116,7 +120,14 @@ export default function EstoquePage() {
     setShowModal(false);setSaving(false);load()
   }
   async function deactivate(id:string){await createClient().from('products').update({is_active:false}).eq('id',id);load()}
-  const filtered=products.filter(p=>{const s=getStatus(p);const ms=!search||p.name.toLowerCase().includes(search.toLowerCase())||(p.category||'').toLowerCase().includes(search.toLowerCase());return ms&&(filterStatus==='all'||s===filterStatus)&&(filterCat==='all'||p.category===filterCat)})
+  const filtered=products.filter(p=>{const s=getStatus(p);const ms=!search||p.name.toLowerCase().includes(search.toLowerCase())||(p.category||'').toLowerCase().includes(search.toLowerCase());return ms&&(filterStatus==='all'||s===filterStatus)&&(filterCat==='all'||p.category===filterCat)}).sort((a,b)=>{
+  const dir=sortDir==='asc'?1:-1
+  if(sortCol==='name') return a.name.localeCompare(b.name)*dir
+  if(sortCol==='category') return ((a.category||'').localeCompare(b.category||''))*dir
+  if(sortCol==='quantity') return (a.quantity-b.quantity)*dir
+  if(sortCol==='min_stock') return (a.min_stock-b.min_stock)*dir
+  return 0
+})
   const L={fontSize:'11px',color:'var(--text-3)',display:'block' as const,marginBottom:'5px'}
   return (
     <div style={{maxWidth:'1100px'}}>
@@ -134,7 +145,20 @@ export default function EstoquePage() {
       {loading?(<div style={{display:'flex',flexDirection:'column',gap:'8px'}}>{[1,2,3,4,5].map(i=><div key={i} className="skeleton" style={{height:'52px',borderRadius:'8px'}}/>)}</div>):(
         <div style={{background:'var(--bg-card)',border:'1px solid var(--border)',borderRadius:'12px',overflow:'hidden'}}>
           <table style={{width:'100%',borderCollapse:'collapse'}}>
-            <thead><tr style={{borderBottom:'1px solid var(--border)'}}>{['Produto','Categoria','Qtd','Mínimo','Status','Validade',''].map(h=><th key={h} style={{padding:'10px 14px',textAlign:'left',fontSize:'11px',color:'var(--text-3)',fontWeight:'500',textTransform:'uppercase',letterSpacing:'0.04em'}}>{h}</th>)}</tr></thead>
+            <thead><tr style={{borderBottom:'1px solid var(--border)'}}>{[
+  {label:'Produto',    col:'name'},
+  {label:'Categoria',  col:'category'},
+  {label:'Qtd',        col:'quantity'},
+  {label:'Mínimo',      col:'min_stock'},
+  {label:'Status',     col:''},
+  {label:'Validade',   col:''},
+  {label:'',           col:''},
+].map(({label,col})=>(
+  <th key={label} onClick={col?()=>{if(sortCol===col)setSortDir(d=>d==='asc'?'desc':'asc');else{setSortCol(col);setSortDir('asc')}}:undefined}
+    style={{padding:'10px 14px',textAlign:'left',fontSize:'11px',color:sortCol===col&&col?'var(--brand-light)':'var(--text-3)',fontWeight:'500',textTransform:'uppercase',letterSpacing:'0.04em',cursor:col?'pointer':'default',userSelect:'none',whiteSpace:'nowrap'}}>
+    {label}{col&&sortCol===col?(sortDir==='asc'?' ↑':' ↓'):''}
+  </th>
+))}</tr></thead>
             <tbody>
               {filtered.length===0?(<tr><td colSpan={7} style={{padding:'40px',textAlign:'center',color:'var(--text-3)',fontSize:'13px'}}>Nenhum produto encontrado</td></tr>):filtered.map(p=>{
                 const s=getStatus(p);const {label,color,bg}=S[s]
