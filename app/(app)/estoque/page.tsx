@@ -17,6 +17,7 @@ export default function EstoquePage() {
   const [filterLoc,setFilterLoc]=useState('all')
   const [locations,setLocations]=useState([])
   const [productsByLoc,setProductsByLoc]=useState({})
+  const [locBalance,setLocBalance]=useState({})
   const [sortCol,setSortCol]=useState('name')
   const [sortDir,setSortDir]=useState('asc')
   const [categories,setCategories]=useState<string[]>([])
@@ -26,7 +27,7 @@ export default function EstoquePage() {
   const [saving,setSaving]=useState(false)
   function handleClose(){if(isDirty(form)&&!confirm('Existem dados preenchidos. Deseja fechar sem salvar?'))return;setShowModal(false);setEditItem(null);setForm(blank)}
   const [formError,setFormError]=useState<string|null>(null)
-  useEffect(()=>{if(!profile?.church_id)return;load();createClient().from('locations').select('id,name').eq('church_id',profile.church_id).eq('is_active',true).order('name').then(({data})=>{if(data)setLocations(data)});createClient().from('stock_movements').select('product_id,location:locations(name)').eq('church_id',profile.church_id).not('location_id','is',null).then(({data})=>{if(data){const m={};data.forEach((r)=>{if(!m[r.location?.name])m[r.location?.name]=new Set();m[r.location?.name].add(r.product_id)});setProductsByLoc(m)}})},[profile?.church_id])
+  useEffect(()=>{if(!profile?.church_id)return;load();createClient().from('locations').select('id,name').eq('church_id',profile.church_id).eq('is_active',true).order('name').then(({data})=>{if(data)setLocations(data)});createClient().from('stock_movements').select('product_id,location_id,type,quantity,location:locations(name)').eq('church_id',profile.church_id).not('location_id','is',null).then(({data})=>{if(data){const m={};data.forEach((r)=>{if(!m[r.location?.name])m[r.location?.name]=new Set();m[r.location?.name].add(r.product_id)});setProductsByLoc(m)}})},[profile?.church_id])
   async function gerarListaCompras() {
     const criticos = products.filter(p => p.quantity <= p.min_stock).sort((a:any,b:any) => {
       const ca = a.category||'Sem categoria'; const cb = b.category||'Sem categoria';
@@ -163,11 +164,11 @@ export default function EstoquePage() {
 ))}</tr></thead>
             <tbody>
               {filtered.length===0?(<tr><td colSpan={7} style={{padding:'40px',textAlign:'center',color:'var(--text-3)',fontSize:'13px'}}>Nenhum produto encontrado</td></tr>):filtered.map(p=>{
-                const s=getStatus(p);const {label,color,bg}=S[s]
+                const locId=filterLoc!=='all'?locations.find((l)=>l.name===filterLoc)?.id:null;const displayQty=locId?(locBalance[p.id+'|'+locId]||0):p.quantity;const sKey=displayQty===0?'empty':displayQty<=p.min_stock?'low':'ok';const s=sKey;const {label,color,bg}=S[s]
                 return (<tr key={p.id} style={{borderBottom:'1px solid var(--border)'}} onMouseEnter={e=>(e.currentTarget.style.background='rgba(255,255,255,0.02)')} onMouseLeave={e=>(e.currentTarget.style.background='transparent')}>
                   <td style={{padding:'12px 14px'}}><div style={{fontSize:'13px',fontWeight:'500'}}>{p.name}</div>{p.notes&&<div style={{fontSize:'11px',color:'var(--text-3)',marginTop:'2px'}}>{p.notes}</div>}</td>
                   <td style={{padding:'12px 14px',fontSize:'12px',color:'var(--text-2)'}}>{p.category||'—'}</td>
-                  <td style={{padding:'12px 14px',fontSize:'18px',fontWeight:'700',color}}>{p.quantity}</td>
+                  <td style={{padding:'12px 14px',fontSize:'18px',fontWeight:'700',color}}>{displayQty}{locId&&<span style={{fontSize:'10px',color:'var(--text-3)',display:'block',lineHeight:1}}>dep</span>}</td>
                   <td style={{padding:'12px 14px',fontSize:'12px',color:'var(--text-3)'}}>{p.min_stock}</td>
                   <td style={{padding:'12px 14px'}}><span style={{fontSize:'11px',fontWeight:'500',padding:'3px 10px',borderRadius:'99px',background:bg,color}}>{label}</span></td>
                   <td style={{padding:'12px 14px',fontSize:'12px',color:'var(--text-3)'}}>{p.expiration_date?new Date(p.expiration_date).toLocaleDateString('pt-BR'):'—'}</td>
