@@ -14,8 +14,8 @@ const CHURCH_ID    = '8db14705-9da8-4844-8b01-a73845297831'
 export async function POST() {
   try {
     const sb = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL,
-      process.env.SUPABASE_SERVICE_ROLE_KEY
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
     )
 
     const { data: products } = await sb
@@ -26,8 +26,10 @@ export async function POST() {
 
     if (!products) return NextResponse.json({ ok: false, error: 'no products' })
 
-    const today = new Date(); today.setHours(0,0,0,0)
-    const in7   = new Date(today); in7.setDate(today.getDate() + 7)
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    const in7 = new Date(today)
+    in7.setDate(today.getDate() + 7)
 
     const baixo    = products.filter(p => p.quantity <= p.min_stock)
     const vencendo = products.filter(p => {
@@ -39,53 +41,51 @@ export async function POST() {
       return NextResponse.json({ ok: true, message: 'sem alertas' })
     }
 
-    let msg = '📦 *Gestoque Poiema — Alertas de Estoque*
-'
-    msg += '_' + new Date().toLocaleDateString('pt-BR', { weekday:'long', day:'2-digit', month:'long' }) + '_
-
-'
+    const dataHoje = new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' })
+    let msg = '📦 *Gestoque Poiema - Alertas de Estoque*\n'
+    msg += '_' + dataHoje + '_\n\n'
 
     if (baixo.length > 0) {
-      msg += '⚠️ *Estoque baixo ou zerado:*
-'
+      msg += '⚠️ *Estoque baixo ou zerado:*\n'
       baixo.forEach(p => {
         const icon = p.quantity === 0 ? '🔴' : '🟡'
-        msg += icon + ' ' + p.name + ' — *' + p.quantity + '* (mín: ' + p.min_stock + ')
-'
+        msg += icon + ' ' + p.name + ' - *' + p.quantity + '* (min: ' + p.min_stock + ')\n'
       })
     }
 
     if (vencendo.length > 0) {
-      msg += '
-⏰ *Validade próxima (7 dias):*
-'
+      msg += '\n⏰ *Validade proxima (7 dias):*\n'
       vencendo.forEach(p => {
         const exp  = new Date(p.expiration_date + 'T12:00:00')
-        const diff = Math.ceil((exp.getTime() - today.getTime()) / (1000*60*60*24))
+        const diff = Math.ceil((exp.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
         const icon = diff < 0 ? '🔴' : '🟠'
         const txt  = diff < 0 ? 'VENCIDO' : 'vence em ' + diff + ' dia(s)'
-        msg += icon + ' ' + p.name + ' — ' + txt + ' (' + exp.toLocaleDateString('pt-BR') + ')
-'
+        msg += icon + ' ' + p.name + ' - ' + txt + ' (' + exp.toLocaleDateString('pt-BR') + ')\n'
       })
     }
 
-    msg += '
-_Total: ' + baixo.length + ' item(s) baixo, ' + vencendo.length + ' vencendo_'
-    msg += '
-_Acesse: gestoquepoiemav1.vercel.app_'
+    msg += '\n_Total: ' + baixo.length + ' item(s) baixo, ' + vencendo.length + ' vencendo_'
+    msg += '\n_Acesse: gestoquepoiemav1.vercel.app_'
 
     const res = await fetch(
       'https://api.z-api.io/instances/' + INSTANCE + '/token/' + TOKEN + '/send-text',
       {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Client-Token': CLIENT_TOKEN },
+        headers: {
+          'Content-Type': 'application/json',
+          'Client-Token': CLIENT_TOKEN!,
+        },
         body: JSON.stringify({ phone: GROUP_ID, message: msg }),
       }
     )
 
     const data = await res.json()
-    return NextResponse.json({ ok: true, zapi: data, alertas: { baixo: baixo.length, vencendo: vencendo.length } })
-  } catch (err) {
+    return NextResponse.json({
+      ok: true,
+      zapi: data,
+      alertas: { baixo: baixo.length, vencendo: vencendo.length }
+    })
+  } catch (err: any) {
     return NextResponse.json({ ok: false, error: err.message }, { status: 500 })
   }
 }
