@@ -16,6 +16,7 @@ export default function EstoquePage() {
   const [filterCat,setFilterCat]=useState('all')
   const [filterLoc,setFilterLoc]=useState('all')
   const [locations,setLocations]=useState([])
+  const [productsByLoc,setProductsByLoc]=useState({})
   const [sortCol,setSortCol]=useState('name')
   const [sortDir,setSortDir]=useState('asc')
   const [categories,setCategories]=useState<string[]>([])
@@ -25,7 +26,7 @@ export default function EstoquePage() {
   const [saving,setSaving]=useState(false)
   function handleClose(){if(isDirty(form)&&!confirm('Existem dados preenchidos. Deseja fechar sem salvar?'))return;setShowModal(false);setEditItem(null);setForm(blank)}
   const [formError,setFormError]=useState<string|null>(null)
-  useEffect(()=>{if(!profile?.church_id)return;load();createClient().from('locations').select('id,name').eq('church_id',profile.church_id).eq('is_active',true).order('name').then(({data})=>{if(data)setLocations(data)})},[profile?.church_id])
+  useEffect(()=>{if(!profile?.church_id)return;load();createClient().from('locations').select('id,name').eq('church_id',profile.church_id).eq('is_active',true).order('name').then(({data})=>{if(data)setLocations(data)});createClient().from('stock_movements').select('product_id,location:locations(name)').eq('church_id',profile.church_id).not('location_id','is',null).then(({data})=>{if(data){const m={};data.forEach((r)=>{if(!m[r.location?.name])m[r.location?.name]=new Set();m[r.location?.name].add(r.product_id)});setProductsByLoc(m)}})},[profile?.church_id])
   async function gerarListaCompras() {
     const criticos = products.filter(p => p.quantity <= p.min_stock).sort((a:any,b:any) => {
       const ca = a.category||'Sem categoria'; const cb = b.category||'Sem categoria';
@@ -120,7 +121,7 @@ export default function EstoquePage() {
     setShowModal(false);setSaving(false);load()
   }
   async function deactivate(id:string){await createClient().from('products').update({is_active:false}).eq('id',id);load()}
-  const filtered=products.filter(p=>{const s=getStatus(p);const ms=!search||p.name.toLowerCase().includes(search.toLowerCase())||(p.category||'').toLowerCase().includes(search.toLowerCase());return ms&&(filterStatus==='all'||s===filterStatus)&&(filterCat==='all'||p.category===filterCat)}).sort((a,b)=>{
+  const filtered=products.filter(p=>{const s=getStatus(p);const ms=!search||p.name.toLowerCase().includes(search.toLowerCase())||(p.category||'').toLowerCase().includes(search.toLowerCase());return ms&&(filterStatus==='all'||s===filterStatus)&&(filterCat==='all'||p.category===filterCat)&&(filterLoc==='all'||productsByLoc[filterLoc]?.has(p.id))}).sort((a,b)=>{
   const dir=sortDir==='asc'?1:-1
   if(sortCol==='name') return a.name.localeCompare(b.name)*dir
   if(sortCol==='category') return ((a.category||'').localeCompare(b.category||''))*dir
