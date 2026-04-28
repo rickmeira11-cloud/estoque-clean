@@ -25,7 +25,7 @@ export default function EstoquePage() {
   const [saving,setSaving]=useState(false)
   function handleClose(){if(isDirty(form)&&!confirm('Existem dados preenchidos. Deseja fechar sem salvar?'))return;setShowModal(false);setEditItem(null);setForm(blank)}
   const [formError,setFormError]=useState<string|null>(null)
-  useEffect(()=>{if(profile?.church_id)load()},[profile?.church_id])
+  useEffect(()=>{if(!profile?.church_id)return;load();createClient().from('locations').select('id,name').eq('church_id',profile.church_id).eq('is_active',true).order('name').then(({data})=>{if(data)setLocations(data)})},[profile?.church_id])
   async function gerarListaCompras() {
     const criticos = products.filter(p => p.quantity <= p.min_stock).sort((a:any,b:any) => {
       const ca = a.category||'Sem categoria'; const cb = b.category||'Sem categoria';
