@@ -38,6 +38,7 @@ export default function RelatoriosPage() {
   const [sortCol,    setSortCol]    = useState('')
   const [sortDir,    setSortDir]    = useState('asc')
   const [balances,   setBalances]   = useState<any[]>([])
+  const [productsByLoc, setProductsByLoc] = useState<Record<string,Set<string>>>({})
 
   useEffect(() => { if (profile?.church_id) loadBase() }, [profile?.church_id])
   useEffect(() => { if (profile?.church_id) loadMovements() }, [profile?.church_id, dateFrom, dateTo])
@@ -51,6 +52,18 @@ export default function RelatoriosPage() {
     ])
     if (locs)  setLocations(locs)
     if (prods) setProducts(prods)
+    // Carregar produtos por deposito
+    const { data: movLoc } = await sb.from('stock_movements').select('product_id,location_id').eq('church_id', profile!.church_id).not('location_id', 'is', null)
+    if (movLoc && locs) {
+      const m: Record<string,Set<string>> = {}
+      movLoc.forEach((r: any) => {
+        const loc = locs.find((l: any) => l.id === r.location_id)
+        if (!loc) return
+        if (!m[loc.name]) m[loc.name] = new Set()
+        m[loc.name].add(r.product_id)
+      })
+      setProductsByLoc(m)
+    }
   }
 
   function toggleSort(col) {
@@ -133,7 +146,8 @@ export default function RelatoriosPage() {
     return locOk && catOk
   })
   const filteredProds = products.filter(p =>
-    filterCat === 'all' || p.category === filterCat
+    (filterCat === 'all' || p.category === filterCat) &&
+    (filterLoc === 'all' || productsByLoc[filterLoc]?.has(p.id))
   )
   const categories = [...new Set(products.map(p => p.category).filter(Boolean))] as string[]
   const critical   = filteredProds.filter(p => p.quantity <= p.min_stock).sort((a:any,b:any) => a.quantity - b.quantity)
@@ -324,7 +338,7 @@ export default function RelatoriosPage() {
               {categories.map(c=><option key={c} value={c}>{c}</option>)}
             </select>
           </div>
-          {(tab==='movimentacoes'||tab==='depositos') && (
+          {(tab==='movimentacoes'||tab==='depositos'||tab==='inventario'||tab==='criticos') && (
             <div><label style={L}>Depósito</label>
               <select value={filterLoc} onChange={e=>setFilterLoc(e.target.value)}>
                 <option value="all">Todos os depósitos</option>
