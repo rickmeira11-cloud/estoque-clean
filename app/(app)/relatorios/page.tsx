@@ -53,11 +53,49 @@ export default function RelatoriosPage() {
 
   async function loadBalances() {
     const sb = createClient()
-    let q = sb.from('product_location_balance').select('*').eq('church_id', profile!.church_id)
-    if (filterCat !== 'all') q = q.eq('category', filterCat)
-    if (filterLoc !== 'all') q = q.eq('location_name', filterLoc)
-    const { data } = await q.order('location_name').order('product_name')
-    if (data) setBalances(data)
+    // Buscar todas movimentacoes com location_id
+    const { data: movs } = await sb
+      .from('stock_movements')
+      .select('type,quantity,location_id,product_id,product:products(name,category,unit,quantity)')
+      .eq('church_id', profile!.church_id)
+      .not('location_id', 'is', null)
+
+    // Buscar locations
+    const { data: locs } = await sb
+      .from('locations')
+      .select('id,name')
+      .eq('church_id', profile!.church_id)
+      .eq('is_active', true)
+
+    if (!movs || !locs) return
+
+    // Calcular saldo por produto+location
+    const map: Record<string, any> = {}
+    movs.forEach((m: any) => {
+      const key = m.product_id + '|' + m.location_id
+      if (!map[key]) {
+        const loc = locs.find((l:any) => l.id === m.location_id)
+        map[key] = {
+          product_name: m.product?.name || '—',
+          category: m.product?.category || '—',
+          unit: m.product?.unit || 'un',
+          total_quantity: m.product?.quantity || 0,
+          location_name: loc?.name || '—',
+          location_quantity: 0,
+        }
+      }
+      if (m.type === 'in')  map[key].location_quantity += m.quantity
+      if (m.type === 'out') map[key].location_quantity -= m.quantity
+    })
+
+    let result = Object.values(map)
+      .filter((b: any) => b.location_quantity > 0)
+      .sort((a: any, b: any) => a.location_name.localeCompare(b.location_name) || a.product_name.localeCompare(b.product_name))
+
+    if (filterCat !== 'all') result = result.filter((b: any) => b.category === filterCat)
+    if (filterLoc !== 'all') result = result.filter((b: any) => b.location_name === filterLoc)
+
+    setBalances(result)
   }
 
   async function loadMovements() {
