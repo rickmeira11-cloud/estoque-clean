@@ -4,11 +4,12 @@ import { createClient } from '@/lib/supabase/client'
 import { useProfile } from '@/hooks/useProfile'
 import type { Product } from '@/types'
 
-type MovType = 'in' | 'out' | 'adjustment'
+type MovType = 'in' | 'out' | 'adjustment' | 'transfer'
 const CFG = {
   in:         { label:'Entrada',  color:'var(--ok)',    icon:'↑', desc:'Adicionar ao estoque' },
   out:        { label:'Saída',    color:'var(--empty)', icon:'↓', desc:'Retirar do estoque' },
-  adjustment: { label:'Ajuste',  color:'var(--info)',  icon:'⇄', desc:'Corrigir quantidade' },
+  adjustment: { label:'Ajuste',   color:'var(--info)',   icon:'⇄', desc:'Corrigir quantidade' },
+  transfer:   { label:'Transferir', color:'var(--brand-light)', icon:'⇌', desc:'Mover entre depósitos' },
 }
 
 export default function MovimentacoesPage() {
@@ -56,6 +57,13 @@ export default function MovimentacoesPage() {
       setError('Depósito de origem e destino não podem ser iguais'); return
     }
     setSaving(true); setError(null)
+    // Transferencia: valida origem e destino obrigatorios
+    if (type === 'transfer') {
+      if (!locationId) { setError('Selecione o depósito de origem'); setSaving(false); return }
+      if (!destLocationId) { setError('Selecione o depósito de destino'); setSaving(false); return }
+      if (locationId === destLocationId) { setError('Origem e destino não podem ser iguais'); setSaving(false); return }
+    }
+
     const { error: err } = await createClient()
       .from('stock_movements')
       .insert({
@@ -66,7 +74,7 @@ export default function MovimentacoesPage() {
         quantity:                n,
         note:                    note || null,
         location_id:             locationId || null,
-        destination_location_id: type === 'out' ? (destLocationId || null) : null,
+        destination_location_id: (type === 'out' || type === 'transfer') ? (destLocationId || null) : null,
       })
     if (err) { setError(err.message); setSaving(false); return }
     setSuccess(true)
@@ -86,6 +94,8 @@ export default function MovimentacoesPage() {
       ? selected.quantity + parseInt(qty)
       : type === 'out'
       ? selected.quantity - parseInt(qty)
+      : type === 'transfer'
+      ? selected.quantity  // transferencia nao altera o total
       : parseInt(qty)
     : null
 
@@ -196,7 +206,7 @@ export default function MovimentacoesPage() {
                 />
                 {preview !== null && (
                   <div style={{ marginTop: '8px', fontSize: '12px', color: 'var(--text-3)', textAlign: 'center' }}>
-                    Estoque após: <strong style={{ color: preview < 0 ? 'var(--empty)' : preview <= selected.min_stock ? 'var(--low)' : 'var(--ok)', fontSize: '15px', fontFamily: 'var(--font-mono)' }}>{preview}</strong>
+                    {type === 'transfer' ? <span style={{fontSize:'12px',color:'var(--brand-light)'}}>⇌ Não altera o estoque total</span> : <span>Estoque após: <strong style={{ color: preview! < 0 ? 'var(--empty)' : preview! <= selected.min_stock ? 'var(--low)' : 'var(--ok)', fontSize: '15px', fontFamily: 'var(--font-mono)' }}>{preview}</strong></span>}
                   </div>
                 )}
               </div>
@@ -204,7 +214,7 @@ export default function MovimentacoesPage() {
               {/* Depósito origem */}
               <div style={{ marginBottom: '16px' }}>
                 <label style={L}>
-                  {type === 'out' ? 'Depósito de origem' : 'Depósito'}
+                  {type === 'out' || type === 'transfer' ? 'Depósito de origem *' : 'Depósito'}
                   <span style={{ fontWeight: '400' }}> (opcional)</span>
                 </label>
                 <select value={locationId} onChange={e => setLocationId(e.target.value)}>
@@ -214,11 +224,11 @@ export default function MovimentacoesPage() {
               </div>
 
               {/* Depósito destino — só para saída */}
-              {type === 'out' && (
+              {(type === 'out' || type === 'transfer') && (
                 <div style={{ marginBottom: '16px' }}>
                   <label style={L}>
-                    Depósito de destino
-                    <span style={{ fontWeight: '400' }}> (opcional — para transferência)</span>
+                    Depósito de destino{type === 'transfer' ? ' *' : ''}
+                    {type !== 'transfer' && <span style={{ fontWeight: '400' }}> (opcional — para transferência)</span>}
                   </label>
                   <select value={destLocationId} onChange={e => setDestLocationId(e.target.value)}>
                     <option value="">Saída definitiva</option>
@@ -252,7 +262,7 @@ export default function MovimentacoesPage() {
                 border: 'none', borderRadius: 'var(--radius-sm)', fontSize: '14px', fontWeight: '600',
                 cursor: saving || !qty ? 'not-allowed' : 'pointer', transition: 'all 0.15s',
               }}>
-                {saving ? 'Registrando...' : isTransfer ? `Transferir para ${locations.find(l=>l.id===destLocationId)?.name}` : `Registrar ${CFG[type].label}`}
+                {saving ? 'Registrando...' : type === 'transfer' ? `Transferir para ${locations.find(l=>l.id===destLocationId)?.name||'...'}` : isTransfer ? `Transferir para ${locations.find(l=>l.id===destLocationId)?.name}` : `Registrar ${CFG[type].label}`}
               </button>
             </>
           )}
