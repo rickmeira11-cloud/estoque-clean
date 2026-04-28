@@ -1,3 +1,8 @@
+
+export async function GET() {
+  return Response.json({ ok: true, message: 'Gestoque WhatsApp API ativa. Use POST para enviar alertas.' })
+}
+
 ﻿import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 
