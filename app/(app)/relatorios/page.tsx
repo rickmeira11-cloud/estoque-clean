@@ -27,17 +27,19 @@ function Icon({ d, size=15 }: { d:string; size?:number }) {
 export default function RelatoriosPage() {
   const { profile } = useProfile()
   const [tab,        setTab]        = useState<ReportTab>('inventario')
-  const [dateFrom,   setDateFrom]   = useState(() => { const d=new Date(); d.setMonth(d.getMonth()-3); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0') })
-  const [dateTo,     setDateTo]     = useState(() => { const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0') })
+  const [dateFrom,   setDateFrom]   = useState(() => { const d=new Date(); d.setMonth(d.getMonth()-3); return d.toISOString().split('T')[0] })
+  const [dateTo,     setDateTo]     = useState(() => new Date().toISOString().split('T')[0])
   const [filterLoc,  setFilterLoc]  = useState('all')
   const [filterCat,  setFilterCat]  = useState('all')
   const [locations,  setLocations]  = useState<{id:string,name:string}[]>([])
   const [products,   setProducts]   = useState<any[]>([])
   const [movements,  setMovements]  = useState<any[]>([])
   const [loading,    setLoading]    = useState(false)
+  const [balances,   setBalances]   = useState<any[]>([])
 
   useEffect(() => { if (profile?.church_id) loadBase() }, [profile?.church_id])
   useEffect(() => { if (profile?.church_id) loadMovements() }, [profile?.church_id, dateFrom, dateTo])
+  useEffect(() => { if (profile?.church_id && tab === 'depositos') loadBalances() }, [profile?.church_id, tab, filterLoc, filterCat])
 
   async function loadBase() {
     const sb = createClient()
@@ -49,14 +51,23 @@ export default function RelatoriosPage() {
     if (prods) setProducts(prods)
   }
 
+  async function loadBalances() {
+    const sb = createClient()
+    let q = sb.from('product_location_balance').select('*').eq('church_id', profile!.church_id)
+    if (filterCat !== 'all') q = q.eq('category', filterCat)
+    if (filterLoc !== 'all') q = q.eq('location_name', filterLoc)
+    const { data } = await q.order('location_name').order('product_name')
+    if (data) setBalances(data)
+  }
+
   async function loadMovements() {
     setLoading(true)
     const { data } = await createClient()
       .from('stock_movements')
-      .select('id,type,quantity,created_at,note,location_id,product:products(name,category),location:locations(name)')
+      .select('id,type,quantity,created_at,note,product:products(name,category),location:locations(name),dest:destination_location_id')
       .eq('church_id', profile!.church_id)
       .gte('created_at', dateFrom)
-      .lte('created_at', dateTo + 'T23:59:59.999Z')
+      .lte('created_at', dateTo + 'T23:59:59')
       .order('created_at', { ascending: false })
     if (data) setMovements(data)
     setLoading(false)
