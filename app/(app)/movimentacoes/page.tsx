@@ -23,6 +23,7 @@ export default function MovimentacoesPage() {
   const [locationId,     setLocationId]     = useState('')
   const [destLocationId, setDestLocationId] = useState('')
   const [locations,      setLocations]      = useState<{id:string,name:string}[]>([])
+  const [locBalance,     setLocBalance]     = useState<Record<string,number>>({})
   const [saving,         setSaving]         = useState(false)
   const [success,        setSuccess]        = useState(false)
   const [error,          setError]          = useState<string | null>(null)
@@ -37,6 +38,31 @@ export default function MovimentacoesPage() {
       .eq('is_active', true)
       .order('name')
       .then(({ data }) => { if (data) setLocations(data) })
+    // Carregar saldo por produto/deposito
+    createClient()
+      .from('stock_movements')
+      .select('product_id,location_id,destination_location_id,type,quantity')
+      .eq('church_id', profile.church_id)
+      .not('location_id', 'is', null)
+      .then(({ data }) => {
+        if (!data) return
+        const bal: Record<string,number> = {}
+        data.forEach((r: any) => {
+          const key = r.product_id + '|' + r.location_id
+          if (!bal[key]) bal[key] = 0
+          if (r.type === 'in')  bal[key] += r.quantity
+          if (r.type === 'out') bal[key] -= r.quantity
+          if (r.type === 'transfer') {
+            bal[key] -= r.quantity
+            if (r.destination_location_id) {
+              const destKey = r.product_id + '|' + r.destination_location_id
+              if (!bal[destKey]) bal[destKey] = 0
+              bal[destKey] += r.quantity
+            }
+          }
+        })
+        setLocBalance(bal)
+      })
   }, [profile?.church_id])
 
   async function load() {
@@ -215,12 +241,20 @@ export default function MovimentacoesPage() {
               <div style={{ marginBottom: '16px' }}>
                 <label style={L}>
                   {type === 'out' || type === 'transfer' ? 'Depósito de origem *' : 'Depósito'}
-                  <span style={{ fontWeight: '400' }}> (opcional)</span>
+                  {type !== 'transfer' && type !== 'out' && <span style={{ fontWeight: '400' }}> (opcional)</span>}
                 </label>
-                <select value={locationId} onChange={e => setLocationId(e.target.value)}>
+                <select value={locationId} onChange={e => { setLocationId(e.target.value); setDestLocationId('') }}>
                   <option value="">Sem depósito específico</option>
-                  {locations.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
+                  {type === 'transfer'
+                    ? locations.filter(l => (locBalance[selected?.id + '|' + l.id] || 0) > 0).map(l => (
+                        <option key={l.id} value={l.id}>{l.name} ({locBalance[selected?.id + '|' + l.id] || 0} un)</option>
+                      ))
+                    : locations.map(l => <option key={l.id} value={l.id}>{l.name}</option>)
+                  }
                 </select>
+                {type === 'transfer' && selected && locations.filter(l => (locBalance[selected.id + '|' + l.id] || 0) > 0).length === 0 && (
+                  <div style={{ fontSize:'11px', color:'var(--empty)', marginTop:'4px' }}>Nenhum depósito com saldo para este produto</div>
+                )}
               </div>
 
               {/* Depósito destino — só para saída */}
