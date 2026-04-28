@@ -41,24 +41,29 @@ export async function POST() {
       return NextResponse.json({ ok: true, message: 'sem alertas' })
     }
 
-    const dataHoje = new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' })
-    let msg = '📦 *Gestoque Poiema - Alertas de Estoque*\n'
+    const dataHoje = new Date().toLocaleDateString('pt-BR', {
+      weekday: 'long',
+      day: '2-digit',
+      month: 'long',
+    })
+
+    let msg = '\uD83D\uDCE6 *Gestoque Poiema - Alertas de Estoque*\n'
     msg += '_' + dataHoje + '_\n\n'
 
     if (baixo.length > 0) {
-      msg += '⚠️ *Estoque baixo ou zerado:*\n'
+      msg += '\u26A0\uFE0F *Estoque baixo ou zerado:*\n'
       baixo.forEach(p => {
-        const icon = p.quantity === 0 ? '🔴' : '🟡'
+        const icon = p.quantity === 0 ? '\uD83D\uDD34' : '\uD83D\uDFE1'
         msg += icon + ' ' + p.name + ' - *' + p.quantity + '* (min: ' + p.min_stock + ')\n'
       })
     }
 
     if (vencendo.length > 0) {
-      msg += '\n⏰ *Validade proxima (7 dias):*\n'
+      msg += '\n\u23F0 *Validade proxima (7 dias):*\n'
       vencendo.forEach(p => {
         const exp  = new Date(p.expiration_date + 'T12:00:00')
         const diff = Math.ceil((exp.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
-        const icon = diff < 0 ? '🔴' : '🟠'
+        const icon = diff < 0 ? '\uD83D\uDD34' : '\uD83D\uDFE0'
         const txt  = diff < 0 ? 'VENCIDO' : 'vence em ' + diff + ' dia(s)'
         msg += icon + ' ' + p.name + ' - ' + txt + ' (' + exp.toLocaleDateString('pt-BR') + ')\n'
       })
@@ -83,7 +88,7 @@ export async function POST() {
     return NextResponse.json({
       ok: true,
       zapi: data,
-      alertas: { baixo: baixo.length, vencendo: vencendo.length }
+      alertas: { baixo: baixo.length, vencendo: vencendo.length },
     })
   } catch (err: any) {
     return NextResponse.json({ ok: false, error: err.message }, { status: 500 })
