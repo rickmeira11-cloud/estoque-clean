@@ -95,3 +95,8 @@ select option { background: var(--bg-3); }
   h1 { font-size: 20px !important; }
   h2 { font-size: 16px !important; }
 }
+
+/* Ministerios mobile */
+@media (max-width: 768px) {
+  .min-grid { grid-template-columns: 1fr !important; }
+}
