@@ -1,8 +1,0 @@
-﻿{
-  "crons": [
-    {
-      "path": "/api/whatsapp",
-      "schedule": "0 8 * * *"
-    }
-  ]
-}
