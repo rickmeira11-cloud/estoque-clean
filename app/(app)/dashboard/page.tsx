@@ -25,9 +25,11 @@ function startOf3Months() {
 
 const COLORS = ['#6366f1','#22c55e','#f59e0b','#ef4444','#a78bfa','#34d399','#fb923c','#60a5fa']
 
-function Card({ label, value, sub, color, icon }: { label:string; value:string|number; sub?:string; color:string; icon:string }) {
-  return (
-    <div style={{ background:'var(--bg-card)', border:'1px solid var(--border)', borderRadius:'var(--radius)', padding:'16px 20px', borderTop:`2px solid ${color}` }}>
+function Card({ label, value, sub, color, icon, href }: { label:string; value:string|number; sub?:string; color:string; icon:string; href?:string }) {
+  const inner = (
+    <div style={{ background:'var(--bg-card)', border:'1px solid var(--border)', borderRadius:'var(--radius)', padding:'16px 20px', borderTop:`2px solid ${color}`, cursor: href ? 'pointer' : 'default', transition:'transform 0.15s', textDecoration:'none' }}
+      onMouseEnter={e => { if (href) (e.currentTarget as HTMLElement).style.transform = 'translateY(-1px)' }}
+      onMouseLeave={e => { if (href) (e.currentTarget as HTMLElement).style.transform = 'translateY(0)' }}>
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:'10px' }}>
         <div style={{ fontSize:'10px', color:'var(--text-3)', textTransform:'uppercase', letterSpacing:'0.06em', fontWeight:'600' }}>{label}</div>
         <div style={{ fontSize:'18px' }}>{icon}</div>
@@ -190,8 +192,8 @@ export default function DashboardPage() {
 
       {/* Cards */}
       <div className="stats-grid" style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:'12px', marginBottom:'14px' }}>
-        <Card label="Total de itens"  value={total}   color="var(--brand)"  icon="📦" sub={`${ok} em estoque`}/>
-        <Card label="Estoque baixo"   value={low}     color="var(--low)"    icon="⚠️" sub={`${empty} zerado(s)`}/>
+        <Card label="Total de itens"  value={total}   color="var(--brand)"  icon="📦" href="/estoque" sub={`${ok} em estoque`}/>
+        <Card label="Estoque baixo"   value={low}     color="var(--low)"    icon="⚠️" href="/estoque" sub={`${empty} zerado(s)`}/>
         <Card label={`Entradas (${period === '7d' ? '7d' : period === '30d' ? '30d' : '3m'})`} value={entries} color="var(--ok)" icon="↑" sub="unidades recebidas"/>
         <Card label={`Saídas (${period === '7d' ? '7d' : period === '30d' ? '30d' : '3m'})`}   value={exits}   color="var(--empty)" icon="↓" sub="unidades retiradas"/>
       </div>
@@ -204,61 +206,6 @@ export default function DashboardPage() {
           <div style={{ flex:empty||0.01, background:'var(--empty)', transition:'flex 0.6s' }}/>
         </div>
       )}
-
-      {/* Gráfico de linha — entradas vs saídas por semana */}
-      {lineData.length > 0 && (
-        <div style={{ background:'var(--bg-card)', border:'1px solid var(--border)', borderRadius:'var(--radius)', padding:'18px', marginBottom:'14px' }}>
-          <div style={{ fontSize:'13px', fontWeight:'500', color:'var(--text-1)', marginBottom:'16px' }}>
-            Entradas vs Saídas — por semana
-          </div>
-          <ResponsiveContainer width="100%" height={220}>
-            <LineChart data={lineData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)"/>
-              <XAxis dataKey="label" tick={{ fontSize:11, fill:'#71717a' }} axisLine={false} tickLine={false}/>
-              <YAxis tick={{ fontSize:11, fill:'#71717a' }} axisLine={false} tickLine={false}/>
-              <Tooltip contentStyle={tooltipStyle}/>
-              <Legend wrapperStyle={{ fontSize:'12px' }}/>
-              <Line type="monotone" dataKey="entradas" name="Entradas" stroke="var(--ok)"    strokeWidth={2} dot={false} activeDot={{ r:4 }}/>
-              <Line type="monotone" dataKey="saidas"   name="Saídas"   stroke="var(--empty)" strokeWidth={2} dot={false} activeDot={{ r:4 }}/>
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
-      )}
-
-      {/* Grid: barras + pizza */}
-      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'14px', marginBottom:'14px' }} className="bottom-grid">
-
-        {/* Top produtos */}
-        {barData.length > 0 && (
-          <div style={{ background:'var(--bg-card)', border:'1px solid var(--border)', borderRadius:'var(--radius)', padding:'18px' }}>
-            <div style={{ fontSize:'13px', fontWeight:'500', color:'var(--text-1)', marginBottom:'16px' }}>Top produtos movimentados</div>
-            <ResponsiveContainer width="100%" height={220}>
-              <BarChart data={barData} layout="vertical">
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" horizontal={false}/>
-                <XAxis type="number" tick={{ fontSize:10, fill:'#71717a' }} axisLine={false} tickLine={false}/>
-                <YAxis type="category" dataKey="name" tick={{ fontSize:10, fill:'#a1a1aa' }} axisLine={false} tickLine={false} width={90}/>
-                <Tooltip contentStyle={tooltipStyle}/>
-                <Bar dataKey="total" name="Qtd" fill="var(--brand)" radius={[0,4,4,0]}/>
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        )}
-
-        {/* Pizza por categoria */}
-        {pieData.length > 0 && (
-          <div style={{ background:'var(--bg-card)', border:'1px solid var(--border)', borderRadius:'var(--radius)', padding:'18px' }}>
-            <div style={{ fontSize:'13px', fontWeight:'500', color:'var(--text-1)', marginBottom:'16px' }}>Distribuição por categoria</div>
-            <ResponsiveContainer width="100%" height={220}>
-              <PieChart>
-                <Pie data={pieData} cx="50%" cy="50%" outerRadius={80} dataKey="value" label={({ name, percent }) => `${name} ${(percent*100).toFixed(0)}%`} labelLine={false} style={{ fontSize:'10px' }}>
-                  {pieData.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]}/>)}
-                </Pie>
-                <Tooltip contentStyle={tooltipStyle}/>
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-        )}
-      </div>
 
       {/* Grid: depósitos + atenção + últimas movimentações */}
       <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:'14px', marginBottom:'14px' }} className="bottom-grid">
@@ -331,6 +278,65 @@ export default function DashboardPage() {
           ))}
         </div>
       </div>
+
+
+      {/* Gráfico de linha — entradas vs saídas por semana */}
+      {lineData.length > 0 && (
+        <div style={{ background:'var(--bg-card)', border:'1px solid var(--border)', borderRadius:'var(--radius)', padding:'18px', marginBottom:'14px' }}>
+          <div style={{ fontSize:'13px', fontWeight:'500', color:'var(--text-1)', marginBottom:'16px' }}>
+            Entradas vs Saídas — por semana
+          </div>
+          <ResponsiveContainer width="100%" height={220}>
+            <LineChart data={lineData}>
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)"/>
+              <XAxis dataKey="label" tick={{ fontSize:11, fill:'#71717a' }} axisLine={false} tickLine={false}/>
+              <YAxis tick={{ fontSize:11, fill:'#71717a' }} axisLine={false} tickLine={false}/>
+              <Tooltip contentStyle={tooltipStyle}/>
+              <Legend wrapperStyle={{ fontSize:'12px' }}/>
+              <Line type="monotone" dataKey="entradas" name="Entradas" stroke="var(--ok)"    strokeWidth={2} dot={false} activeDot={{ r:4 }}/>
+              <Line type="monotone" dataKey="saidas"   name="Saídas"   stroke="var(--empty)" strokeWidth={2} dot={false} activeDot={{ r:4 }}/>
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      )}
+
+
+      {/* Grid: barras + pizza */}
+      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'14px', marginBottom:'14px' }} className="bottom-grid">
+
+        {/* Top produtos */}
+        {barData.length > 0 && (
+          <div style={{ background:'var(--bg-card)', border:'1px solid var(--border)', borderRadius:'var(--radius)', padding:'18px' }}>
+            <div style={{ fontSize:'13px', fontWeight:'500', color:'var(--text-1)', marginBottom:'16px' }}>Top produtos movimentados</div>
+            <ResponsiveContainer width="100%" height={220}>
+              <BarChart data={barData} layout="vertical">
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" horizontal={false}/>
+                <XAxis type="number" tick={{ fontSize:10, fill:'#71717a' }} axisLine={false} tickLine={false}/>
+                <YAxis type="category" dataKey="name" tick={{ fontSize:10, fill:'#a1a1aa' }} axisLine={false} tickLine={false} width={90}/>
+                <Tooltip contentStyle={tooltipStyle}/>
+                <Bar dataKey="total" name="Qtd" fill="var(--brand)" radius={[0,4,4,0]}/>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+
+        {/* Pizza por categoria */}
+        {pieData.length > 0 && (
+          <div style={{ background:'var(--bg-card)', border:'1px solid var(--border)', borderRadius:'var(--radius)', padding:'18px' }}>
+            <div style={{ fontSize:'13px', fontWeight:'500', color:'var(--text-1)', marginBottom:'16px' }}>Distribuição por categoria</div>
+            <ResponsiveContainer width="100%" height={220}>
+              <PieChart>
+                <Pie data={pieData} cx="50%" cy="50%" outerRadius={80} dataKey="value" label={({ name, percent }) => `${name} ${(percent*100).toFixed(0)}%`} labelLine={false} style={{ fontSize:'10px' }}>
+                  {pieData.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]}/>)}
+                </Pie>
+                <Tooltip contentStyle={tooltipStyle}/>
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+      </div>
+
+
     </div>
   )
 }
