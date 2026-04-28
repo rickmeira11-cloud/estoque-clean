@@ -117,7 +117,7 @@ export default function DashboardPage() {
     const name = m.product?.name || 'Desconhecido'
     prodMap[name] = (prodMap[name] || 0) + m.quantity
   })
-  const barData = Object.entries(prodMap).sort(([,a],[,b]) => b - a).slice(0, 8).map(([name, total]) => ({ name: name.length > 16 ? name.slice(0,14)+'…' : name, total }))
+  const barData = Object.entries(prodMap).sort(([,a],[,b]) => b - a).slice(0, 8).map(([name, total]) => ({ name: name.length > 18 ? name.slice(0,16)+'…' : name, total }))
 
   // ── gráfico de pizza: por categoria ───────────────────────
   const catMap: Record<string, number> = {}
@@ -312,7 +312,7 @@ export default function DashboardPage() {
               <BarChart data={barData} layout="vertical">
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" horizontal={false}/>
                 <XAxis type="number" tick={{ fontSize:10, fill:'#71717a' }} axisLine={false} tickLine={false}/>
-                <YAxis type="category" dataKey="name" tick={{ fontSize:10, fill:'#a1a1aa' }} axisLine={false} tickLine={false} width={90}/>
+                <YAxis type="category" dataKey="name" tick={{ fontSize:10, fill:'#a1a1aa' }} axisLine={false} tickLine={false} width={120}/>
                 <Tooltip contentStyle={tooltipStyle}/>
                 <Bar dataKey="total" name="Qtd" fill="var(--brand)" radius={[0,4,4,0]}/>
               </BarChart>
