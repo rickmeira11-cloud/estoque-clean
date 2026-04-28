@@ -178,7 +178,8 @@ export default function MinisteriosAdminPage() {
           ) : ministries.map(m => (
             <div key={m.id}
               onClick={() => setSelected(m)}
-              style={{ background: 'var(--bg-card)', border: `1px solid ${selected?.id === m.id ? 'var(--brand)' : 'var(--border)'}`, borderRadius: '10px', padding: '12px 14px', cursor: 'pointer', transition: 'border-color 0.15s', opacity: m.is_active ? 1 : 0.5 }}>
+              style={{ background: 'var(--bg-card)', border: `1px solid ${selected?.id === m.id ? 'var(--brand)' : 'var(--border)'}`, borderRadius: '10px', overflow: 'hidden', transition: 'border-color 0.15s', opacity: m.is_active ? 1 : 0.5 }}>
+              <div style={{ padding: '12px 14px' }} onClick={() => setSelected(m)}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
                 <div style={{ minWidth: 0 }}>
                   <div style={{ fontSize: '13px', fontWeight: '500', color: 'var(--text-1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.name}</div>
@@ -187,10 +188,19 @@ export default function MinisteriosAdminPage() {
                     <span>{m.members?.length || 0} membro(s)</span>
                   </div>
                 </div>
-                <div style={{ display: 'flex', gap: '4px', flexShrink: 0 }}>
-                  <button onClick={e => { e.stopPropagation(); openEditMin(m) }} style={{ padding: '3px 8px', background: 'transparent', border: '1px solid var(--border)', borderRadius: '5px', fontSize: '11px', color: 'var(--text-3)', cursor: 'pointer' }}>Editar</button>
-                  <button onClick={e => { e.stopPropagation(); toggleMinActive(m) }} style={{ padding: '3px 8px', background: 'transparent', border: '1px solid var(--border)', borderRadius: '5px', fontSize: '11px', color: 'var(--text-3)', cursor: 'pointer' }}>{m.is_active ? '●' : '○'}</button>
-                </div>
+                <span style={{ fontSize: '10px', padding: '2px 8px', borderRadius: '99px', background: m.is_active ? 'var(--ok-dim)' : 'rgba(255,255,255,0.05)', color: m.is_active ? 'var(--ok)' : 'var(--text-3)', flexShrink: 0 }}>
+                  {m.is_active ? 'Ativo' : 'Inativo'}
+                </span>
+              </div>
+              </div>
+              {/* Barra de ações */}
+              <div style={{ display: 'flex', borderTop: '1px solid var(--border)' }}>
+                <button onClick={e => { e.stopPropagation(); openEditMin(m) }} style={{ flex: 1, padding: '10px', background: 'transparent', border: 'none', borderRight: '1px solid var(--border)', fontSize: '13px', color: 'var(--text-2)', cursor: 'pointer', fontWeight: '500' }}>
+                  Editar
+                </button>
+                <button onClick={e => { e.stopPropagation(); toggleMinActive(m) }} style={{ flex: 1, padding: '10px', background: 'transparent', border: 'none', fontSize: '13px', color: m.is_active ? 'var(--empty)' : 'var(--ok)', cursor: 'pointer', fontWeight: '500' }}>
+                  {m.is_active ? 'Desativar' : 'Ativar'}
+                </button>
               </div>
             </div>
           ))}

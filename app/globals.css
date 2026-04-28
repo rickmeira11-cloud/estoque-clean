@@ -100,3 +100,8 @@ select option { background: var(--bg-3); }
 @media (max-width: 768px) {
   .min-grid { grid-template-columns: 1fr !important; }
 }
+
+/* Ministerios mobile */
+@media (max-width: 768px) {
+  .min-grid { grid-template-columns: 1fr !important; }
+}
