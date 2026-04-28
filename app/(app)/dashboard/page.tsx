@@ -63,13 +63,20 @@ export default function DashboardPage() {
         .eq('church_id', profile!.church_id)
         .eq('is_active', true),
       sb.from('stock_movements')
-        .select('id,type,quantity,created_at,product:products(name,category),location:locations(name)')
+        .select('id,type,quantity,created_at,location_id,product:products(name,category)')
         .eq('church_id', profile!.church_id)
         .gte('created_at', since)
         .order('created_at', { ascending: true }),
     ])
     if (prods) setProducts(prods as Product[])
-    if (movs)  setMovements(movs as Movement[])
+    if (movs) {
+      const { data: locs } = await sb.from('locations').select('id,name').eq('church_id', profile!.church_id)
+      const withLoc = movs.map((m: any) => ({
+        ...m,
+        location: locs?.find((l: any) => l.id === m.location_id) || null
+      }))
+      setMovements(withLoc as Movement[])
+    }
     setLoading(false)
   }
 
