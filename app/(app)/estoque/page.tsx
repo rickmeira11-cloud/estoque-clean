@@ -153,6 +153,7 @@ export default function EstoquePage() {
   {label:'Categoria',  col:'category'},
   {label:'Qtd',        col:'quantity'},
   {label:'Mínimo',      col:'min_stock'},
+  {label:'Depósito',    col:''},
   {label:'Status',     col:''},
   {label:'Validade',   col:''},
   {label:'',           col:''},
@@ -170,6 +171,7 @@ export default function EstoquePage() {
                   <td style={{padding:'12px 14px',fontSize:'12px',color:'var(--text-2)'}}>{p.category||'—'}</td>
                   <td style={{padding:'12px 14px',fontSize:'18px',fontWeight:'700',color}}>{displayQty}{locId&&<span style={{fontSize:'10px',color:'var(--text-3)',display:'block',lineHeight:1}}>dep</span>}</td>
                   <td style={{padding:'12px 14px',fontSize:'12px',color:'var(--text-3)'}}>{p.min_stock}</td>
+                  <td style={{padding:'8px 14px'}}>{ (() => { const locs=Object.entries(locBalance).filter(([k,v])=>k.startsWith(p.id+'|')&&v>0); if(locs.length===0)return <span style={{color:'var(--text-3)'}}>—</span>; return locs.map(([k,v])=>{ const locId=k.split('|')[1]; const locName=locations.find(l=>l.id===locId)?.name||'?'; return <div key={k} style={{display:'flex',gap:'6px',alignItems:'center',marginBottom:'2px'}}><span style={{fontSize:'12px',fontWeight:'600',color:'var(--brand-light)',fontFamily:'var(--font-mono)'}}>{v}</span><span style={{fontSize:'11px',color:'var(--text-2)',background:'var(--bg-3)',padding:'1px 7px',borderRadius:'99px'}}>{locName}</span></div> }) })() }</td>
                   <td style={{padding:'12px 14px'}}><span style={{fontSize:'11px',fontWeight:'500',padding:'3px 10px',borderRadius:'99px',background:bg,color}}>{label}</span></td>
                   <td style={{padding:'12px 14px',fontSize:'12px',color:'var(--text-3)'}}>{p.expiration_date?new Date(p.expiration_date).toLocaleDateString('pt-BR'):'—'}</td>
                   <td style={{padding:'12px 14px'}}>{canEdit&&(<div style={{display:'flex',gap:'6px'}}><button onClick={()=>openEdit(p)} style={{padding:'4px 10px',background:'transparent',border:'1px solid var(--border)',borderRadius:'6px',fontSize:'12px',color:'var(--text-2)',cursor:'pointer'}}>Editar</button><button onClick={()=>deactivate(p.id)} style={{padding:'4px 10px',background:'transparent',border:'1px solid var(--border)',borderRadius:'6px',fontSize:'12px',color:'var(--text-3)',cursor:'pointer'}}>✕</button></div>)}</td>
