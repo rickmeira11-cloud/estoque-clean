@@ -4,11 +4,10 @@ import { createClient } from '@/lib/supabase/client'
 import { useProfile } from '@/hooks/useProfile'
 import type { Product } from '@/types'
 
-type MovType = 'in' | 'out' | 'adjustment' | 'transfer'
+type MovType = 'in' | 'out' | 'transfer'
 const CFG = {
   in:         { label:'Entrada',  color:'var(--ok)',    icon:'↑', desc:'Adicionar ao estoque' },
   out:        { label:'Saída',    color:'var(--empty)', icon:'↓', desc:'Retirar do estoque' },
-  adjustment: { label:'Ajuste',   color:'var(--info)',   icon:'⇄', desc:'Corrigir quantidade' },
   transfer:   { label:'Transferir', color:'var(--brand-light)', icon:'⇌', desc:'Mover entre depósitos' },
 }
 
@@ -133,7 +132,7 @@ export default function MovimentacoesPage() {
     <div style={{ maxWidth: '900px' }}>
       <div style={{ marginBottom: '24px' }}>
         <h1 style={{ fontSize: '22px', fontWeight: '600' }}>Movimentação</h1>
-        <p style={{ fontSize: '13px', color: 'var(--text-3)', marginTop: '4px' }}>Registre entradas, saídas e ajustes de estoque</p>
+        <p style={{ fontSize: '13px', color: 'var(--text-3)', marginTop: '4px' }}>Registre entradas, saídas e transferencias entre depositos</p>
       </div>
 
       {success && (
