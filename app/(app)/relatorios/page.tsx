@@ -53,28 +53,22 @@ export default function RelatoriosPage() {
 
   async function loadBalances() {
     const sb = createClient()
-    // Buscar todas movimentacoes com location_id
-    const { data: movs } = await sb
-      .from('stock_movements')
-      .select('type,quantity,location_id,product_id,product:products(name,category,unit,quantity)')
-      .eq('church_id', profile!.church_id)
-      .not('location_id', 'is', null)
-
-    // Buscar locations
-    const { data: locs } = await sb
-      .from('locations')
-      .select('id,name')
-      .eq('church_id', profile!.church_id)
-      .eq('is_active', true)
-
+    const [{ data: movs }, { data: locs }] = await Promise.all([
+      sb.from('stock_movements')
+        .select('type,quantity,location_id,product_id,product:products(name,category,unit,quantity)')
+        .eq('church_id', profile!.church_id)
+        .not('location_id', 'is', null),
+      sb.from('locations')
+        .select('id,name')
+        .eq('church_id', profile!.church_id)
+        .eq('is_active', true)
+    ])
     if (!movs || !locs) return
-
-    // Calcular saldo por produto+location
     const map: Record<string, any> = {}
     movs.forEach((m: any) => {
       const key = m.product_id + '|' + m.location_id
       if (!map[key]) {
-        const loc = locs.find((l:any) => l.id === m.location_id)
+        const loc = locs.find((l: any) => l.id === m.location_id)
         map[key] = {
           product_name: m.product?.name || '—',
           category: m.product?.category || '—',
@@ -87,14 +81,11 @@ export default function RelatoriosPage() {
       if (m.type === 'in')  map[key].location_quantity += m.quantity
       if (m.type === 'out') map[key].location_quantity -= m.quantity
     })
-
     let result = Object.values(map)
       .filter((b: any) => b.location_quantity > 0)
       .sort((a: any, b: any) => a.location_name.localeCompare(b.location_name) || a.product_name.localeCompare(b.product_name))
-
     if (filterCat !== 'all') result = result.filter((b: any) => b.category === filterCat)
     if (filterLoc !== 'all') result = result.filter((b: any) => b.location_name === filterLoc)
-
     setBalances(result)
   }
 
