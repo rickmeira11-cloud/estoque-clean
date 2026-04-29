@@ -96,7 +96,7 @@ export default function DashboardPage() {
   const empty   = products.filter(p => p.quantity === 0).length
   const entries = filtered.filter(m => m.type === 'in').reduce((a, m) => a + m.quantity, 0)
   const exits   = filtered.filter(m => m.type === 'out').reduce((a, m) => a + m.quantity, 0)
-  const critical = products.filter(p => p.quantity <= p.min_stock).sort((a,b) => a.quantity - b.quantity).slice(0, 6)
+  const critical = products.filter(p => p.quantity <= p.min_stock).sort((a,b) => a.quantity - b.quantity).slice(0, 4)
 
   // ── gráfico de linha: entradas vs saídas por semana ────────
   const weekMap: Record<string, { label:string; entradas:number; saidas:number }> = {}
@@ -138,7 +138,7 @@ export default function DashboardPage() {
   const locData = Object.entries(locMap).sort(([,a],[,b]) => (b.entradas+b.saidas) - (a.entradas+a.saidas))
 
   // ── últimas movimentações ──────────────────────────────────
-  const recent = [...movements].reverse().slice(0, 6)
+  const recent = [...movements].reverse().slice(0, 4)
 
   const hora = new Date().getHours()
   const greeting = hora < 12 ? 'Bom dia' : hora < 18 ? 'Boa tarde' : 'Boa noite'
@@ -224,8 +224,9 @@ export default function DashboardPage() {
               if (m.type==='transfer') saldo[loc] -= m.quantity
             })
             const entries = Object.entries(saldo).filter(([,q]) => q > 0).sort(([,a],[,b]) => b-a)
+            const maxShow = 4
             if (entries.length === 0) return <div style={{ fontSize:'12px', color:'var(--text-3)', textAlign:'center', padding:'20px 0' }}>Nenhum saldo por depósito</div>
-            return entries.map(([loc, qty]) => (
+            return (<><div style={{maxHeight:'220px',overflowY:'auto'}}>{entries.slice(0,maxShow).map(([loc, qty]) => (
               <a key={loc} href="/estoque" style={{ display:'block', textDecoration:'none', marginBottom:'8px' }}>
                 <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'10px 12px', borderRadius:'var(--radius-sm)', background:'var(--bg-3)', border:'1px solid var(--border)', cursor:'pointer', transition:'border-color 0.15s' }}
                   onMouseEnter={e=>(e.currentTarget.style.borderColor='var(--brand)')}
@@ -242,7 +243,7 @@ export default function DashboardPage() {
                   </div>
                 </div>
               </a>
-            ))
+            ))}</div>{entries.length > maxShow && <div style={{fontSize:'11px',color:'var(--text-3)',textAlign:'center',marginTop:'8px',cursor:'pointer'}} onClick={()=>{}}>+{entries.length - maxShow} depósito(s) — ver todos no Estoque</div>}</>) 
           })()}
         </div>
                 {/* Atenção necessária */}
