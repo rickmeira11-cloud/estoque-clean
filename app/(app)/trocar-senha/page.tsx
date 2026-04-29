@@ -7,7 +7,6 @@ import { useProfile } from '@/hooks/useProfile'
 export default function TrocarSenhaPage() {
   const { profile } = useProfile()
   const router = useRouter()
-  const [senhaAtual, setSenhaAtual] = useState('')
   const [novaSenha, setNovaSenha] = useState('')
   const [confirmar, setConfirmar] = useState('')
   const [saving, setSaving] = useState(false)
@@ -18,15 +17,15 @@ export default function TrocarSenhaPage() {
     if (novaSenha !== confirmar) { setError('As senhas não coincidem'); return }
     setSaving(true); setError(null)
     const sb = createClient()
-    // Reautenticar com senha atual antes de trocar
-    const { data: { user } } = await sb.auth.getUser()
-    const email = user?.email || ''
-    const { error: reAuthErr } = await sb.auth.signInWithPassword({ email, password: senhaAtual })
-    if (reAuthErr) { setError('Senha atual incorreta'); setSaving(false); return }
-    const { error: err } = await sb.auth.updateUser({ password: novaSenha })
-    if (err) { setError(err.message); setSaving(false); return }
-    // Marcar must_change_password = false
-    await sb.from('profiles').update({ must_change_password: false }).eq('id', profile!.id)
+    const { data: { session } } = await sb.auth.getSession()
+    const token = session?.access_token || ''
+    const res = await fetch('/api/trocar-senha', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      body: JSON.stringify({ novaSenha })
+    })
+    const data = await res.json()
+    if (!res.ok) { setError(data.error || 'Erro ao trocar senha'); setSaving(false); return }
     router.push('/dashboard')
   }
 
@@ -48,17 +47,7 @@ export default function TrocarSenhaPage() {
             <div style={{ marginBottom:'16px', padding:'10px 14px', borderRadius:'8px', background:'var(--empty-dim)', fontSize:'13px', color:'var(--empty)' }}>{error}</div>
           )}
           <div style={{ display:'flex', flexDirection:'column', gap:'16px' }}>
-            <div>
-              <label style={L}>Senha temporária (atual)</label>
-              <input
-                type="password"
-                value={senhaAtual}
-                onChange={e => setSenhaAtual(e.target.value)}
-                placeholder="Digite a senha temporária recebida"
-                autoFocus
-              />
-            </div>
-            <div>
+<div>
               <label style={L}>Nova senha</label>
               <input
                 type="password"
