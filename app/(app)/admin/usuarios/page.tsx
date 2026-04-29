@@ -46,7 +46,10 @@ export default function UsuariosPage() {
       if (err) setError(err.message)
       else { setShowForm(false); await loadAll() }
     } else {
-      const res = await fetch('/api/usuarios', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form) })
+      const { createClient } = await import('@/lib/supabase/client')
+      const { data: { session } } = await createClient().auth.getSession()
+      const token = session?.access_token || ''
+      const res = await fetch('/api/usuarios', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token }, body: JSON.stringify(form) })
       const data = await res.json()
       if (!res.ok) setError(data.error || 'Erro ao criar usuário')
       else { setShowForm(false); await loadAll() }
