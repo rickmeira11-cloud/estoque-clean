@@ -52,7 +52,7 @@ export default function UsuariosPage() {
       const res = await fetch('/api/usuarios', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token }, body: JSON.stringify(form) })
       const data = await res.json()
       if (!res.ok) setError(data.error || 'Erro ao criar usuário')
-      else { setShowForm(false); await loadAll() }
+      else { setSenhaGerada(data.tempPassword || ''); setShowForm(false); await loadAll() }
     }
     setSaving(false)
   }
@@ -115,6 +115,19 @@ export default function UsuariosPage() {
         </div>
       )}
 
+      {senhaGerada && (
+        <div className="fade-up" style={{ marginBottom:'16px', padding:'16px 20px', borderRadius:'12px', background:'rgba(99,102,241,0.08)', border:'1px solid rgba(99,102,241,0.3)' }}>
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+            <div>
+              <div style={{ fontSize:'13px', fontWeight:'600', color:'var(--brand-light)', marginBottom:'4px' }}>Usuário criado com sucesso!</div>
+              <div style={{ fontSize:'12px', color:'var(--text-2)' }}>Senha temporária gerada — copie e envie ao usuário:</div>
+              <div style={{ fontFamily:'monospace', fontSize:'16px', fontWeight:'700', color:'var(--text-1)', marginTop:'8px', padding:'8px 12px', background:'var(--bg-3)', borderRadius:'6px', letterSpacing:'0.05em' }}>{senhaGerada}</div>
+              <div style={{ fontSize:'11px', color:'var(--text-3)', marginTop:'6px' }}>O usuário deve trocar a senha no primeiro acesso.</div>
+            </div>
+            <button onClick={() => setSenhaGerada('')} style={{ padding:'6px 12px', background:'transparent', border:'1px solid var(--border)', borderRadius:'6px', fontSize:'12px', color:'var(--text-3)', cursor:'pointer', flexShrink:0, marginLeft:'16px' }}>Fechar</button>
+          </div>
+        </div>
+      )}
       {loading ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
           {[1, 2, 3].map(i => <div key={i} className="skeleton" style={{ height: '80px', borderRadius: '12px' }} />)}

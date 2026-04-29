@@ -58,7 +58,7 @@ export async function POST(request: NextRequest) {
     }).eq('id', newUser.user.id)
     console.log('[api POST] updateError:', updateError?.message)
 
-    return NextResponse.json({ success: true, id: newUser.user.id })
+    return NextResponse.json({ success: true, id: newUser.user.id, tempPassword: password })
   } catch (err: any) {
     console.log('[api POST] catch:', err.message)
     return NextResponse.json({ error: err.message }, { status: 500 })
