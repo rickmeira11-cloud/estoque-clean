@@ -36,10 +36,12 @@ export async function POST(request: NextRequest) {
     if (!caller) return NextResponse.json({ error: 'Não autenticado' }, { status: 401 })
     if (!['super_admin', 'admin'].includes(caller.role)) return NextResponse.json({ error: 'Sem permissão' }, { status: 403 })
 
-    const { name, email, password, role, church_id } = body
-    if (!name?.trim() || !email?.trim() || !password?.trim()) {
-      return NextResponse.json({ error: 'Nome, email e senha são obrigatórios' }, { status: 400 })
+    const { name, email, role, church_id } = body
+    if (!name?.trim() || !email?.trim()) {
+      return NextResponse.json({ error: 'Nome e email são obrigatórios' }, { status: 400 })
     }
+    // Gerar senha temporaria automatica
+    const password = Math.random().toString(36).slice(-8) + Math.random().toString(36).slice(-8).toUpperCase() + '!1'
 
     const { data: newUser, error: createError } = await adminClient.auth.admin.createUser({
       email,
