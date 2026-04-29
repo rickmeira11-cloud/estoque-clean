@@ -164,7 +164,7 @@ export default function MinisteriosPublicPage() {
             Nenhum ministério encontrado.
           </div>
         ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px,1fr))', gap: '16px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px,1fr))', gap: '12px' }}>
             {filtered.map(m => (
               <div key={m.id}
                 onClick={() => setSelected(m)}
@@ -173,14 +173,14 @@ export default function MinisteriosPublicPage() {
                 onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)'; e.currentTarget.style.transform = 'translateY(0)' }}>
 
                 {/* Cover */}
-                <div style={{ height: '72px', background: m.cover_image_url ? `url(${m.cover_image_url}) center/cover` : 'linear-gradient(135deg, #1a1a2e 0%, #16213e 60%, #0f3460 100%)', display: 'flex', alignItems: 'flex-end', padding: '10px 14px' }}>
+                <div style={{ height: '56px', background: m.cover_image_url ? `url(${m.cover_image_url}) center/cover` : 'linear-gradient(135deg, #1a1a2e 0%, #16213e 60%, #0f3460 100%)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', padding: '10px 14px' }}>
                   <div style={{ fontSize: '14px', fontWeight: '600', color: '#fff', textShadow: '0 1px 4px rgba(0,0,0,0.6)' }}>{m.name}</div>
                 </div>
 
-                <div style={{ padding: '14px' }}>
+                <div style={{ padding: '10px 14px' }}>
                   {/* Meta */}
                   {(m.meeting_schedule || m.location) && (
-                    <div style={{ display: 'flex', gap: '12px', marginBottom: '12px', flexWrap: 'wrap' }}>
+                    <div style={{ display: 'flex', gap: '8px', marginBottom: '8px', flexWrap: 'wrap' }}>
                       {m.meeting_schedule && (
                         <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: '#71717a' }}>
                           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
