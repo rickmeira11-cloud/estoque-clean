@@ -210,30 +210,42 @@ export default function DashboardPage() {
       {/* Grid: depósitos + atenção + últimas movimentações */}
       <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:'14px', marginBottom:'14px' }} className="bottom-grid">
 
-        {/* Movimentações por depósito */}
+        {/* Saldo por depósito */}
         <div style={{ background:'var(--bg-card)', border:'1px solid var(--border)', borderRadius:'var(--radius)', padding:'18px' }}>
-          <div style={{ fontSize:'13px', fontWeight:'500', color:'var(--text-1)', marginBottom:'14px' }}>Por depósito</div>
-          {locData.length === 0 ? (
-            <div style={{ fontSize:'12px', color:'var(--text-3)', textAlign:'center', padding:'20px 0' }}>Nenhuma movimentação com depósito</div>
-          ) : locData.map(([loc, d]) => (
-            <div key={loc} style={{ marginBottom:'10px' }}>
-              <div style={{ display:'flex', justifyContent:'space-between', marginBottom:'4px' }}>
-                <span style={{ fontSize:'12px', color:'var(--text-1)', fontWeight:'500' }}>{loc}</span>
-                <span style={{ fontSize:'11px', color:'var(--text-3)' }}>{d.entradas + d.saidas}</span>
-              </div>
-              <div style={{ height:'4px', borderRadius:'99px', background:'var(--bg-3)', overflow:'hidden', display:'flex', gap:'1px' }}>
-                <div style={{ flex:d.entradas||0.01, background:'var(--ok)' }}/>
-                <div style={{ flex:d.saidas||0.01,   background:'var(--empty)' }}/>
-              </div>
-              <div style={{ display:'flex', gap:'10px', marginTop:'3px' }}>
-                <span style={{ fontSize:'10px', color:'var(--ok)' }}>↑ {d.entradas}</span>
-                <span style={{ fontSize:'10px', color:'var(--empty)' }}>↓ {d.saidas}</span>
-              </div>
-            </div>
-          ))}
+          <div style={{ fontSize:'13px', fontWeight:'500', color:'var(--text-1)', marginBottom:'14px' }}>Saldo por depósito</div>
+          {(() => {
+            const saldo: Record<string,number> = {}
+            filtered.forEach((m:any) => {
+              const loc = m.location?.name
+              if (!loc) return
+              if (!saldo[loc]) saldo[loc] = 0
+              if (m.type==='in')  saldo[loc] += m.quantity
+              if (m.type==='out') saldo[loc] -= m.quantity
+              if (m.type==='transfer') saldo[loc] -= m.quantity
+            })
+            const entries = Object.entries(saldo).filter(([,q]) => q > 0).sort(([,a],[,b]) => b-a)
+            if (entries.length === 0) return <div style={{ fontSize:'12px', color:'var(--text-3)', textAlign:'center', padding:'20px 0' }}>Nenhum saldo por depósito</div>
+            return entries.map(([loc, qty]) => (
+              <a key={loc} href="/estoque" style={{ display:'block', textDecoration:'none', marginBottom:'8px' }}>
+                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'10px 12px', borderRadius:'var(--radius-sm)', background:'var(--bg-3)', border:'1px solid var(--border)', cursor:'pointer', transition:'border-color 0.15s' }}
+                  onMouseEnter={e=>(e.currentTarget.style.borderColor='var(--brand)')}
+                  onMouseLeave={e=>(e.currentTarget.style.borderColor='var(--border)')}>
+                  <div style={{ display:'flex', alignItems:'center', gap:'8px' }}>
+                    <div style={{ width:'28px', height:'28px', borderRadius:'7px', background:'var(--brand-dim)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--brand-light)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+                    </div>
+                    <span style={{ fontSize:'13px', fontWeight:'500', color:'var(--text-1)' }}>{loc}</span>
+                  </div>
+                  <div style={{ textAlign:'right', flexShrink:0 }}>
+                    <div style={{ fontSize:'18px', fontWeight:'700', color:'var(--ok)', fontFamily:'var(--font-mono)' }}>{qty}</div>
+                    <div style={{ fontSize:'9px', color:'var(--text-3)' }}>unidades</div>
+                  </div>
+                </div>
+              </a>
+            ))
+          })()}
         </div>
-
-        {/* Atenção necessária */}
+                {/* Atenção necessária */}
         <div style={{ background:'var(--bg-card)', border:'1px solid var(--border)', borderRadius:'var(--radius)', padding:'18px' }}>
           <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'14px' }}>
             <span style={{ fontSize:'13px', fontWeight:'500', color:'var(--text-1)' }}>Atenção necessária</span>
