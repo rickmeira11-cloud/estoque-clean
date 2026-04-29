@@ -270,6 +270,30 @@ export default function DashboardPage() {
           ))}
         </div>
 
+        {/* Alertas de validade */}
+        <div style={{ background:'var(--bg-card)', border:'1px solid var(--border)', borderRadius:'var(--radius)', padding:'18px' }}>
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'14px' }}>
+            <span style={{ fontSize:'13px', fontWeight:'500', color:'var(--text-1)' }}>Validade próxima</span>
+            {expiryCount > 0 && <span style={{ fontSize:'11px', background:'var(--low-dim)', color:'var(--low)', padding:'2px 9px', borderRadius:'99px', fontWeight:'500' }}>{expiryCount}</span>}
+          </div>
+          {expiryAlerts.length === 0 ? (
+            <div style={{ fontSize:'13px', color:'var(--text-3)', textAlign:'center', padding:'20px 0' }}>Tudo em dia ✓</div>
+          ) : expiryAlerts.slice(0,4).map(p => (
+            <div key={p.id} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'8px 10px', borderRadius:'var(--radius-sm)', marginBottom:'6px', background: (p.daysUntilExpiry||0) < 0 ? 'var(--empty-dim)' : 'var(--low-dim)', border:`1px solid ${(p.daysUntilExpiry||0) < 0 ? 'rgba(239,68,68,0.12)' : 'rgba(245,158,11,0.12)'}` }}>
+              <div style={{ minWidth:0 }}>
+                <div style={{ fontSize:'12px', fontWeight:'500', color:'var(--text-1)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{p.name}</div>
+                <div style={{ fontSize:'10px', color:'var(--text-3)', marginTop:'1px' }}>{p.category||'—'}</div>
+              </div>
+              <div style={{ textAlign:'right', flexShrink:0, marginLeft:'8px' }}>
+                <div style={{ fontSize:'13px', fontWeight:'700', color: (p.daysUntilExpiry||0) < 0 ? 'var(--empty)' : 'var(--low)' }}>
+                  {(p.daysUntilExpiry||0) < 0 ? 'VENCIDO' : (p.daysUntilExpiry||0) + 'd'}
+                </div>
+                <div style={{ fontSize:'9px', color:'var(--text-3)' }}>{p.expiration_date ? new Date(p.expiration_date + 'T12:00:00').toLocaleDateString('pt-BR') : ''}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+
         {/* Últimas movimentações */}
         <div style={{ background:'var(--bg-card)', border:'1px solid var(--border)', borderRadius:'var(--radius)', padding:'18px' }}>
           <div style={{ fontSize:'13px', fontWeight:'500', color:'var(--text-1)', marginBottom:'14px' }}>Últimas movimentações</div>
