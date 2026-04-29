@@ -17,6 +17,7 @@ export default function UsuariosPage() {
   const [form, setForm] = useState(blank)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
+  const [senhaGerada, setSenhaGerada] = useState('')
 
   useEffect(() => { if (profile?.church_id) loadAll() }, [profile?.church_id])
 
