@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useProfile } from '@/hooks/useProfile'
+import { useStockAlerts } from '@/hooks/useStockAlerts'
 import {
   LineChart, Line, BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
@@ -44,6 +45,7 @@ const tooltipStyle = { background:'var(--bg-2)', border:'1px solid var(--border-
 
 export default function DashboardPage() {
   const { profile } = useProfile()
+  const { expiryAlerts, expiryCount } = useStockAlerts()
   const [products,   setProducts]   = useState<Product[]>([])
   const [movements,  setMovements]  = useState<Movement[]>([])
   const [loading,    setLoading]    = useState(true)
@@ -208,7 +210,7 @@ export default function DashboardPage() {
       )}
 
       {/* Grid: depósitos + atenção + últimas movimentações */}
-      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:'14px', marginBottom:'14px' }} className="bottom-grid">
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:'14px', marginBottom:'14px' }} className="bottom-grid">
 
         {/* Saldo por depósito */}
         <div style={{ background:'var(--bg-card)', border:'1px solid var(--border)', borderRadius:'var(--radius)', padding:'18px' }}>
