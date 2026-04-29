@@ -95,7 +95,13 @@ export default function MinisteriosPublicPage() {
         }
       })
     )
-    setMinistries(withMembers)
+    const sorted = withMembers.sort((a, b) => {
+      const aFirst = a.name.toLowerCase().includes('poiema church') ? -1 : 0
+      const bFirst = b.name.toLowerCase().includes('poiema church') ? -1 : 0
+      if (aFirst !== bFirst) return aFirst - bFirst
+      return a.name.localeCompare(b.name, 'pt-BR')
+    })
+    setMinistries(sorted)
     setLoading(false)
   }
 
