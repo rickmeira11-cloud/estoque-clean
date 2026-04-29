@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
     if (createError) return NextResponse.json({ error: createError.message }, { status: 400 })
 
     const { error: updateError } = await adminClient.from('profiles').update({
-      name, role: role || 'operator', church_id: church_id || null, email,
+      name, role: role || 'operator', church_id: church_id || null, email, must_change_password: true,
     }).eq('id', newUser.user.id)
     console.log('[api POST] updateError:', updateError?.message)
 
