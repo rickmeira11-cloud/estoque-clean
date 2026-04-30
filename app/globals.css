@@ -112,3 +112,10 @@ select option { background: var(--bg-3); }
   .estoque-table { display: none !important; }
   .estoque-cards { display: block; }
 }
+
+/* Filtros do estoque — mobile */
+@media (max-width: 768px) {
+  .estoque-filters select { min-width: 0 !important; width: 100%; }
+  .estoque-filters { flex-direction: column !important; }
+  .estoque-filters input { width: 100% !important; }
+}

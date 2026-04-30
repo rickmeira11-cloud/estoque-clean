@@ -137,9 +137,9 @@ export default function EstoquePage() {
         <div><h1 style={{fontSize:'22px',fontWeight:'600'}}>Estoque</h1><p style={{fontSize:'13px',color:'var(--text-3)',marginTop:'4px'}}>{products.length} {products.length===1?'item':'itens'} cadastrados</p></div>
         <div style={{display:'flex',gap:'10px'}}><button onClick={gerarListaCompras} style={{padding:'9px 16px',background:'transparent',border:'1px solid var(--border)',borderRadius:'8px',fontSize:'13px',color:'var(--text-2)',cursor:'pointer',display:'flex',alignItems:'center',gap:'6px'}}>🛒 Lista de compras</button>{canEdit&&<button onClick={openNew} style={{padding:'9px 18px',background:'var(--brand)',color:'#fff',border:'none',borderRadius:'8px',fontSize:'13px',fontWeight:'500',cursor:'pointer'}}>+ Novo produto</button>}</div>
       </div>
-      <div style={{display:'flex',gap:'10px',marginBottom:'16px',flexWrap:'wrap'}}>
+      <div className='estoque-filters' style={{display:'flex',gap:'10px',marginBottom:'16px',flexWrap:'wrap'}}>
         <input placeholder="Buscar..." value={search} onChange={e=>setSearch(e.target.value)} style={{flex:1,minWidth:'180px'}}/>
-        <div style={{display:'flex',flexDirection:'column',gap:'8px',flex:1}}><div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'10px'}}>
+        <div style={{display:'flex',flexDirection:'column',gap:'8px',flex:1,minWidth:0}}><div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'10px'}}>
           <select value={filterStatus} onChange={e=>setFilterStatus(e.target.value)}><option value="all">Todos os status</option><option value="ok">OK</option><option value="low">Baixo</option><option value="empty">Zerado</option></select>
           <select value={filterCat} onChange={e=>setFilterCat(e.target.value)}><option value="all">Todas as categorias</option>{categories.map(c=><option key={c} value={c}>{c}</option>)}</select>
           </div>
@@ -188,7 +188,7 @@ export default function EstoquePage() {
               const {label,color,bg}=S[sKey]
               const locs=Object.entries(locBalance).filter(([k,v])=>k.startsWith(p.id+'|')&&v>0)
               return (
-                <div key={p.id} style={{borderBottom:'1px solid var(--border)',padding:'12px 14px'}}>
+                <div key={p.id} style={{borderBottom:'1px solid var(--border)',padding:'14px 16px',transition:'background 0.1s'}} onMouseEnter={e=>(e.currentTarget.style.background='rgba(255,255,255,0.02)')} onMouseLeave={e=>(e.currentTarget.style.background='transparent')}>
                   <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:'8px'}}>
                     <div style={{minWidth:0,flex:1}}>
                       <div style={{fontSize:'14px',fontWeight:'600',color:'var(--text-1)'}}>{p.name}</div>
