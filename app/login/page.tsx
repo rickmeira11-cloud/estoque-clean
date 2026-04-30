@@ -41,7 +41,7 @@ function LoginForm() {
           <div style={{display:'flex',alignItems:'center',justifyContent:'center',gap:'12px',marginBottom:'12px'}}>
             <div style={{
               width:'48px',height:'48px',borderRadius:'12px',
-              background:'linear-gradient(135deg,#1a1a2e 0%,#16213e 100%)',
+              background:'var(--bg-card)',
               border:'1px solid var(--border-md)',
               display:'flex',alignItems:'center',justifyContent:'center',padding:'8px',
               boxShadow:'0 4px 16px rgba(0,0,0,0.4)',
