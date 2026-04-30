@@ -87,7 +87,7 @@ function LoginForm() {
         </form>
 
         <div style={{marginTop:'20px',textAlign:'center',fontSize:'11px',color:'var(--text-3)'}}>
-          Poiema · Sistema de Gestão de Estoque
+          Gestoque
         </div>
       </div>
     </div>
