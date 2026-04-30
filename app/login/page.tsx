@@ -50,11 +50,11 @@ function LoginForm() {
             </div>
             <div style={{textAlign:'left'}}>
               <div style={{fontSize:'20px',fontWeight:'700',color:'var(--text-1)',lineHeight:1,letterSpacing:'-0.02em'}}>Poiema</div>
-              <div style={{fontSize:'11px',color:'var(--text-3)',marginTop:'3px',letterSpacing:'0.02em'}}>Gestão de Estoque</div>
+              <div style={{fontSize:'11px',color:'var(--text-3)',marginTop:'3px',letterSpacing:'0.02em'}}>Gestoque</div>
             </div>
           </div>
           <div style={{width:'40px',height:'1px',background:'var(--border-md)',margin:'0 auto 12px'}}/>
-          <div style={{fontSize:'13px',color:'var(--text-3)'}}>Entre na sua conta</div>
+          <div style={{fontSize:'13px',color:'var(--text-3)',marginBottom:'24px'}}>Entre na sua conta</div>
         </div>
 
         <form onSubmit={handleLogin} style={{display:'flex',flexDirection:'column',gap:'14px'}}>
@@ -87,7 +87,7 @@ function LoginForm() {
         </form>
 
         <div style={{marginTop:'20px',textAlign:'center',fontSize:'11px',color:'var(--text-3)'}}>
-          Gestoque
+          Sistema de Gestão de Estoque
         </div>
       </div>
     </div>
