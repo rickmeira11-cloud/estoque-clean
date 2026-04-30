@@ -55,7 +55,7 @@ function NavLink({ href, label, icon, small=false, isActive }: { href:string; la
 
 export function TopNav() {
   const pathname = usePathname()
-  const { profile, isAdmin } = useProfile()
+  const { profile, isAdmin, switchChurch } = useProfile()
   const { alerts, expiryAlerts, count, stockCount, expiryCount, hasAlerts } = useStockAlerts()
   const [menuOpen,     setMenuOpen]     = useState(false)
   const [userOpen,     setUserOpen]     = useState(false)

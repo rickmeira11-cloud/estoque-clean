@@ -14,7 +14,7 @@ export default function LoginPage() {
     setLoading(true); setError('')
     const { error: err } = await createClient().auth.signInWithPassword({ email, password })
     if (err) { setError('E-mail ou senha incorretos.'); setLoading(false); return }
-    window.location.href = '/dashboard'
+    window.location.href = '/selecionar-igreja'
   }
 
   return (
