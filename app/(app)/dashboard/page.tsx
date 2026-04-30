@@ -243,20 +243,18 @@ export default function DashboardPage() {
           </div>
           {critical.length === 0 ? (
             <div style={{ fontSize:'13px', color:'var(--text-3)', textAlign:'center', padding:'20px 0' }}>Tudo em ordem ✓</div>
-          ) : (<div style={{maxHeight:'180px',overflowY:'auto',paddingRight:'4px'}}>{critical.map(p => (
+          ) : (<div style={{maxHeight:'200px',overflowY:'auto'}}>{critical.map(p => (
             <div key={p.id} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'8px 10px', borderRadius:'var(--radius-sm)', marginBottom:'6px', background:p.quantity===0?'var(--empty-dim)':'var(--low-dim)', border:`1px solid ${p.quantity===0?'rgba(239,68,68,0.12)':'rgba(245,158,11,0.12)'}` }}>
               <div>
-                <div style={{ fontSize:'12px', fontWeight:'500', color:'var(--text-1)' }}>{p.name}</div>
-                <div style={{ fontSize:'10px', color:'var(--text-3)' }}>{p.category||'—'}</div>
-              </div>
-              <div style={{ textAlign:'right' }}>
-                <div style={{ fontSize:'16px', fontWeight:'700', color:p.quantity===0?'var(--empty)':'var(--low)', fontFamily:'var(--font-mono)' }}>{p.quantity}</div>
+                <div style={{ fontSize:'12px'))}
                 <div style={{ fontSize:'9px', color:'var(--text-3)' }}>mín {p.min_stock}</div>
               </div>
             </div>
           ))}
         </div>
 
+        ))}</div>}
+        </div>
         <div style={{ background:'var(--bg-card)', border:'1px solid var(--border)', borderRadius:'var(--radius)', padding:'18px' }}>
           <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'14px' }}>
             <span style={{ fontSize:'13px', fontWeight:'500', color:'var(--text-1)' }}>Validade próxima</span>
