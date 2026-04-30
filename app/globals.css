@@ -105,3 +105,10 @@ select option { background: var(--bg-3); }
 @media (max-width: 768px) {
   .min-grid { grid-template-columns: 1fr !important; }
 }
+
+/* Estoque — tabela desktop / cards mobile */
+.estoque-cards { display: none; }
+@media (max-width: 768px) {
+  .estoque-table { display: none !important; }
+  .estoque-cards { display: block; }
+}

@@ -147,7 +147,7 @@ export default function EstoquePage() {
       </div>
       {loading?(<div style={{display:'flex',flexDirection:'column',gap:'8px'}}>{[1,2,3,4,5].map(i=><div key={i} className="skeleton" style={{height:'52px',borderRadius:'8px'}}/>)}</div>):(
         <div style={{background:'var(--bg-card)',border:'1px solid var(--border)',borderRadius:'12px',overflow:'hidden'}}>
-          <table style={{width:'100%',borderCollapse:'collapse'}}>
+          <table className='estoque-table' style={{width:'100%',borderCollapse:'collapse'}}>
             <thead><tr style={{borderBottom:'1px solid var(--border)'}}>{[
   {label:'Produto',    col:'name'},
   {label:'Categoria',  col:'category'},
@@ -179,6 +179,39 @@ export default function EstoquePage() {
               })}
             </tbody>
           </table>
+          {/* Cards mobile */}
+          <div className="estoque-cards">
+            {filtered.length===0?(<div style={{padding:'40px',textAlign:'center',color:'var(--text-3)',fontSize:'13px'}}>Nenhum produto encontrado</div>):filtered.map(p=>{
+              const locId=filterLoc!=='all'?locations.find((l)=>l.name===filterLoc)?.id:null
+              const displayQty=locId?(locBalance[p.id+'|'+locId]||0):p.quantity
+              const sKey=displayQty===0?'empty':displayQty<=p.min_stock?'low':'ok'
+              const {label,color,bg}=S[sKey]
+              const locs=Object.entries(locBalance).filter(([k,v])=>k.startsWith(p.id+'|')&&v>0)
+              return (
+                <div key={p.id} style={{borderBottom:'1px solid var(--border)',padding:'12px 14px'}}>
+                  <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:'8px'}}>
+                    <div style={{minWidth:0,flex:1}}>
+                      <div style={{fontSize:'14px',fontWeight:'600',color:'var(--text-1)'}}>{p.name}</div>
+                      <div style={{fontSize:'12px',color:'var(--text-3)',marginTop:'2px'}}>{p.category||'—'}</div>
+                    </div>
+                    <div style={{display:'flex',flexDirection:'column',alignItems:'flex-end',gap:'4px',flexShrink:0,marginLeft:'12px'}}>
+                      <div style={{fontSize:'22px',fontWeight:'700',color,fontFamily:'var(--font-mono)',lineHeight:1}}>{displayQty}</div>
+                      <span style={{fontSize:'10px',fontWeight:'500',padding:'2px 8px',borderRadius:'99px',background:bg,color}}>{label}</span>
+                    </div>
+                  </div>
+                  <div style={{display:'flex',gap:'16px',marginBottom:'8px',flexWrap:'wrap'}}>
+                    <div style={{fontSize:'11px',color:'var(--text-3)'}}>Mínimo: <span style={{color:'var(--text-2)',fontWeight:'500'}}>{p.min_stock}</span></div>
+                    {p.expiration_date&&<div style={{fontSize:'11px',color:'var(--text-3)'}}>Validade: <span style={{color:'var(--text-2)',fontWeight:'500'}}>{new Date(p.expiration_date).toLocaleDateString('pt-BR')}</span></div>}
+                  </div>
+                  {locs.length>0&&<div style={{display:'flex',gap:'6px',flexWrap:'wrap',marginBottom:'8px'}}>{locs.map(([k,v])=>{const locId=k.split('|')[1];const locName=locations.find(l=>l.id===locId)?.name||'?';return <span key={k} style={{fontSize:'11px',background:'var(--bg-3)',padding:'2px 8px',borderRadius:'99px',color:'var(--text-2)'}}>{locName}: <strong style={{color:'var(--brand-light)'}}>{v}</strong></span>})}</div>}
+                  {canEdit&&<div style={{display:'flex',gap:'8px'}}>
+                    <button onClick={()=>openEdit(p)} style={{flex:1,padding:'8px',background:'var(--bg-3)',border:'1px solid var(--border)',borderRadius:'6px',fontSize:'13px',color:'var(--text-2)',cursor:'pointer',fontWeight:'500'}}>Editar</button>
+                    <button onClick={()=>deactivate(p.id)} style={{padding:'8px 12px',background:'transparent',border:'1px solid var(--border)',borderRadius:'6px',fontSize:'13px',color:'var(--text-3)',cursor:'pointer'}}>✕</button>
+                  </div>}
+                </div>
+              )
+            })}
+          </div>
         </div>
       )}
       {showModal&&(
