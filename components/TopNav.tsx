@@ -110,7 +110,7 @@ export function TopNav() {
 
         {/* Nav desktop */}
         <div style={{display:'flex',alignItems:'center',gap:'2px',flex:1}} className="desktop-nav">
-          {NAV.map(n => <NavLink key={n.href} {...n} isActive={active(n.href)}/>)}
+          {NAV.filter(n => n.href !== '/mural' || profile?.church_id === '8db14705-9da8-4844-8b01-a73845297831').map(n => <NavLink key={n.href} {...n} isActive={active(n.href)}/>)}
 
           {/* Menu Cadastro */}
           {isAdmin && (
