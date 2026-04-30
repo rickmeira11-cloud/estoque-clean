@@ -142,7 +142,7 @@ export default function MovimentacoesPage() {
         </div>
       )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+      <div className='mov-grid' style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
 
         {/* Coluna esquerda — selecionar produto */}
         <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '18px' }}>
