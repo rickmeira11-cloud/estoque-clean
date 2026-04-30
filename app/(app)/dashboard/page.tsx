@@ -119,7 +119,7 @@ export default function DashboardPage() {
     const name = m.product?.name || 'Desconhecido'
     prodMap[name] = (prodMap[name] || 0) + m.quantity
   })
-  const barData = Object.entries(prodMap).sort(([,a],[,b]) => b - a).slice(0, 8).map(([name, total]) => ({ name: name.length > 18 ? name.slice(0,16)+'…' : name, total }))
+  const barData = Object.entries(prodMap).sort(([,a],[,b]) => b - a).slice(0, 8).map(([name, total]) => ({ name: name.length > 14 ? name.slice(0,12)+'…' : name, total }))
 
   // ── gráfico de pizza: por categoria ───────────────────────
   const catMap: Record<string, number> = {}
@@ -228,7 +228,7 @@ export default function DashboardPage() {
             const entries = Object.entries(saldo).filter(([,q]) => q > 0).sort(([,a],[,b]) => b-a)
             const maxShow = 4
             if (entries.length === 0) return <div style={{ fontSize:'12px', color:'var(--text-3)', textAlign:'center', padding:'20px 0' }}>Nenhum saldo por depósito</div>
-            return (<><div style={{maxHeight:'220px',overflowY:'auto'}}>{entries.slice(0,maxShow).map(([loc, qty]) => (
+            return (<><div style={{maxHeight:'180px',overflowY:'auto',paddingRight:'4px'}}>{entries.slice(0,maxShow).map(([loc, qty]) => (
               <a key={loc} href="/estoque" style={{ display:'block', textDecoration:'none', marginBottom:'8px' }}>
                 <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'10px 12px', borderRadius:'var(--radius-sm)', background:'var(--bg-3)', border:'1px solid var(--border)', cursor:'pointer', transition:'border-color 0.15s' }}
                   onMouseEnter={e=>(e.currentTarget.style.borderColor='var(--brand)')}
@@ -256,7 +256,7 @@ export default function DashboardPage() {
           </div>
           {critical.length === 0 ? (
             <div style={{ fontSize:'13px', color:'var(--text-3)', textAlign:'center', padding:'20px 0' }}>Tudo em ordem ✓</div>
-          ) : critical.map(p => (
+          ) : <div style={{maxHeight:'180px',overflowY:'auto',paddingRight:'4px'}}>{critical.map(p => (
             <div key={p.id} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'8px 10px', borderRadius:'var(--radius-sm)', marginBottom:'6px', background:p.quantity===0?'var(--empty-dim)':'var(--low-dim)', border:`1px solid ${p.quantity===0?'rgba(239,68,68,0.12)':'rgba(245,158,11,0.12)'}` }}>
               <div>
                 <div style={{ fontSize:'12px', fontWeight:'500', color:'var(--text-1)' }}>{p.name}</div>
@@ -278,7 +278,7 @@ export default function DashboardPage() {
           </div>
           {expiryAlerts.length === 0 ? (
             <div style={{ fontSize:'13px', color:'var(--text-3)', textAlign:'center', padding:'20px 0' }}>Tudo em dia ✓</div>
-          ) : expiryAlerts.slice(0,4).map(p => (
+          ) : <div style={{maxHeight:'180px',overflowY:'auto',paddingRight:'4px'}}>{expiryAlerts.map(p => (
             <div key={p.id} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'8px 10px', borderRadius:'var(--radius-sm)', marginBottom:'6px', background: (p.daysUntilExpiry||0) < 0 ? 'var(--empty-dim)' : 'var(--low-dim)', border:`1px solid ${(p.daysUntilExpiry||0) < 0 ? 'rgba(239,68,68,0.12)' : 'rgba(245,158,11,0.12)'}` }}>
               <div style={{ minWidth:0 }}>
                 <div style={{ fontSize:'12px', fontWeight:'500', color:'var(--text-1)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{p.name}</div>
@@ -299,7 +299,7 @@ export default function DashboardPage() {
           <div style={{ fontSize:'13px', fontWeight:'500', color:'var(--text-1)', marginBottom:'14px' }}>Últimas movimentações</div>
           {recent.length === 0 ? (
             <div style={{ fontSize:'13px', color:'var(--text-3)', textAlign:'center', padding:'20px 0' }}>Nenhuma movimentação</div>
-          ) : recent.map(m => (
+          ) : <div style={{maxHeight:'180px',overflowY:'auto',paddingRight:'4px'}}>{recent.map(m => (
             <div key={m.id} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'8px 0', borderBottom:'1px solid var(--border)' }}>
               <div style={{ display:'flex', alignItems:'center', gap:'8px', minWidth:0 }}>
                 <div style={{ width:'26px', height:'26px', borderRadius:'7px', flexShrink:0, display:'flex', alignItems:'center', justifyContent:'center', fontSize:'12px', background:m.type==='in'?'var(--ok-dim)':m.type==='out'?'var(--empty-dim)':'var(--info-dim)', color:m.type==='in'?'var(--ok)':m.type==='out'?'var(--empty)':'var(--info)' }}>
@@ -351,7 +351,7 @@ export default function DashboardPage() {
               <BarChart data={barData} layout="vertical">
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" horizontal={false}/>
                 <XAxis type="number" tick={{ fontSize:10, fill:'#71717a' }} axisLine={false} tickLine={false}/>
-                <YAxis type="category" dataKey="name" tick={{ fontSize:10, fill:'#a1a1aa' }} axisLine={false} tickLine={false} width={120}/>
+                <YAxis type="category" dataKey="name" tick={{ fontSize:10, fill:'#a1a1aa' }} axisLine={false} tickLine={false} width={140} tick={{fontSize:10, fill:'#a1a1aa', textAnchor:'end'}}/>
                 <Tooltip contentStyle={tooltipStyle}/>
                 <Bar dataKey="total" name="Qtd" fill="var(--brand)" radius={[0,4,4,0]}/>
               </BarChart>
