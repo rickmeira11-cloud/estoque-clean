@@ -243,18 +243,22 @@ export default function DashboardPage() {
           </div>
           {critical.length === 0 ? (
             <div style={{ fontSize:'13px', color:'var(--text-3)', textAlign:'center', padding:'20px 0' }}>Tudo em ordem ✓</div>
-          ) : (<div style={{maxHeight:'200px',overflowY:'auto'}}>{critical.map(p => (
+          ) : (<div style={{maxHeight:'180px',overflowY:'auto'}}>
+            {critical.map(p => (
             <div key={p.id} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'8px 10px', borderRadius:'var(--radius-sm)', marginBottom:'6px', background:p.quantity===0?'var(--empty-dim)':'var(--low-dim)', border:`1px solid ${p.quantity===0?'rgba(239,68,68,0.12)':'rgba(245,158,11,0.12)'}` }}>
               <div>
-                <div style={{ fontSize:'12px'))}
+                <div style={{ fontSize:'12px', fontWeight:'500', color:'var(--text-1)' }}>{p.name}</div>
+                <div style={{ fontSize:'10px', color:'var(--text-3)' }}>{p.category||'—'}</div>
+              </div>
+              <div style={{ textAlign:'right' }}>
+                <div style={{ fontSize:'16px', fontWeight:'700', color:p.quantity===0?'var(--empty)':'var(--low)', fontFamily:'var(--font-mono)' }}>{p.quantity}</div>
                 <div style={{ fontSize:'9px', color:'var(--text-3)' }}>mín {p.min_stock}</div>
               </div>
             </div>
-          ))}
+          ))}</div>)}
         </div>
 
-        ))}</div>}
-        </div>
+        {/* Validade próxima */}
         <div style={{ background:'var(--bg-card)', border:'1px solid var(--border)', borderRadius:'var(--radius)', padding:'18px' }}>
           <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'14px' }}>
             <span style={{ fontSize:'13px', fontWeight:'500', color:'var(--text-1)' }}>Validade próxima</span>
@@ -262,28 +266,28 @@ export default function DashboardPage() {
           </div>
           {expiryAlerts.length === 0 ? (
             <div style={{ fontSize:'13px', color:'var(--text-3)', textAlign:'center', padding:'20px 0' }}>Tudo em dia ✓</div>
-          ) : (<div style={{maxHeight:'180px',overflowY:'auto',paddingRight:'4px'}}>{expiryAlerts.map(p => (
-            <div key={p.id} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'8px 10px', borderRadius:'var(--radius-sm)', marginBottom:'6px', background: (p.daysUntilExpiry||0) < 0 ? 'var(--empty-dim)' : 'var(--low-dim)', border:`1px solid ${(p.daysUntilExpiry||0) < 0 ? 'rgba(239,68,68,0.12)' : 'rgba(245,158,11,0.12)'}` }}>
-              <div style={{ minWidth:0 }}>
-                <div style={{ fontSize:'12px', fontWeight:'500', color:'var(--text-1)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{p.name}</div>
-                <div style={{ fontSize:'10px', color:'var(--text-3)', marginTop:'1px' }}>{p.category||'—'}</div>
-              </div>
-              <div style={{ textAlign:'right', flexShrink:0, marginLeft:'8px' }}>
-                <div style={{ fontSize:'13px', fontWeight:'700', color: (p.daysUntilExpiry||0) < 0 ? 'var(--empty)' : 'var(--low)' }}>
-                  {(p.daysUntilExpiry||0) < 0 ? 'VENCIDO' : (p.daysUntilExpiry||0) + 'd'}
+          ) : (<div style={{maxHeight:'180px',overflowY:'auto'}}>
+            {expiryAlerts.map(p => (
+              <div key={p.id} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'8px 10px', borderRadius:'var(--radius-sm)', marginBottom:'6px', background:(p.daysUntilExpiry||0)<0?'var(--empty-dim)':'var(--low-dim)', border:`1px solid ${(p.daysUntilExpiry||0)<0?'rgba(239,68,68,0.12)':'rgba(245,158,11,0.12)'}`}}>
+                <div style={{minWidth:0}}>
+                  <div style={{fontSize:'12px',fontWeight:'500',color:'var(--text-1)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{p.name}</div>
+                  <div style={{fontSize:'10px',color:'var(--text-3)',marginTop:'1px'}}>{p.category||'—'}</div>
                 </div>
-                <div style={{ fontSize:'9px', color:'var(--text-3)' }}>{p.expiration_date ? new Date(p.expiration_date + 'T12:00:00').toLocaleDateString('pt-BR') : ''}</div>
+                <div style={{textAlign:'right',flexShrink:0,marginLeft:'8px'}}>
+                  <div style={{fontSize:'13px',fontWeight:'700',color:(p.daysUntilExpiry||0)<0?'var(--empty)':'var(--low)'}}>{(p.daysUntilExpiry||0)<0?'VENCIDO':(p.daysUntilExpiry||0)+'d'}</div>
+                  <div style={{fontSize:'9px',color:'var(--text-3)'}}>{p.expiration_date?new Date(p.expiration_date+'T12:00:00').toLocaleDateString('pt-BR'):''}</div>
+                </div>
               </div>
-            </div>
-          ))}</div>)}
+            ))}</div>)}
         </div>
 
-                {/* Últimas movimentações */}
+        {/* Últimas movimentações */}
         <div style={{ background:'var(--bg-card)', border:'1px solid var(--border)', borderRadius:'var(--radius)', padding:'18px' }}>
           <div style={{ fontSize:'13px', fontWeight:'500', color:'var(--text-1)', marginBottom:'14px' }}>Últimas movimentações</div>
           {recent.length === 0 ? (
             <div style={{ fontSize:'13px', color:'var(--text-3)', textAlign:'center', padding:'20px 0' }}>Nenhuma movimentação</div>
-          ) : (<div style={{maxHeight:'180px',overflowY:'auto',paddingRight:'4px'}}>{recent.map(m => (
+          ) : (<div style={{maxHeight:'180px',overflowY:'auto'}}>
+            {recent.map(m => (
             <div key={m.id} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'8px 0', borderBottom:'1px solid var(--border)' }}>
               <div style={{ display:'flex', alignItems:'center', gap:'8px', minWidth:0 }}>
                 <div style={{ width:'26px', height:'26px', borderRadius:'7px', flexShrink:0, display:'flex', alignItems:'center', justifyContent:'center', fontSize:'12px', background:m.type==='in'?'var(--ok-dim)':m.type==='out'?'var(--empty-dim)':'var(--info-dim)', color:m.type==='in'?'var(--ok)':m.type==='out'?'var(--empty)':'var(--info)' }}>
