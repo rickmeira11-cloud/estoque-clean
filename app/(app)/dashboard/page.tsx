@@ -119,7 +119,7 @@ export default function DashboardPage() {
     const name = m.product?.name || 'Desconhecido'
     prodMap[name] = (prodMap[name] || 0) + m.quantity
   })
-  const barData = Object.entries(prodMap).sort(([,a],[,b]) => b - a).slice(0, 8).map(([name, total]) => ({ name: name.length > 12 ? name.slice(0,10)+'…' : name, total }))
+  const barData = Object.entries(prodMap).sort(([,a],[,b]) => b - a).slice(0, 6).map(([name, total]) => ({ name: name.length > 20 ? name.slice(0,18)+'…' : name, total }))
 
   // ── gráfico de pizza: por categoria ───────────────────────
   const catMap: Record<string, number> = {}
@@ -336,13 +336,13 @@ export default function DashboardPage() {
         {barData.length > 0 && (
           <div style={{ background:'var(--bg-card)', border:'1px solid var(--border)', borderRadius:'var(--radius)', padding:'18px' }}>
             <div style={{ fontSize:'13px', fontWeight:'500', color:'var(--text-1)', marginBottom:'16px' }}>Top produtos movimentados</div>
-            <ResponsiveContainer width="100%" height={220}>
-              <BarChart data={barData} layout="vertical">
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={barData} layout="vertical" barSize={16} margin={{right:40}}>
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" horizontal={false}/>
                 <XAxis type="number" tick={{ fontSize:10, fill:'#71717a' }} axisLine={false} tickLine={false}/>
-                <YAxis type="category" dataKey="name" tick={{ fontSize:10, fill:'#a1a1aa' }} axisLine={false} tickLine={false} width={110}/>
+                <YAxis type="category" dataKey="name" tick={{ fontSize:10, fill:'#a1a1aa' }} axisLine={false} tickLine={false} width={130} tick={{fontSize:11, fill:'#a1a1aa', width:125}}/>
                 <Tooltip contentStyle={tooltipStyle}/>
-                <Bar dataKey="total" name="Qtd" fill="var(--brand)" radius={[0,4,4,0]}/>
+                <Bar dataKey="total" name="Qtd" fill="var(--brand)" radius={[0,4,4,0]} label={{position:'right', fontSize:10, fill:'#a1a1aa'}}/>
               </BarChart>
             </ResponsiveContainer>
           </div>
