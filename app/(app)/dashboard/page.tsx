@@ -98,7 +98,7 @@ export default function DashboardPage() {
   const empty   = products.filter(p => p.quantity === 0).length
   const entries = filtered.filter(m => m.type === 'in').reduce((a, m) => a + m.quantity, 0)
   const exits   = filtered.filter(m => m.type === 'out').reduce((a, m) => a + m.quantity, 0)
-  const critical = products.filter(p => p.quantity <= p.min_stock).sort((a,b) => a.quantity - b.quantity).slice(0, 4)
+  const critical = products.filter(p => p.quantity <= p.min_stock).sort((a,b) => a.quantity - b.quantity).slice(0, 6)
 
   // ── gráfico de linha: entradas vs saídas por semana ────────
   const weekMap: Record<string, { label:string; entradas:number; saidas:number }> = {}
@@ -119,7 +119,7 @@ export default function DashboardPage() {
     const name = m.product?.name || 'Desconhecido'
     prodMap[name] = (prodMap[name] || 0) + m.quantity
   })
-  const barData = Object.entries(prodMap).sort(([,a],[,b]) => b - a).slice(0, 8).map(([name, total]) => ({ name: name.length > 14 ? name.slice(0,12)+'…' : name, total }))
+  const barData = Object.entries(prodMap).sort(([,a],[,b]) => b - a).slice(0, 8).map(([name, total]) => ({ name: name.length > 12 ? name.slice(0,10)+'…' : name, total }))
 
   // ── gráfico de pizza: por categoria ───────────────────────
   const catMap: Record<string, number> = {}
@@ -140,7 +140,7 @@ export default function DashboardPage() {
   const locData = Object.entries(locMap).sort(([,a],[,b]) => (b.entradas+b.saidas) - (a.entradas+a.saidas))
 
   // ── últimas movimentações ──────────────────────────────────
-  const recent = [...movements].reverse().slice(0, 4)
+  const recent = [...movements].reverse().slice(0, 6)
 
   const hora = new Date().getHours()
   const greeting = hora < 12 ? 'Bom dia' : hora < 18 ? 'Boa tarde' : 'Boa noite'
@@ -212,43 +212,30 @@ export default function DashboardPage() {
       {/* Grid: depósitos + atenção + últimas movimentações */}
       <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:'14px', marginBottom:'14px' }} className="bottom-grid">
 
-        {/* Saldo por depósito */}
+        {/* Movimentações por depósito */}
         <div style={{ background:'var(--bg-card)', border:'1px solid var(--border)', borderRadius:'var(--radius)', padding:'18px' }}>
-          <div style={{ fontSize:'13px', fontWeight:'500', color:'var(--text-1)', marginBottom:'14px' }}>Saldo por depósito</div>
-          {(() => {
-            const saldo: Record<string,number> = {}
-            filtered.forEach((m:any) => {
-              const loc = m.location?.name
-              if (!loc) return
-              if (!saldo[loc]) saldo[loc] = 0
-              if (m.type==='in')  saldo[loc] += m.quantity
-              if (m.type==='out') saldo[loc] -= m.quantity
-              if (m.type==='transfer') saldo[loc] -= m.quantity
-            })
-            const entries = Object.entries(saldo).filter(([,q]) => q > 0).sort(([,a],[,b]) => b-a)
-            const maxShow = 4
-            if (entries.length === 0) return <div style={{ fontSize:'12px', color:'var(--text-3)', textAlign:'center', padding:'20px 0' }}>Nenhum saldo por depósito</div>
-            return (<><div style={{maxHeight:'180px',overflowY:'auto',paddingRight:'4px'}}>{entries.slice(0,maxShow).map(([loc, qty]) => (
-              <a key={loc} href="/estoque" style={{ display:'block', textDecoration:'none', marginBottom:'8px' }}>
-                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'10px 12px', borderRadius:'var(--radius-sm)', background:'var(--bg-3)', border:'1px solid var(--border)', cursor:'pointer', transition:'border-color 0.15s' }}
-                  onMouseEnter={e=>(e.currentTarget.style.borderColor='var(--brand)')}
-                  onMouseLeave={e=>(e.currentTarget.style.borderColor='var(--border)')}>
-                  <div style={{ display:'flex', alignItems:'center', gap:'8px' }}>
-                    <div style={{ width:'28px', height:'28px', borderRadius:'7px', background:'var(--brand-dim)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
-                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--brand-light)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-                    </div>
-                    <span style={{ fontSize:'13px', fontWeight:'500', color:'var(--text-1)' }}>{loc}</span>
-                  </div>
-                  <div style={{ textAlign:'right', flexShrink:0 }}>
-                    <div style={{ fontSize:'18px', fontWeight:'700', color:'var(--ok)', fontFamily:'var(--font-mono)' }}>{qty}</div>
-                    <div style={{ fontSize:'9px', color:'var(--text-3)' }}>unidades</div>
-                  </div>
-                </div>
-              </a>
-            ))}</div>{entries.length > maxShow && <div style={{fontSize:'11px',color:'var(--text-3)',textAlign:'center',marginTop:'8px',cursor:'pointer'}} onClick={()=>{}}>+{entries.length - maxShow} depósito(s) — ver todos no Estoque</div>}</>) 
-          })()}
+          <div style={{ fontSize:'13px', fontWeight:'500', color:'var(--text-1)', marginBottom:'14px' }}>Por depósito</div>
+          {locData.length === 0 ? (
+            <div style={{ fontSize:'12px', color:'var(--text-3)', textAlign:'center', padding:'20px 0' }}>Nenhuma movimentação com depósito</div>
+          ) : locData.map(([loc, d]) => (
+            <div key={loc} style={{ marginBottom:'10px' }}>
+              <div style={{ display:'flex', justifyContent:'space-between', marginBottom:'4px' }}>
+                <span style={{ fontSize:'12px', color:'var(--text-1)', fontWeight:'500' }}>{loc}</span>
+                <span style={{ fontSize:'11px', color:'var(--text-3)' }}>{d.entradas + d.saidas}</span>
+              </div>
+              <div style={{ height:'4px', borderRadius:'99px', background:'var(--bg-3)', overflow:'hidden', display:'flex', gap:'1px' }}>
+                <div style={{ flex:d.entradas||0.01, background:'var(--ok)' }}/>
+                <div style={{ flex:d.saidas||0.01,   background:'var(--empty)' }}/>
+              </div>
+              <div style={{ display:'flex', gap:'10px', marginTop:'3px' }}>
+                <span style={{ fontSize:'10px', color:'var(--ok)' }}>↑ {d.entradas}</span>
+                <span style={{ fontSize:'10px', color:'var(--empty)' }}>↓ {d.saidas}</span>
+              </div>
+            </div>
+          ))}
         </div>
-                {/* Atenção necessária */}
+
+        {/* Atenção necessária */}
         <div style={{ background:'var(--bg-card)', border:'1px solid var(--border)', borderRadius:'var(--radius)', padding:'18px' }}>
           <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'14px' }}>
             <span style={{ fontSize:'13px', fontWeight:'500', color:'var(--text-1)' }}>Atenção necessária</span>
@@ -256,7 +243,7 @@ export default function DashboardPage() {
           </div>
           {critical.length === 0 ? (
             <div style={{ fontSize:'13px', color:'var(--text-3)', textAlign:'center', padding:'20px 0' }}>Tudo em ordem ✓</div>
-          ) : <div style={{maxHeight:'180px',overflowY:'auto',paddingRight:'4px'}}>{critical.map(p => (
+          ) : (<div style={{maxHeight:'180px',overflowY:'auto',paddingRight:'4px'}}>{critical.map(p => (
             <div key={p.id} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'8px 10px', borderRadius:'var(--radius-sm)', marginBottom:'6px', background:p.quantity===0?'var(--empty-dim)':'var(--low-dim)', border:`1px solid ${p.quantity===0?'rgba(239,68,68,0.12)':'rgba(245,158,11,0.12)'}` }}>
               <div>
                 <div style={{ fontSize:'12px', fontWeight:'500', color:'var(--text-1)' }}>{p.name}</div>
@@ -270,7 +257,6 @@ export default function DashboardPage() {
           ))}
         </div>
 
-        {/* Alertas de validade */}
         <div style={{ background:'var(--bg-card)', border:'1px solid var(--border)', borderRadius:'var(--radius)', padding:'18px' }}>
           <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'14px' }}>
             <span style={{ fontSize:'13px', fontWeight:'500', color:'var(--text-1)' }}>Validade próxima</span>
@@ -278,7 +264,7 @@ export default function DashboardPage() {
           </div>
           {expiryAlerts.length === 0 ? (
             <div style={{ fontSize:'13px', color:'var(--text-3)', textAlign:'center', padding:'20px 0' }}>Tudo em dia ✓</div>
-          ) : <div style={{maxHeight:'180px',overflowY:'auto',paddingRight:'4px'}}>{expiryAlerts.map(p => (
+          ) : (<div style={{maxHeight:'180px',overflowY:'auto',paddingRight:'4px'}}>{expiryAlerts.map(p => (
             <div key={p.id} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'8px 10px', borderRadius:'var(--radius-sm)', marginBottom:'6px', background: (p.daysUntilExpiry||0) < 0 ? 'var(--empty-dim)' : 'var(--low-dim)', border:`1px solid ${(p.daysUntilExpiry||0) < 0 ? 'rgba(239,68,68,0.12)' : 'rgba(245,158,11,0.12)'}` }}>
               <div style={{ minWidth:0 }}>
                 <div style={{ fontSize:'12px', fontWeight:'500', color:'var(--text-1)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{p.name}</div>
@@ -291,15 +277,15 @@ export default function DashboardPage() {
                 <div style={{ fontSize:'9px', color:'var(--text-3)' }}>{p.expiration_date ? new Date(p.expiration_date + 'T12:00:00').toLocaleDateString('pt-BR') : ''}</div>
               </div>
             </div>
-          ))}
+          ))}</div>)}
         </div>
 
-        {/* Últimas movimentações */}
+                {/* Últimas movimentações */}
         <div style={{ background:'var(--bg-card)', border:'1px solid var(--border)', borderRadius:'var(--radius)', padding:'18px' }}>
           <div style={{ fontSize:'13px', fontWeight:'500', color:'var(--text-1)', marginBottom:'14px' }}>Últimas movimentações</div>
           {recent.length === 0 ? (
             <div style={{ fontSize:'13px', color:'var(--text-3)', textAlign:'center', padding:'20px 0' }}>Nenhuma movimentação</div>
-          ) : <div style={{maxHeight:'180px',overflowY:'auto',paddingRight:'4px'}}>{recent.map(m => (
+          ) : (<div style={{maxHeight:'180px',overflowY:'auto',paddingRight:'4px'}}>{recent.map(m => (
             <div key={m.id} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'8px 0', borderBottom:'1px solid var(--border)' }}>
               <div style={{ display:'flex', alignItems:'center', gap:'8px', minWidth:0 }}>
                 <div style={{ width:'26px', height:'26px', borderRadius:'7px', flexShrink:0, display:'flex', alignItems:'center', justifyContent:'center', fontSize:'12px', background:m.type==='in'?'var(--ok-dim)':m.type==='out'?'var(--empty-dim)':'var(--info-dim)', color:m.type==='in'?'var(--ok)':m.type==='out'?'var(--empty)':'var(--info)' }}>
@@ -351,7 +337,7 @@ export default function DashboardPage() {
               <BarChart data={barData} layout="vertical">
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" horizontal={false}/>
                 <XAxis type="number" tick={{ fontSize:10, fill:'#71717a' }} axisLine={false} tickLine={false}/>
-                <YAxis type="category" dataKey="name" tick={{ fontSize:10, fill:'#a1a1aa' }} axisLine={false} tickLine={false} width={140} tick={{fontSize:10, fill:'#a1a1aa', textAnchor:'end'}}/>
+                <YAxis type="category" dataKey="name" tick={{ fontSize:10, fill:'#a1a1aa' }} axisLine={false} tickLine={false} width={110}/>
                 <Tooltip contentStyle={tooltipStyle}/>
                 <Bar dataKey="total" name="Qtd" fill="var(--brand)" radius={[0,4,4,0]}/>
               </BarChart>
