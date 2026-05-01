@@ -17,8 +17,8 @@ export type Profile = {
 const ACTIVE_CHURCH_KEY = 'gestoque_active_church'
 
 export function useProfile() {
-  const [profile,  setProfile]  = useState<Profile | null>(null)
-  const [loading,  setLoading]  = useState(true)
+  const [profile, setProfile] = useState<Profile | null>(null)
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => { load() }, [])
 
@@ -27,7 +27,6 @@ export function useProfile() {
     const { data: { user } } = await sb.auth.getUser()
     if (!user) { setLoading(false); return }
 
-    // Buscar perfil base
     const { data: prof } = await sb
       .from('profiles')
       .select('*, church:churches(id,name,city,state,logo_url)')
@@ -36,7 +35,20 @@ export function useProfile() {
 
     if (!prof) { setLoading(false); return }
 
-    // Buscar todas as igrejas vinculadas
+    // Igreja ativa — localStorage tem prioridade, fallback para profiles.church_id
+    let activeChurchId: string | null = null
+    try {
+      activeChurchId = localStorage.getItem(ACTIVE_CHURCH_KEY)
+    } catch {}
+
+    if (!activeChurchId) {
+      activeChurchId = prof.church_id
+      try {
+        if (activeChurchId) localStorage.setItem(ACTIVE_CHURCH_KEY, activeChurchId)
+      } catch {}
+    }
+
+    // Buscar igrejas vinculadas (para troca de contexto)
     const { data: userChurches } = await sb
       .from('user_churches')
       .select('church_id, role, church:churches(id,name,city,state)')
@@ -50,36 +62,25 @@ export function useProfile() {
       role: uc.role,
     }))
 
-    // Igreja ativa — pegar do localStorage ou usar a do perfil
-    let activeChurchId = localStorage.getItem(ACTIVE_CHURCH_KEY)
-
-    // Validar se a igreja ativa ainda é válida
-    if (activeChurchId && !churches.find(c => c.id === activeChurchId)) {
-      activeChurchId = null
+    // Se a igreja ativa nao esta nos vinculos, usar a primeira disponivel
+    if (activeChurchId && churches.length > 0 && !churches.find(c => c.id === activeChurchId)) {
+      activeChurchId = churches[0].id
+      try { localStorage.setItem(ACTIVE_CHURCH_KEY, activeChurchId) } catch {}
     }
-
-    // Se não tem igreja ativa, usar a do perfil
-    if (!activeChurchId) {
-      activeChurchId = prof.church_id
-      if (activeChurchId) localStorage.setItem(ACTIVE_CHURCH_KEY, activeChurchId)
-    }
-
-    const activeChurch = churches.find(c => c.id === activeChurchId) || prof.church
 
     setProfile({
       ...prof,
-      church_id: activeChurchId,
-      church: activeChurch ? { ...activeChurch, logo_url: prof.church?.logo_url || null } : prof.church,
+      church_id: activeChurchId || prof.church_id,
       churches,
     })
     setLoading(false)
   }
 
-  const isAdmin   = profile?.role === 'super_admin' || profile?.role === 'admin'
-  const canEdit   = profile?.role !== 'viewer'
+  const isAdmin = profile?.role === 'super_admin' || profile?.role === 'admin'
+  const canEdit = profile?.role !== 'viewer'
 
   function switchChurch(churchId: string) {
-    localStorage.setItem(ACTIVE_CHURCH_KEY, churchId)
+    try { localStorage.setItem(ACTIVE_CHURCH_KEY, churchId) } catch {}
     window.location.reload()
   }
 
