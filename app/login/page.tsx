@@ -12,8 +12,11 @@ export default function LoginPage() {
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault()
     setLoading(true); setError('')
-    const { error: err } = await createClient().auth.signInWithPassword({ email, password })
+    const sb = createClient()
+    const { error: err } = await sb.auth.signInWithPassword({ email, password })
     if (err) { setError('E-mail ou senha incorretos.'); setLoading(false); return }
+    // Aguardar sessao ser salva
+    await new Promise(r => setTimeout(r, 300))
     window.location.href = '/selecionar-igreja'
   }
 
