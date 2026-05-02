@@ -259,16 +259,29 @@ export function TopNav() {
 
         {/* Mobile hamburguer */}
         <div style={{display:'flex',alignItems:'center',gap:'8px',marginLeft:'auto'}} className="mobile-menu-btn">
-          {hasAlerts && (
-            <Link href="/estoque" style={{position:'relative',width:'34px',height:'34px',borderRadius:'var(--radius-sm)',background:'var(--bg-2)',border:'1px solid var(--border-md)',display:'flex',alignItems:'center',justifyContent:'center',textDecoration:'none'}}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--low)" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0"/>
-              </svg>
-              <span style={{position:'absolute',top:'-4px',right:'-4px',width:'16px',height:'16px',borderRadius:'50%',background:'var(--empty)',fontSize:'9px',fontWeight:'700',color:'#fff',display:'flex',alignItems:'center',justifyContent:'center',border:'2px solid var(--bg)'}}>
-                {count > 9 ? '9+' : count}
-              </span>
-            </Link>
-          )}
+          <div ref={alertRef} style={{position:'relative'}}>
+            <button onClick={() => setAlertOpen(o => !o)} style={{position:'relative',width:'34px',height:'34px',borderRadius:'var(--radius-sm)',background:alertOpen?'var(--bg-3)":'var(--bg-2)',border:'1px solid var(--border-md)',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer'}}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={hasAlerts ? 'var(--low)' : 'var(--text-3)'} strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0"/></svg>
+              {hasAlerts && <span style={{position:'absolute',top:'-4px',right:'-4px',width:'16px',height:'16px',borderRadius:'50%',background:'var(--empty)',fontSize:'9px',fontWeight:'700',color:'#fff',display:'flex',alignItems:'center',justifyContent:'center',border:'2px solid var(--bg)'}}>{count > 9 ? '9+' : count}</span>}
+            </button>
+            {alertOpen && (
+              <div className="slide-down" style={{position:'fixed',top:'52px',right:'8px',left:'8px',background:'var(--bg-2)',border:'1px solid var(--border-md)',borderRadius:'var(--radius)',overflow:'hidden',zIndex:200,maxHeight:'70vh',overflowY:'auto'}}>
+                <div style={{padding:'10px 14px',borderBottom:'1px solid var(--border)',fontSize:'12px',fontWeight:'600',color:'var(--text-1)'}}>Alertas de estoque</div>
+                {alerts.map(a => (
+                  <div key={a.id} style={{padding:'10px 14px',borderBottom:'1px solid var(--border)',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                    <div><div style={{fontSize:'13px',fontWeight:'500',color:'var(--text-1)'}}>{a.name}</div><div style={{fontSize:'11px',color:'var(--text-3)'}}>{a.category||'—'} · estoque: {a.quantity} (mín {a.min_stock})</div></div>
+                    <span style={{fontSize:'11px',padding:'2px 8px',borderRadius:'99px',background:'var(--empty-dim)',color:'var(--empty)',fontWeight:'500',flexShrink:0,marginLeft:'8px'}}>{a.quantity===0?'Zerado':'Baixo'}</span>
+                  </div>
+                ))}
+                {expiryAlerts.map(a => (
+                  <div key={a.id+'-exp'} style={{padding:'10px 14px',borderBottom:'1px solid var(--border)',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                    <div><div style={{fontSize:'13px',fontWeight:'500',color:'var(--text-1)'}}>{a.name}</div><div style={{fontSize:'11px',color:'var(--text-3)'}}>{a.category||'—'} · vence em {a.daysUntilExpiry}d</div></div>
+                    <span style={{fontSize:'11px',padding:'2px 8px',borderRadius:'99px',background:'var(--low-dim)',color:'var(--low)',fontWeight:'500',flexShrink:0,marginLeft:'8px'}}>{(a.daysUntilExpiry||0)<0?'Vencido':'Expirando'}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
           {currentPage && (
             <span style={{fontSize:'11px',color:'var(--text-3)',background:'var(--bg-3)',border:'1px solid var(--border)',padding:'3px 10px',borderRadius:'99px',whiteSpace:'nowrap'}}>
               {currentPage.label}
