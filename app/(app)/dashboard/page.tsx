@@ -236,14 +236,14 @@ export default function DashboardPage() {
         </div>
 
         {/* Atenção necessária */}
-        <div style={{ background:'var(--bg-card)', border:'1px solid var(--border)', borderRadius:'var(--radius)', padding:'18px' }}>
+        <div style={{ background:'var(--bg-card)', border:'1px solid var(--border)', borderRadius:'var(--radius)', padding:'18px', display:'flex', flexDirection:'column', height:'320px' }}>
           <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'14px' }}>
             <span style={{ fontSize:'13px', fontWeight:'500', color:'var(--text-1)' }}>Atenção necessária</span>
             {critical.length > 0 && <span style={{ fontSize:'11px', background:'var(--empty-dim)', color:'var(--empty)', padding:'2px 9px', borderRadius:'99px', fontWeight:'500' }}>{critical.length}</span>}
           </div>
           {critical.length === 0 ? (
             <div style={{ fontSize:'13px', color:'var(--text-3)', textAlign:'center', padding:'20px 0' }}>Tudo em ordem ✓</div>
-          ) : (<div style={{maxHeight:'180px',overflowY:'auto'}}>
+          ) : (<div style={{flex:1,overflowY:'auto',minHeight:0}}>
             {critical.map(p => (
             <div key={p.id} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'8px 10px', borderRadius:'var(--radius-sm)', marginBottom:'6px', background:p.quantity===0?'var(--empty-dim)':'var(--low-dim)', border:`1px solid ${p.quantity===0?'rgba(239,68,68,0.12)':'rgba(245,158,11,0.12)'}` }}>
               <div>
@@ -259,14 +259,14 @@ export default function DashboardPage() {
         </div>
 
         {/* Validade próxima */}
-        <div style={{ background:'var(--bg-card)', border:'1px solid var(--border)', borderRadius:'var(--radius)', padding:'18px' }}>
+        <div style={{ background:'var(--bg-card)', border:'1px solid var(--border)', borderRadius:'var(--radius)', padding:'18px', display:'flex', flexDirection:'column', height:'320px' }}>
           <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'14px' }}>
             <span style={{ fontSize:'13px', fontWeight:'500', color:'var(--text-1)' }}>Validade próxima</span>
             {expiryCount > 0 && <span style={{ fontSize:'11px', background:'var(--low-dim)', color:'var(--low)', padding:'2px 9px', borderRadius:'99px', fontWeight:'500' }}>{expiryCount}</span>}
           </div>
           {expiryAlerts.length === 0 ? (
             <div style={{ fontSize:'13px', color:'var(--text-3)', textAlign:'center', padding:'20px 0' }}>Tudo em dia ✓</div>
-          ) : (<div style={{maxHeight:'180px',overflowY:'auto'}}>
+          ) : (<div style={{flex:1,overflowY:'auto',minHeight:0}}>
             {expiryAlerts.map(p => (
               <div key={p.id} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'8px 10px', borderRadius:'var(--radius-sm)', marginBottom:'6px', background:(p.daysUntilExpiry||0)<0?'var(--empty-dim)':'var(--low-dim)', border:`1px solid ${(p.daysUntilExpiry||0)<0?'rgba(239,68,68,0.12)':'rgba(245,158,11,0.12)'}`}}>
                 <div style={{minWidth:0}}>
@@ -282,11 +282,11 @@ export default function DashboardPage() {
         </div>
 
         {/* Últimas movimentações */}
-        <div style={{ background:'var(--bg-card)', border:'1px solid var(--border)', borderRadius:'var(--radius)', padding:'18px' }}>
+        <div style={{ background:'var(--bg-card)', border:'1px solid var(--border)', borderRadius:'var(--radius)', padding:'18px', display:'flex', flexDirection:'column', height:'320px' }}>
           <div style={{ fontSize:'13px', fontWeight:'500', color:'var(--text-1)', marginBottom:'14px' }}>Últimas movimentações</div>
           {recent.length === 0 ? (
             <div style={{ fontSize:'13px', color:'var(--text-3)', textAlign:'center', padding:'20px 0' }}>Nenhuma movimentação</div>
-          ) : (<div style={{maxHeight:'180px',overflowY:'auto'}}>
+          ) : (<div style={{flex:1,overflowY:'auto',minHeight:0}}>
             {recent.map(m => (
             <div key={m.id} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'8px 0', borderBottom:'1px solid var(--border)' }}>
               <div style={{ display:'flex', alignItems:'center', gap:'8px', minWidth:0 }}>
