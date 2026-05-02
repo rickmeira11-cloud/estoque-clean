@@ -210,7 +210,7 @@ export default function DashboardPage() {
       )}
 
       {/* Grid: depósitos + atenção + últimas movimentações */}
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:'14px', marginBottom:'14px' }} className="bottom-grid">
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:'14px', marginBottom:'14px', alignItems:'flex-start' }} className="bottom-grid">
 
         {/* Movimentações por depósito */}
         <div style={{ background:'var(--bg-card)', border:'1px solid var(--border)', borderRadius:'var(--radius)', padding:'18px' }}>
