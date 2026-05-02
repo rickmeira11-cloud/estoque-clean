@@ -26,7 +26,7 @@ export default function TrocarSenhaPage() {
     })
     const data = await res.json()
     if (!res.ok) { setError(data.error || 'Erro ao trocar senha'); setSaving(false); return }
-    router.push('/dashboard')
+    window.location.href = '/dashboard'
   }
 
   const L = { display:'block' as const, fontSize:'12px', color:'var(--text-3)', marginBottom:'6px' }
