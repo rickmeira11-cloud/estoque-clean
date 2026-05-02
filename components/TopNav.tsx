@@ -260,7 +260,7 @@ export function TopNav() {
         {/* Mobile hamburguer */}
         <div style={{display:'flex',alignItems:'center',gap:'8px',marginLeft:'auto'}} className="mobile-menu-btn">
           <div ref={alertRef} style={{position:'relative'}}>
-            <button onClick={() => setAlertOpen(o => !o)} style={{position:'relative',width:'34px',height:'34px',borderRadius:'var(--radius-sm)',background:alertOpen?'var(--bg-3)":'var(--bg-2)',border:'1px solid var(--border-md)',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer'}}>
+            <button onClick={() => setAlertOpen(o => !o)} style={{position:'relative',width:'34px',height:'34px',borderRadius:'var(--radius-sm)',background:alertOpen?'var(--bg-3)':'var(--bg-2)',border:'1px solid var(--border-md)',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer'}}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={hasAlerts ? 'var(--low)' : 'var(--text-3)'} strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0"/></svg>
               {hasAlerts && <span style={{position:'absolute',top:'-4px',right:'-4px',width:'16px',height:'16px',borderRadius:'50%',background:'var(--empty)',fontSize:'9px',fontWeight:'700',color:'#fff',display:'flex',alignItems:'center',justifyContent:'center',border:'2px solid var(--bg)'}}>{count > 9 ? '9+' : count}</span>}
             </button>
