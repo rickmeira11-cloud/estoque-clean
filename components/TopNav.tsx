@@ -246,18 +246,19 @@ export function TopNav() {
                     {churchName && <span style={{fontSize:'10px',padding:'2px 8px',borderRadius:'99px',background:'rgba(255,255,255,0.04)',color:'var(--text-3)',border:'1px solid var(--border)'}}>{churchName}</span>}
                   </div>
                 </div>
-                <button onClick={logout} style={{width:'100%',padding:'10px 14px',background:'transparent',border:'none',cursor:'pointer',textAlign:'left',display:'flex',alignItems:'center',gap:'8px',fontSize:'13px',color:'var(--empty)',transition:'background 0.1s'}}
-                  onMouseEnter={e=>e.currentTarget.style.background='var(--bg-3)'}
-                  onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/></svg>
                 {profile?.churches && profile.churches.length > 1 && (
-                  <button onClick={() => { setUserOpen(false); window.location.href = '/selecionar-igreja' }} style={{width:'100%',padding:'10px 14px',background:'transparent',border:'none',borderBottom:'1px solid var(--border)',cursor:'pointer',textAlign:'left',display:'flex',alignItems:'center',gap:'8px',fontSize:'13px',color:'var(--text-2)',transition:'background 0.1s'}}
+                  <button onClick={() => { setUserOpen(false); window.location.href = '/selecionar-igreja' }}
+                    style={{width:'100%',padding:'10px 14px',background:'transparent',border:'none',borderBottom:'1px solid var(--border)',cursor:'pointer',textAlign:'left',display:'flex',alignItems:'center',gap:'8px',fontSize:'13px',color:'var(--text-2)',transition:'background 0.1s'}}
                     onMouseEnter={e=>e.currentTarget.style.background='var(--bg-3)'}
                     onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
                     Selecionar Igreja
                   </button>
                 )}
+                <button onClick={logout} style={{width:'100%',padding:'10px 14px',background:'transparent',border:'none',cursor:'pointer',textAlign:'left',display:'flex',alignItems:'center',gap:'8px',fontSize:'13px',color:'var(--empty)',transition:'background 0.1s'}}
+                  onMouseEnter={e=>e.currentTarget.style.background='var(--bg-3)'}
+                  onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/></svg>
                   Sair da conta
                 </button>
               </div>
