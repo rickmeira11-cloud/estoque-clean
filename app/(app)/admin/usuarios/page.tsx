@@ -65,9 +65,9 @@ export default function UsuariosPage() {
     const sb = createClient()
     if (editId) {
       await sb.from('profiles').update({ name: form.name.trim(), role: form.role }).eq('id', editId)
-      const { error: delErr } = await sb.from('user_churches').delete().eq('user_id', editId); if (delErr) { setError('Erro ao remover vinculos: ' + delErr.message); setSaving(false); return }
+      await sb.from('user_churches').delete().eq('user_id', editId)
       for (const uc of userChurches) {
-        const { error: insErr } = await sb.from('user_churches').insert({ user_id: editId, church_id: uc.church_id, role: uc.role, is_active: uc.is_active !== false }); if (insErr) { setError('Erro ao inserir vinculo: ' + insErr.message); setSaving(false); return }
+        await sb.from('user_churches').insert({ user_id: editId, church_id: uc.church_id, role: uc.role, is_active: uc.is_active !== false })
       }
       setShowForm(false); await loadAll()
     } else {
