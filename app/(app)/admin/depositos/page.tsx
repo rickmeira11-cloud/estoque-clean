@@ -1,6 +1,6 @@
 ﻿// @ts-nocheck
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useProfile } from '@/hooks/useProfile'
 
@@ -15,6 +15,8 @@ export default function DepositosPage() {
   const [form, setForm] = useState(blank)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
+  const formRef  = useRef(null)
+  const firstRef = useRef(null)
 
   useEffect(() => { if (profile?.church_id) load() }, [profile?.church_id])
 
@@ -25,8 +27,8 @@ export default function DepositosPage() {
     setLoading(false)
   }
 
-  function openNew() { setEditId(null); setForm(blank); setError(null); setShowForm(true) }
-  function openEdit(l) { setEditId(l.id); setForm({ name: l.name, description: l.description || '' }); setError(null); setShowForm(true) }
+  function openNew() { setEditId(null); setForm(blank); setError(null); setShowForm(true); setTimeout(() => { formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }); firstRef.current?.focus() }, 100) }
+  function openEdit(l) { setEditId(l.id); setForm({ name: l.name, description: l.description || '' }); setError(null); setShowForm(true); setTimeout(() => { formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }); firstRef.current?.focus() }, 100) }
 
   async function save() {
     if (!form.name.trim()) { setError('Nome obrigatório'); return }

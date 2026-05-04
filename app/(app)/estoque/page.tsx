@@ -1,5 +1,5 @@
 ﻿'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useProfile } from '@/hooks/useProfile'
 import type { Product } from '@/types'
@@ -25,6 +25,8 @@ export default function EstoquePage() {
   const [editItem,setEditItem]=useState<Product|null>(null)
   const [form,setForm]=useState(blank)
   const [saving,setSaving]=useState(false)
+  const formRef  = useRef(null)
+  const firstRef = useRef(null)
   function handleClose(){if(isDirty(form)&&!confirm('Existem dados preenchidos. Deseja fechar sem salvar?'))return;setShowModal(false);setEditItem(null);setForm(blank)}
   const [formError,setFormError]=useState<string|null>(null)
   useEffect(()=>{if(!profile?.church_id)return;load();createClient().from('locations').select('id,name').eq('church_id',profile.church_id).eq('is_active',true).order('name').then(({data})=>{if(data)setLocations(data)});createClient().from('stock_movements').select('product_id,location_id,destination_location_id,type,quantity').eq('church_id',profile.church_id).not('location_id','is',null).then(({data})=>{if(data){const m={};const bal={};data.forEach((r)=>{const key=r.product_id+'|'+r.location_id;if(!bal[key])bal[key]=0;if(r.type==='in')bal[key]+=r.quantity;if(r.type==='out')bal[key]-=r.quantity;if(r.type==='transfer'){bal[key]-=r.quantity;if(r.destination_location_id){const destKey=r.product_id+'|'+r.destination_location_id;if(!bal[destKey])bal[destKey]=0;bal[destKey]+=r.quantity;}}if(!m[r.location_id])m[r.location_id]=new Set();m[r.location_id].add(r.product_id)});setProductsByLoc(m);setLocBalance(bal)}})},[profile?.church_id])
@@ -105,8 +107,8 @@ export default function EstoquePage() {
     if(data){setProducts(data as Product[]);setCategories([...new Set(data.map((p:any)=>p.category).filter(Boolean))].sort() as string[])}
     setLoading(false)
   }
-  function openNew(){setEditItem(null);setForm(blank);setFormError(null);setShowModal(true)}
-  function openEdit(p:Product){setEditItem(p);setForm({name:p.name,category:p.category||'',type:p.type,container:p.container||'',unit:p.unit||'un',min_stock:String(p.min_stock),last_purchase_value:p.last_purchase_value?String(p.last_purchase_value):'',expiration_date:p.expiration_date||'',notes:p.notes||''});setFormError(null);setShowModal(true)}
+  function openNew(){setEditItem(null);setForm(blank);setFormError(null);setShowModal(true);setTimeout(()=>{formRef.current?.scrollIntoView({behavior:'smooth',block:'start'});firstRef.current?.focus()},100)}
+  function openEdit(p:Product){setEditItem(p);setForm({name:p.name,category:p.category||'',type:p.type,container:p.container||'',unit:p.unit||'un',min_stock:String(p.min_stock),last_purchase_value:p.last_purchase_value?String(p.last_purchase_value):'',expiration_date:p.expiration_date||'',notes:p.notes||''});setFormError(null);setShowModal(true);setTimeout(()=>{formRef.current?.scrollIntoView({behavior:'smooth',block:'start'});firstRef.current?.focus()},100)}
   async function save() {
     if(!profile?.church_id){setFormError('Perfil não carregado. Aguarde e tente novamente.');return}
     if(!form.name.trim()){setFormError('Nome obrigatório');return}

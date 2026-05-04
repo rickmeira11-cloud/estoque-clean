@@ -22,6 +22,8 @@ export default function IgrejasPage() {
   const [showWizard,   setShowWizard]   = useState(false)
   const [newChurchId,  setNewChurchId]  = useState(null)
   const [newChurchName,setNewChurchName]= useState('')
+  const formRef  = useRef(null)
+  const firstRef = useRef(null)
   const fileRef = useRef(null)
 
   useEffect(() => { load() }, [])
@@ -48,6 +50,7 @@ export default function IgrejasPage() {
     setLogoFile(null)
     setError(null)
     setShowForm(true)
+    setTimeout(() => { formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }); firstRef.current?.focus() }, 100)
   }
 
   function handleLogoChange(e) {
