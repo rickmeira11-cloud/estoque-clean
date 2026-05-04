@@ -95,10 +95,15 @@ export default function MinisteriosPublicPage() {
         }
       })
     )
+    const getPriority = (name: string) => {
+      if (name.toLowerCase().includes('poiema church')) return 0
+      if (name.toLowerCase().includes('influa')) return 1
+      return 2
+    }
     const sorted = withMembers.sort((a, b) => {
-      const aFirst = a.name.toLowerCase().includes('poiema church') ? -1 : 0
-      const bFirst = b.name.toLowerCase().includes('poiema church') ? -1 : 0
-      if (aFirst !== bFirst) return aFirst - bFirst
+      const pa = getPriority(a.name)
+      const pb = getPriority(b.name)
+      if (pa !== pb) return pa - pb
       return a.name.localeCompare(b.name, 'pt-BR')
     })
     setMinistries(sorted)
