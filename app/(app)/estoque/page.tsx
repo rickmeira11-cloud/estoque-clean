@@ -107,8 +107,8 @@ export default function EstoquePage() {
     if(data){setProducts(data as Product[]);setCategories([...new Set(data.map((p:any)=>p.category).filter(Boolean))].sort() as string[])}
     setLoading(false)
   }
-  function openNew(){setEditItem(null);setForm(blank);setFormError(null);setShowModal(true);setTimeout(()=>{formRef.current?.scrollIntoView({behavior:'smooth',block:'start'});firstRef.current?.focus()},100)}
-  function openEdit(p:Product){setEditItem(p);setForm({name:p.name,category:p.category||'',type:p.type,container:p.container||'',unit:p.unit||'un',min_stock:String(p.min_stock),last_purchase_value:p.last_purchase_value?String(p.last_purchase_value):'',expiration_date:p.expiration_date||'',notes:p.notes||''});setFormError(null);setShowModal(true);setTimeout(()=>{formRef.current?.scrollIntoView({behavior:'smooth',block:'start'});firstRef.current?.focus()},100)}
+  function openNew(){setEditItem(null);setForm(blank);setFormError(null);setShowModal(true);setTimeout(()=>{formRef.current?.scrollIntoView({behavior:'instant',block:'nearest'});firstRef.current?.focus()},100)}
+  function openEdit(p:Product){setEditItem(p);setForm({name:p.name,category:p.category||'',type:p.type,container:p.container||'',unit:p.unit||'un',min_stock:String(p.min_stock),last_purchase_value:p.last_purchase_value?String(p.last_purchase_value):'',expiration_date:p.expiration_date||'',notes:p.notes||''});setFormError(null);setShowModal(true);setTimeout(()=>{formRef.current?.scrollIntoView({behavior:'instant',block:'nearest'});firstRef.current?.focus()},100)}
   async function save() {
     if(!profile?.church_id){setFormError('Perfil não carregado. Aguarde e tente novamente.');return}
     if(!form.name.trim()){setFormError('Nome obrigatório');return}
@@ -217,7 +217,7 @@ export default function EstoquePage() {
         </div>
       )}
       {showModal&&(
-        <div ref={formRef} style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.65)',backdropFilter:'blur(4px)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:50,padding:'20px'}} onClick={handleClose}>
+        <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.65)',backdropFilter:'blur(4px)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:50,padding:'20px'}} onClick={handleClose}>
           <div className="fade-up" onClick={e=>e.stopPropagation()} style={{background:'var(--bg-2)',border:'1px solid var(--border-md)',borderRadius:'16px',padding:'28px',width:'100%',maxWidth:'480px',maxHeight:'90vh',overflowY:'auto'}}>
             <h2 style={{fontSize:'16px',fontWeight:'600',marginBottom:'22px'}}>{editItem?'Editar produto':'Novo produto'}</h2>
             {formError&&<div style={{marginBottom:'14px',padding:'8px 12px',borderRadius:'8px',background:'var(--empty-dim)',fontSize:'13px',color:'var(--empty)'}}>{formError}</div>}

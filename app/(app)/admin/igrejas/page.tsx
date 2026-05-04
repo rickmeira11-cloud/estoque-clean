@@ -158,7 +158,7 @@ export default function IgrejasPage() {
 
       {/* Formulário */}
       {showForm && (
-        <div className="fade-up" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-md)', borderRadius: '12px', padding: '24px', marginBottom: '20px' }}>
+        <div ref={formRef} className="fade-up" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-md)', borderRadius: '12px', padding: '24px', marginBottom: '20px' }}>
           <h2 style={{ fontSize: '15px', fontWeight: '600', marginBottom: '18px' }}>{editId ? 'Editar' : 'Nova'} igreja</h2>
           {error && <div style={{ marginBottom: '12px', padding: '8px 12px', borderRadius: '6px', background: 'var(--empty-dim)', fontSize: '12px', color: 'var(--empty)' }}>{error}</div>}
 
@@ -183,7 +183,7 @@ export default function IgrejasPage() {
                 </button>
                 <div style={{ fontSize: '11px', color: 'var(--text-3)', marginTop: '4px' }}>PNG, JPG ou SVG • Recomendado 200×200px</div>
               </div>
-              <input ref={fileRef} type="file" accept="image/*" onChange={handleLogoChange} style={{ display: 'none' }} />
+              <input ref={firstRef} ref={fileRef} type="file" accept="image/*" onChange={handleLogoChange} style={{ display: 'none' }} />
             </div>
           </div>
 

@@ -15,7 +15,7 @@ function getColor(name: string) { let h = 0; for (let i = 0; i < name.length; i+
 
 function Avatar({ name, photo, size = 36 }: { name: string; photo: string | null; size?: number }) {
   return (
-    <div style={{ width: size, height: size, borderRadius: '50%', overflow: 'hidden', flexShrink: 0, background: getColor(name), display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: size * 0.38, fontWeight: 600, color: '#fff' }}>
+    <div ref={formRef} style={{ width: size, height: size, borderRadius: '50%', overflow: 'hidden', flexShrink: 0, background: getColor(name), display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: size * 0.38, fontWeight: 600, color: '#fff' }}>
       {photo ? <img src={photo} alt={name} style={{ width: '100%', height: '100%', objectFit: 'cover' }}/> : name.charAt(0).toUpperCase()}
     </div>
   )
@@ -37,6 +37,8 @@ export default function MinisteriosAdminPage() {
   const [memForm, setMemForm] = useState(blankMem)
   const [saving, setSaving] = useState(false)
   const [uploading, setUploading] = useState(false)
+  const formRef  = useRef(null)
+  const firstRef = useRef(null)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
   const photoRef = useRef<HTMLInputElement>(null)
@@ -263,7 +265,7 @@ export default function MinisteriosAdminPage() {
               )}
 
               {/* Input de foto oculto */}
-              <input ref={photoRef} type="file" accept="image/*" style={{ display: 'none' }}
+              <input ref={firstRef} ref={photoRef} type="file" accept="image/*" style={{ display: 'none' }}
                 onChange={async e => {
                   const file = e.target.files?.[0]
                   if (file && editMemId) await uploadPhoto(editMemId, file)
