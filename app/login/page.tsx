@@ -17,7 +17,7 @@ export default function LoginPage() {
     if (err) { setError('E-mail ou senha incorretos.'); setLoading(false); return }
     // Aguardar sessao ser salva
     await new Promise(r => setTimeout(r, 300))
-    window.location.href = '/dashboard'
+    window.location.href = '/selecionar-igreja'
   }
 
   return (
