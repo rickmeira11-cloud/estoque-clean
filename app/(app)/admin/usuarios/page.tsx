@@ -88,7 +88,7 @@ export default function UsuariosPage() {
       const data = await res.json()
       if (!res.ok) { setError(data.error || 'Erro ao criar usuário'); setSaving(false); return }
       for (const uc of userChurches) {
-        await sb.from('user_churches').upsert({ user_id: data.id, church_id: uc.church_id, role: uc.role, is_active: true }, { onConflict: 'user_id,chur
+        await sb.from('user_churches').upsert({ user_id: data.id, church_id: uc.church_id, role: uc.role, is_active: true }, { onConflict: 'user_id,church_id' }
 $content = @'
 // @ts-nocheck
 'use client'
