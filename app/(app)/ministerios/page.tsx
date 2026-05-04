@@ -1,4 +1,4 @@
-'use r ref={firstRef}ef={formRef} client'
+'use client'
 import { useEffect, useState, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useProfile } from '@/hooks/useProfile'
@@ -285,7 +285,7 @@ export default function MinisteriosAdminPage() {
           <div className="fade-up" style={{ background: 'var(--bg-2)', border: '1px solid var(--border-md)', borderRadius: '16px', padding: '28px', width: '100%', maxWidth: '440px' }}>
             <h2 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '20px' }}>{editMinId ? 'Editar' : 'Novo'} ministÃ©rio</h2>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              <div><label style={L}>Nome *</label><input value={minForm.name} onChange={e => setMinForm(f => ({ ...f, name: e.target.value }))} placeholder="Ex: MinistÃ©rio de Louvor"/></div>
+              <div><label style={L}>Nome *</label><input ref={firstRef} value={minForm.name} onChange={e => setMinForm(f => ({ ...f, name: e.target.value }))} placeholder="Ex: MinistÃ©rio de Louvor"/></div>
               <div><label style={L}>DescriÃ§Ã£o</label><textarea value={minForm.description} onChange={e => setMinForm(f => ({ ...f, description: e.target.value }))} style={{ resize: 'none', height: '72px' }} placeholder="Breve descriÃ§Ã£o do ministÃ©rio"/></div>
               <div><label style={L}>HorÃ¡rio dos encontros</label><input value={minForm.meeting_schedule} onChange={e => setMinForm(f => ({ ...f, meeting_schedule: e.target.value }))} placeholder="Ex: SÃ¡bados Ã s 19h"/></div>
               <div><label style={L}>Local</label><input value={minForm.location} onChange={e => setMinForm(f => ({ ...f, location: e.target.value }))} placeholder="Ex: Sala 3"/></div>
