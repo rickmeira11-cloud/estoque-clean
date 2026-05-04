@@ -66,9 +66,9 @@ export default function UsuariosPage() {
     if (editId) {
       await sb.from('profiles').update({ name: form.name.trim(), role: form.role }).eq('id', editId)
       await sb.from('user_churches').delete().eq('user_id', editId)
-      for (const uc of userChurches) {
-        await sb.from('user_churches').insert({ user_id: editId, church_id: uc.church_id, role: uc.role, is_active: uc.is_active !== false })
-      }
+      await Promise.all(userChurches.map(uc =>
+        sb.from('user_churches').insert({ user_id: editId, church_id: uc.church_id, role: uc.role, is_active: uc.is_active !== false })
+      ))
       setShowForm(false); await loadAll()
     } else {
       if (!form.email.trim()) { setError('E-mail obrigatorio'); setSaving(false); return }
@@ -81,9 +81,9 @@ export default function UsuariosPage() {
       })
       const data = await res.json()
       if (!res.ok) { setError(data.error || 'Erro ao criar usuario'); setSaving(false); return }
-      for (const uc of userChurches) {
-        await sb.from('user_churches').upsert({ user_id: data.id, church_id: uc.church_id, role: uc.role, is_active: true }, { onConflict: 'user_id,church_id' })
-      }
+      await Promise.all(userChurches.map(uc =>
+        sb.from('user_churches').upsert({ user_id: data.id, church_id: uc.church_id, role: uc.role, is_active: true }, { onConflict: 'user_id,church_id' })
+      ))
       setSenhaGerada(data.tempPassword || ''); setShowForm(false); await loadAll()
     }
     setSaving(false)
