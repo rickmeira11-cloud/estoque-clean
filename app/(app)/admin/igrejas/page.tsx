@@ -183,12 +183,12 @@ export default function IgrejasPage() {
                 </button>
                 <div style={{ fontSize: '11px', color: 'var(--text-3)', marginTop: '4px' }}>PNG, JPG ou SVG • Recomendado 200×200px</div>
               </div>
-              <input ref={firstRef} ref={fileRef} type="file" accept="image/*" onChange={handleLogoChange} style={{ display: 'none' }} />
+              <input ref={fileRef} type="file" accept="image/*" onChange={handleLogoChange} style={{ display: 'none' }} />
             </div>
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            <div><label style={L}>Nome *</label><input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value, slug: f.slug || toSlug(e.target.value) }))} placeholder="Ex: Poiema Blumenau" /></div>
+            <div><label style={L}>Nome *</label><input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value, slug: f.slug || toSlug(e.target.value) }))} ref={firstRef} placeholder="Ex: Poiema Blumenau" /></div>
             <div><label style={L}>Slug (único)</label><input value={form.slug} onChange={e => setForm(f => ({ ...f, slug: e.target.value }))} style={{ fontFamily: 'monospace', fontSize: '13px' }} placeholder="poiema-blumenau" /></div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 80px', gap: '10px' }}>
               <div><label style={L}>Cidade</label><input value={form.city} onChange={e => setForm(f => ({ ...f, city: e.target.value }))} placeholder="Blumenau" /></div>
