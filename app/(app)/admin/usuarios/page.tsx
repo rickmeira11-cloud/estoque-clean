@@ -65,10 +65,13 @@ export default function UsuariosPage() {
     const sb = createClient()
     if (editId) {
       await sb.from('profiles').update({ name: form.name.trim(), role: form.role }).eq('id', editId)
-      await sb.from('user_churches').delete().eq('user_id', editId)
-      await Promise.all(userChurches.map(uc =>
+      const { error: delErr } = await sb.from('user_churches').delete().eq('user_id', editId)
+      if (delErr) { setError('Del: ' + delErr.message); setSaving(false); return }
+      const insResults = await Promise.all(userChurches.map(uc =>
         sb.from('user_churches').insert({ user_id: editId, church_id: uc.church_id, role: uc.role, is_active: uc.is_active !== false })
       ))
+      const insErr = insResults.find(r => r.error)
+      if (insErr) { setError('Ins: ' + insErr.error.message); setSaving(false); return }
       setShowForm(false); await loadAll()
     } else {
       if (!form.email.trim()) { setError('E-mail obrigatorio'); setSaving(false); return }
