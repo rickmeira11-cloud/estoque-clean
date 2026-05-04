@@ -66,11 +66,11 @@ export default function DepositosPage() {
       </div>
 
       {showForm && (
-        <div className="fade-up" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-md)', borderRadius: '12px', padding: '24px', marginBottom: '20px' }}>
+        <div ref={formRef} className="fade-up" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-md)', borderRadius: '12px', padding: '24px', marginBottom: '20px' }}>
           <h2 style={{ fontSize: '15px', fontWeight: '600', marginBottom: '18px' }}>{editId ? 'Editar' : 'Novo'} depósito</h2>
           {error && <div style={{ marginBottom: '12px', padding: '8px 12px', borderRadius: '6px', background: 'var(--empty-dim)', fontSize: '12px', color: 'var(--empty)' }}>{error}</div>}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            <div><label style={L}>Nome *</label><input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="Ex: Almoxarifado" /></div>
+            <div><label style={L}>Nome *</label><input ref={firstRef} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="Ex: Almoxarifado" /></div>
             <div><label style={L}>Descrição</label><input value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} placeholder="Ex: Depósito principal do térreo" /></div>
           </div>
           <div style={{ display: 'flex', gap: '10px', marginTop: '18px' }}>
