@@ -1,6 +1,6 @@
 // @ts-nocheck
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useProfile } from '@/hooks/useProfile'
 
@@ -19,6 +19,8 @@ export default function UsuariosPage() {
   const [saving,       setSaving]       = useState(false)
   const [error,        setError]        = useState(null)
   const [senhaGerada,  setSenhaGerada]  = useState('')
+  const formRef  = useRef(null)
+  const firstRef = useRef(null)
 
   useEffect(() => { if (profile?.church_id) loadAll() }, [profile?.church_id])
 
@@ -49,6 +51,7 @@ export default function UsuariosPage() {
     setEditId(null); setForm(blank)
     setUserChurches([{ church_id: profile.church_id, role: 'operator', is_active: true, church: churches.find(c => c.id === profile.church_id) }])
     setError(null); setShowForm(true)
+    setTimeout(() => { formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }); firstRef.current?.focus() }, 100)
   }
 
   async function openEdit(u) {
@@ -56,6 +59,7 @@ export default function UsuariosPage() {
     const uc = await loadUserChurches(u.id)
     setUserChurches(uc.length > 0 ? uc : [{ church_id: profile.church_id, role: u.role, is_active: true, church: churches.find(c => c.id === profile.church_id) }])
     setShowForm(true)
+    setTimeout(() => { formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }); firstRef.current?.focus() }, 100)
   }
 
   async function save() {
@@ -139,11 +143,11 @@ export default function UsuariosPage() {
       )}
 
       {showForm && (
-        <div style={{ background:'var(--bg-card)', border:'1px solid var(--border-md)', borderRadius:'12px', padding:'24px', marginBottom:'20px' }}>
+        <div ref={formRef} style={{ background:'var(--bg-card)', border:'1px solid var(--border-md)', borderRadius:'12px', padding:'24px', marginBottom:'20px' }}>
           <h2 style={{ fontSize:'15px', fontWeight:'600', marginBottom:'18px' }}>{editId ? 'Editar' : 'Novo'} usuario</h2>
           {error && <div style={{ marginBottom:'12px', padding:'8px 12px', borderRadius:'6px', background:'var(--empty-dim)', fontSize:'12px', color:'var(--empty)' }}>{error}</div>}
           <div style={{ display:'flex', flexDirection:'column', gap:'14px' }}>
-            <div><label style={L}>Nome *</label><input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="Nome completo" /></div>
+            <div><label style={L}>Nome *</label><input ref={firstRef} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="Nome completo" /></div>
             {!editId && <div><label style={L}>E-mail *</label><input type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} placeholder="email@poiema.com" /></div>}
             <div><label style={L}>Papel padrao</label><select value={form.role} onChange={e => setForm(f => ({ ...f, role: e.target.value }))}>{Object.entries(ROLES).map(([k,v]) => <option key={k} value={k}>{v}</option>)}</select></div>
             <div>
