@@ -67,7 +67,7 @@ export default function MinisteriosAdminPage() {
 
   function flash(msg: string) { setSuccess(msg); setTimeout(() => setSuccess(null), 3000) }
 
-  // â”€â”€ Ministérios â”€â”€
+  // ── Ministérios ──
   function openNewMin() { setEditMinId(null); setMinForm(blankMin); setError(null); setShowMinForm(true); setTimeout(() => { formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }); firstRef.current?.focus() }, 100) }
   function openEditMin(m: Ministry) { setEditMinId(m.id); setMinForm({ name: m.name, description: m.description || '', meeting_schedule: m.meeting_schedule || '', location: m.location || '' }); setError(null); setShowMinForm(true); setTimeout(() => { formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }); firstRef.current?.focus() }, 100) }
 
@@ -87,7 +87,7 @@ export default function MinisteriosAdminPage() {
     await load()
   }
 
-  // â”€â”€ Membros â”€â”€
+  // ── Membros ──
   function openNewMem() { setEditMemId(null); setMemForm(blankMem); setModalPhotoPreview(null); setError(null); setShowMemForm(true) }
   function openEditMem(mem: Member) { setEditMemId(mem.id); setMemForm({ name: mem.name, role: mem.role, phone: mem.phone || '', email: mem.email || '', bio: mem.bio || '', photo_url: mem.photo_url }); setModalPhotoPreview(mem.photo_url); setError(null); setShowMemForm(true) }
 
@@ -166,7 +166,7 @@ export default function MinisteriosAdminPage() {
       </div>
 
       {success && <div className="fade-up" style={{ marginBottom: '14px', padding: '10px 14px', borderRadius: '8px', background: 'var(--ok-dim)', border: '1px solid rgba(34,197,94,0.2)', fontSize: '13px', color: 'var(--ok)' }}>{success}</div>}
-      {error && <div style={{ marginBottom: '14px', padding: '10px 14px', borderRadius: '8px', background: 'var(--empty-dim)', fontSize: '13px', color: 'var(--empty)' }}>{error}<button onClick={() => setError(null)} style={{ marginLeft: '10px', background: 'none', border: 'none', color: 'var(--empty)', cursor: 'pointer' }}>âœ•</button></div>}
+      {error && <div style={{ marginBottom: '14px', padding: '10px 14px', borderRadius: '8px', background: 'var(--empty-dim)', fontSize: '13px', color: 'var(--empty)' }}>{error}<button onClick={() => setError(null)} style={{ marginLeft: '10px', background: 'none', border: 'none', color: 'var(--empty)', cursor: 'pointer' }}>✕</button></div>}
 
       <div style={{ display: 'grid', gridTemplateColumns: selected ? '280px 1fr' : '1fr', gap: '16px' }}>
         {/* Lista de ministérios */}
@@ -195,7 +195,7 @@ export default function MinisteriosAdminPage() {
                 </span>
               </div>
               </div>
-              {/* Barra de açÃµes */}
+              {/* Barra de ações */}
               <div style={{ display: 'flex', borderTop: '1px solid var(--border)' }}>
                 <button onClick={e => { e.stopPropagation(); openEditMin(m) }} style={{ flex: 1, padding: '10px', background: 'transparent', border: 'none', borderRight: '1px solid var(--border)', fontSize: '13px', color: 'var(--text-2)', cursor: 'pointer', fontWeight: '500' }}>
                   Editar
@@ -214,7 +214,7 @@ export default function MinisteriosAdminPage() {
             {/* Header */}
             <div style={{ height: '80px', background: selected.cover_image_url ? `url(${selected.cover_image_url}) center/cover` : 'linear-gradient(135deg, #1a1a2e 0%, #16213e 60%, #0f3460 100%)', display: 'flex', alignItems: 'flex-end', padding: '12px 16px', position: 'relative' }}>
               <div style={{ fontSize: '16px', fontWeight: '700', color: '#fff', textShadow: '0 1px 4px rgba(0,0,0,0.6)' }}>{selected.name}</div>
-              <button onClick={() => setSelected(null)} style={{ position: 'absolute', top: '10px', right: '10px', width: '26px', height: '26px', borderRadius: '50%', background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px' }}>âœ•</button>
+              <button onClick={() => setSelected(null)} style={{ position: 'absolute', top: '10px', right: '10px', width: '26px', height: '26px', borderRadius: '50%', background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px' }}>✕</button>
             </div>
 
             <div style={{ padding: '16px' }}>
@@ -257,7 +257,7 @@ export default function MinisteriosAdminPage() {
 
                       <div style={{ display: 'flex', gap: '4px', flexShrink: 0 }}>
                         <button onClick={() => openEditMem(mem)} style={{ padding: '4px 9px', background: 'transparent', border: '1px solid var(--border)', borderRadius: '6px', fontSize: '11px', color: 'var(--text-2)', cursor: 'pointer' }}>Editar</button>
-                        <button onClick={() => removeMem(mem.id)} style={{ padding: '4px 9px', background: 'transparent', border: '1px solid rgba(239,68,68,0.3)', borderRadius: '6px', fontSize: '11px', color: 'var(--empty)', cursor: 'pointer' }}>âœ•</button>
+                        <button onClick={() => removeMem(mem.id)} style={{ padding: '4px 9px', background: 'transparent', border: '1px solid rgba(239,68,68,0.3)', borderRadius: '6px', fontSize: '11px', color: 'var(--empty)', cursor: 'pointer' }}>✕</button>
                       </div>
                     </div>
                   ))}
@@ -278,7 +278,7 @@ export default function MinisteriosAdminPage() {
         )}
       </div>
 
-      {/* Modal â€” Ministério */}
+      {/* Modal — Ministério */}
       {showMinForm && (
         <div ref={formRef} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, padding: '20px' }}
           onClick={e => e.target === e.currentTarget && setShowMinForm(false)}>
@@ -287,7 +287,7 @@ export default function MinisteriosAdminPage() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               <div><label style={L}>Nome *</label><input ref={firstRef} value={minForm.name} onChange={e => setMinForm(f => ({ ...f, name: e.target.value }))} placeholder="Ex: Ministério de Louvor"/></div>
               <div><label style={L}>Descrição</label><textarea value={minForm.description} onChange={e => setMinForm(f => ({ ...f, description: e.target.value }))} style={{ resize: 'none', height: '72px' }} placeholder="Breve descrição do ministério"/></div>
-              <div><label style={L}>Horário dos encontros</label><input value={minForm.meeting_schedule} onChange={e => setMinForm(f => ({ ...f, meeting_schedule: e.target.value }))} placeholder="Ex: Sábados Ã s 19h"/></div>
+              <div><label style={L}>Horário dos encontros</label><input value={minForm.meeting_schedule} onChange={e => setMinForm(f => ({ ...f, meeting_schedule: e.target.value }))} placeholder="Ex: Sábados às 19h"/></div>
               <div><label style={L}>Local</label><input value={minForm.location} onChange={e => setMinForm(f => ({ ...f, location: e.target.value }))} placeholder="Ex: Sala 3"/></div>
             </div>
             <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
@@ -300,7 +300,7 @@ export default function MinisteriosAdminPage() {
         </div>
       )}
 
-      {/* Modal â€” Membro */}
+      {/* Modal — Membro */}
       {showMemForm && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, padding: '20px' }}
           onClick={e => e.target === e.currentTarget && setShowMemForm(false)}>
