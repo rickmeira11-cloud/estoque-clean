@@ -197,6 +197,24 @@ export default function MovimentacoesPage() {
                 <div style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-1)' }}>{selected.name}</div>
                 <div style={{ fontSize: '11px', color: 'var(--text-3)', marginTop: '2px' }}>
                   Estoque atual: <strong style={{ color: 'var(--text-1)' }}>{selected.quantity}</strong> {selected.unit || 'un'}
+                  {/* Saldo por deposito */}
+                  {(() => {
+                    const locs = locations.filter(l => (locBalance[selected.id + '|' + l.id] || 0) > 0)
+                    if (locs.length === 0) return null
+                    return (
+                      <div style={{ marginTop: '8px', paddingTop: '8px', borderTop: '1px solid var(--border)' }}>
+                        <div style={{ fontSize: '10px', color: 'var(--text-3)', marginBottom: '6px', fontWeight: '500', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Por depósito</div>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                          {locs.map(l => (
+                            <div key={l.id} style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '3px 10px', borderRadius: '99px', background: 'var(--bg-3)', border: '1px solid var(--border)' }}>
+                              <span style={{ fontSize: '12px', fontWeight: '700', color: 'var(--brand-light)', fontFamily: 'var(--font-mono)' }}>{locBalance[selected.id + '|' + l.id]}</span>
+                              <span style={{ fontSize: '11px', color: 'var(--text-2)' }}>{l.name}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )
+                  })()}
                 </div>
               </div>
 
