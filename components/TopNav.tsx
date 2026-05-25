@@ -307,15 +307,7 @@ export function TopNav() {
       <div onClick={() => setMenuOpen(false)} style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.6)',zIndex:300,backdropFilter:'blur(2px)'}} className="mobile-menu-btn"/>
     )}
 
-    {/* Sidebar mobile — painel lateral */}
     <div className="mobile-menu-btn" style={{position:'fixed',top:0,left:0,bottom:0,width:'280px',background:'var(--bg-2)',zIndex:301,transform:menuOpen?'translateX(0)':'translateX(-100%)',transition:'transform 0.25s cubic-bezier(0.4,0,0.2,1)',display:'flex',flexDirection:'column',overflowY:'auto'}}>
-        <div style={{flex:1,minWidth:0}}>
-          <div style={{fontSize:'13px',fontWeight:'600',color:'var(--text-1)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{profile?.name||profile?.email}</div>
-          <div style={{fontSize:'11px',color:'var(--brand-light)',marginTop:'1px'}}>{churchName}</div>
-        </div>
-        <button onClick={() => setMenuOpen(false)} style={{width:'28px',height:'28px',borderRadius:'50%',background:'var(--bg-3)',border:'none',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',color:'var(--text-3)',flexShrink:0}}>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-        </button>
       {/* Links principais */}
       <div style={{flex:1,padding:"8px 0",overflowY:"auto"}}>
         {/* Dashboard */}
