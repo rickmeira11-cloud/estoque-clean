@@ -95,6 +95,11 @@ export function TopNav() {
     <header style={{position:'fixed',top:0,left:0,right:0,zIndex:50,height:'var(--topbar-h)',background:'rgba(17,17,19,0.92)',backdropFilter:'blur(20px)',borderBottom:'1px solid var(--border)'}}>
       <div style={{display:'flex',alignItems:'center',height:'100%',padding:'0 20px',gap:'8px',maxWidth:'1400px',margin:'0 auto'}}>
 
+        <button onClick={() => setMenuOpen(o => !o)} className="mobile-menu-btn" style={{width:'34px',height:'34px',borderRadius:'var(--radius-sm)',background:'transparent',border:'none',cursor:'pointer',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:'4px',flexShrink:0,marginRight:'4px'}}>
+          <span style={{width:'16px',height:'2px',background:'var(--text-2)',borderRadius:'2px',transition:'all 0.2s'}}/>
+          <span style={{width:'16px',height:'2px',background:'var(--text-2)',borderRadius:'2px',transition:'all 0.2s'}}/>
+          <span style={{width:'12px',height:'2px',background:'var(--text-2)',borderRadius:'2px',alignSelf:'flex-start',transition:'all 0.2s'}}/>
+        </button>
         {/* Logo + igreja */}
         <Link href="/dashboard" style={{display:'flex',alignItems:'center',gap:'10px',textDecoration:'none',marginRight:'12px',flexShrink:0}}>
           <div style={{width:'30px',height:'30px',borderRadius:'8px',flexShrink:0,background:'#111827',border:'1px solid var(--border-md)',display:'flex',alignItems:'center',justifyContent:'center',padding:'5px'}}>
@@ -294,12 +299,6 @@ export function TopNav() {
             )}
           </div>
 
-          {/* Botao hamburguer */}
-          <button onClick={() => setMenuOpen(o => !o)} style={{width:'34px',height:'34px',borderRadius:'var(--radius-sm)',background:menuOpen?'var(--bg-3)':'var(--bg-2)',border:'1px solid var(--border-md)',cursor:'pointer',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:'4px',transition:'all 0.15s'}}>
-            <span style={{width:'14px',height:'1.5px',background:menuOpen?'var(--brand-light)':'var(--text-2)',borderRadius:'1px',transition:'all 0.15s',transform:menuOpen?'rotate(45deg) translate(4px,4px)':'none'}}/>
-            <span style={{width:'14px',height:'1.5px',background:menuOpen?'var(--brand-light)':'var(--text-2)',borderRadius:'1px',transition:'all 0.15s',opacity:menuOpen?0:1}}/>
-            <span style={{width:'14px',height:'1.5px',background:menuOpen?'var(--brand-light)':'var(--text-2)',borderRadius:'1px',transition:'all 0.15s',transform:menuOpen?'rotate(-45deg) translate(4px,-4px)':'none'}}/>
-          </button>
         </div>
       </div>
     </header>
