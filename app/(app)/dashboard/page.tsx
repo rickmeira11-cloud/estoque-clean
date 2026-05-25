@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useProfile } from '@/hooks/useProfile'
@@ -48,6 +48,7 @@ export default function DashboardPage() {
   const { expiryAlerts, expiryCount } = useStockAlerts()
   const [products,   setProducts]   = useState<Product[]>([])
   const [movements,  setMovements]  = useState<Movement[]>([])
+  const [locSaldo,    setLocSaldo]    = useState<{name:string,qty:number}[]>([])
   const [loading,    setLoading]    = useState(true)
   const [period,     setPeriod]     = useState<'7d'|'30d'|'90d'>('90d')
 
@@ -80,6 +81,19 @@ export default function DashboardPage() {
         location: locs?.find((l: any) => l.id === m.location_id) || null
       }))
       setMovements(withLoc as Movement[])
+      // Saldo por deposito via view
+      const { data: balData } = await sb
+        .from('product_location_balance')
+        .select('location_name, location_quantity')
+        .eq('church_id', profile!.church_id)
+      if (balData) {
+        const agg: Record<string,number> = {}
+        balData.forEach((r:any) => {
+          if (!agg[r.location_name]) agg[r.location_name] = 0
+          agg[r.location_name] += (r.location_quantity || 0)
+        })
+        setLocSaldo(Object.entries(agg).filter(([,q])=>q>0).sort(([,a],[,b])=>b-a).map(([name,qty])=>({name,qty})))
+      }
     }
     setLoading(false)
   }
@@ -212,27 +226,31 @@ export default function DashboardPage() {
       {/* Grid: depósitos + atenção + últimas movimentações */}
       <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:'14px', marginBottom:'14px', alignItems:'flex-start' }} className="bottom-grid">
 
-        {/* Movimentações por depósito */}
-        <div style={{ background:'var(--bg-card)', border:'1px solid var(--border)', borderRadius:'var(--radius)', padding:'18px' }}>
-          <div style={{ fontSize:'13px', fontWeight:'500', color:'var(--text-1)', marginBottom:'14px' }}>Por depósito</div>
-          {locData.length === 0 ? (
-            <div style={{ fontSize:'12px', color:'var(--text-3)', textAlign:'center', padding:'20px 0' }}>Nenhuma movimentação com depósito</div>
-          ) : locData.map(([loc, d]) => (
-            <div key={loc} style={{ marginBottom:'10px' }}>
-              <div style={{ display:'flex', justifyContent:'space-between', marginBottom:'4px' }}>
-                <span style={{ fontSize:'12px', color:'var(--text-1)', fontWeight:'500' }}>{loc}</span>
-                <span style={{ fontSize:'11px', color:'var(--text-3)' }}>{d.entradas + d.saidas}</span>
-              </div>
-              <div style={{ height:'4px', borderRadius:'99px', background:'var(--bg-3)', overflow:'hidden', display:'flex', gap:'1px' }}>
-                <div style={{ flex:d.entradas||0.01, background:'var(--ok)' }}/>
-                <div style={{ flex:d.saidas||0.01,   background:'var(--empty)' }}/>
-              </div>
-              <div style={{ display:'flex', gap:'10px', marginTop:'3px' }}>
-                <span style={{ fontSize:'10px', color:'var(--ok)' }}>↑ {d.entradas}</span>
-                <span style={{ fontSize:'10px', color:'var(--empty)' }}>↓ {d.saidas}</span>
-              </div>
-            </div>
-          ))}
+        {/* Saldo por depósito */}
+        <div style={{ background:'var(--bg-card)', border:'1px solid var(--border)', borderRadius:'var(--radius)', padding:'18px', display:'flex', flexDirection:'column', height:'320px' }}>
+          <div style={{ fontSize:'13px', fontWeight:'500', color:'var(--text-1)', marginBottom:'14px' }}>Saldo por depósito</div>
+          {locSaldo.length === 0 ? (
+            <div style={{ fontSize:'12px', color:'var(--text-3)', textAlign:'center', padding:'20px 0' }}>Nenhum saldo registrado</div>
+          ) : (<div style={{flex:1,overflowY:'auto',minHeight:0}}>
+            {locSaldo.map(l => (
+              <a key={l.name} href="/estoque" style={{ display:'block', textDecoration:'none', marginBottom:'8px' }}>
+                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'10px 12px', borderRadius:'var(--radius-sm)', background:'var(--bg-3)', border:'1px solid var(--border)', cursor:'pointer', transition:'border-color 0.15s' }}
+                  onMouseEnter={e=>(e.currentTarget.style.borderColor='var(--brand)') }
+                  onMouseLeave={e=>(e.currentTarget.style.borderColor='var(--border)') }>
+                  <div style={{ display:'flex', alignItems:'center', gap:'8px' }}>
+                    <div style={{ width:'28px', height:'28px', borderRadius:'7px', background:'var(--brand-dim)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--brand-light)" strokeWidth="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+                    </div>
+                    <span style={{ fontSize:'13px', fontWeight:'500', color:'var(--text-1)' }}>{l.name}</span>
+                  </div>
+                  <div style={{ textAlign:'right', flexShrink:0 }}>
+                    <div style={{ fontSize:'18px', fontWeight:'700', color:'var(--ok)', fontFamily:'var(--font-mono)' }}>{l.qty}</div>
+                    <div style={{ fontSize:'9px', color:'var(--text-3)' }}>unidades</div>
+                  </div>
+                </div>
+              </a>
+            ))}
+          </div>)}
         </div>
 
         {/* Atenção necessária */}
