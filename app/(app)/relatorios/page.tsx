@@ -190,6 +190,7 @@ export default function RelatoriosPage() {
   // Ranking produtos
   const prodMap: Record<string,number> = {}
   filteredMovs.forEach(m => {
+    if (m.type !== 'in' && m.type !== 'out') return
     const n = m.product?.name || 'Desconhecido'
     prodMap[n] = (prodMap[n]||0) + m.quantity
   })
@@ -204,7 +205,7 @@ export default function RelatoriosPage() {
     if (!locMap[loc]) locMap[loc] = { entradas:0, saidas:0, total:0 }
     if (m.type==='in')  locMap[loc].entradas += m.quantity
     if (m.type==='out') locMap[loc].saidas   += m.quantity
-    locMap[loc].total += m.quantity
+    if (m.type === 'in' || m.type === 'out') locMap[loc].total += m.quantity
   })
   const locData = Object.entries(locMap).sort(([,a],[,b])=>b.total-a.total).map(([name,v])=>({ name: name.length>14?name.slice(0,12)+'…':name, ...v }))
 
