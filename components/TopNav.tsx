@@ -321,25 +321,48 @@ export function TopNav() {
         <button onClick={() => setMenuOpen(false)} style={{width:'28px',height:'28px',borderRadius:'50%',background:'var(--bg-3)',border:'none',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',color:'var(--text-3)',flexShrink:0}}>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         </button>
-      </div>
-
       {/* Links principais */}
-      <div style={{flex:1,padding:'8px 0'}}>
-        {allNav.filter(n => n.href !== '/mural' || profile?.church_id === '8db14705-9da8-4844-8b01-a73845297831').map(n => {
-          const act = active(n.href)
-          const isSection = 'section' in n
-          if (isSection) return (
-            <div key={n.section} style={{padding:'12px 16px 4px',fontSize:'10px',fontWeight:'600',color:'var(--text-3)',textTransform:'uppercase',letterSpacing:'0.06em'}}>
-              {n.section}
-            </div>
-          )
-          return (
-            <Link key={n.href} href={n.href} onClick={() => setMenuOpen(false)} style={{display:'flex',alignItems:'center',gap:'12px',padding:'12px 16px',textDecoration:'none',color:act?'var(--text-1)':'var(--text-2)',background:act?'rgba(99,102,241,0.08)':'transparent',transition:'background 0.1s',borderLeft:act?'3px solid var(--brand)':'3px solid transparent'}}>
-              <span style={{color:act?'var(--brand-light)':'var(--text-3)',flexShrink:0}}><Icon d={n.icon} size={16}/></span>
-              <span style={{fontSize:'14px',fontWeight:act?'600':'400'}}>{n.label}</span>
+      <div style={{flex:1,padding:"8px 0",overflowY:"auto"}}>
+        {/* Dashboard */}
+        {(()=>{ const act=active("/dashboard"); return (
+          <Link href="/dashboard" onClick={()=>setMenuOpen(false)} style={{display:"flex",alignItems:"center",gap:"12px",padding:"11px 16px",textDecoration:"none",color:act?"var(--text-1)":"var(--text-2)",background:act?"rgba(99,102,241,0.08)":"transparent",transition:"background 0.1s",borderLeft:act?"3px solid var(--brand)":"3px solid transparent"}}>
+            <span style={{color:act?"var(--brand-light)":"var(--text-3)",flexShrink:0}}><Icon d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" size={16}/></span>
+            <span style={{fontSize:"14px",fontWeight:act?"600":"400"}}>Dashboard</span>
+          </Link>
+        )})()}
+        <div style={{padding:"12px 16px 4px",fontSize:"10px",fontWeight:"700",color:"var(--text-3)",textTransform:"uppercase",letterSpacing:"0.08em",borderTop:"1px solid var(--border)",marginTop:"6px"}}>Processos</div>
+        {[{href:"/estoque",label:"Estoque",icon:"M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"},{href:"/movimentacoes",label:"Movimenta\u00e7\u00e3o",icon:"M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"}].map(n=>{ const act=active(n.href); return (
+          <Link key={n.href} href={n.href} onClick={()=>setMenuOpen(false)} style={{display:"flex",alignItems:"center",gap:"12px",padding:"11px 16px",textDecoration:"none",color:act?"var(--text-1)":"var(--text-2)",background:act?"rgba(99,102,241,0.08)":"transparent",transition:"background 0.1s",borderLeft:act?"3px solid var(--brand)":"3px solid transparent"}}>
+            <span style={{color:act?"var(--brand-light)":"var(--text-3)",flexShrink:0}}><Icon d={n.icon} size={16}/></span>
+            <span style={{fontSize:"14px",fontWeight:act?"600":"400"}}>{n.label}</span>
+          </Link>
+        )})}
+        <div style={{padding:"12px 16px 4px",fontSize:"10px",fontWeight:"700",color:"var(--text-3)",textTransform:"uppercase",letterSpacing:"0.08em",borderTop:"1px solid var(--border)",marginTop:"6px"}}>Relat\u00f3rios</div>
+        {(()=>{ const act=active("/relatorios"); return (
+          <Link href="/relatorios" onClick={()=>setMenuOpen(false)} style={{display:"flex",alignItems:"center",gap:"12px",padding:"11px 16px",textDecoration:"none",color:act?"var(--text-1)":"var(--text-2)",background:act?"rgba(99,102,241,0.08)":"transparent",transition:"background 0.1s",borderLeft:act?"3px solid var(--brand)":"3px solid transparent"}}>
+            <span style={{color:act?"var(--brand-light)":"var(--text-3)",flexShrink:0}}><Icon d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" size={16}/></span>
+            <span style={{fontSize:"14px",fontWeight:act?"600":"400"}}>Relat\u00f3rios</span>
+          </Link>
+        )})()}
+        {profile?.church_id==="8db14705-9da8-4844-8b01-a73845297831" && (()=>{ const act=active("/mural"); return (
+          <>
+            <div style={{padding:"12px 16px 4px",fontSize:"10px",fontWeight:"700",color:"var(--text-3)",textTransform:"uppercase",letterSpacing:"0.08em",borderTop:"1px solid var(--border)",marginTop:"6px"}}>Mural</div>
+            <Link href="/mural" onClick={()=>setMenuOpen(false)} style={{display:"flex",alignItems:"center",gap:"12px",padding:"11px 16px",textDecoration:"none",color:act?"var(--text-1)":"var(--text-2)",background:act?"rgba(99,102,241,0.08)":"transparent",transition:"background 0.1s",borderLeft:act?"3px solid var(--brand)":"3px solid transparent"}}>
+              <span style={{color:act?"var(--brand-light)":"var(--text-3)",flexShrink:0}}><Icon d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75M9 7a4 4 0 110 8 4 4 0 010-8z" size={16}/></span>
+              <span style={{fontSize:"14px",fontWeight:act?"600":"400"}}>Mural</span>
             </Link>
-          )
-        })}
+          </>
+        )})()}
+        {isAdmin && <>
+          <div style={{padding:"12px 16px 4px",fontSize:"10px",fontWeight:"700",color:"var(--text-3)",textTransform:"uppercase",letterSpacing:"0.08em",borderTop:"1px solid var(--border)",marginTop:"6px"}}>Cadastros</div>
+          {NAV_CADASTROS.map(n=>{ const act=active(n.href); return (
+            <Link key={n.href} href={n.href} onClick={()=>setMenuOpen(false)} style={{display:"flex",alignItems:"center",gap:"12px",padding:"11px 16px",textDecoration:"none",color:act?"var(--text-1)":"var(--text-2)",background:act?"rgba(99,102,241,0.08)":"transparent",transition:"background 0.1s",borderLeft:act?"3px solid var(--brand)":"3px solid transparent"}}>
+              <span style={{color:act?"var(--brand-light)":"var(--text-3)",flexShrink:0}}><Icon d={n.icon} size={16}/></span>
+              <span style={{fontSize:"14px",fontWeight:act?"600":"400"}}>{n.label}</span>
+            </Link>
+          )})}
+        </>}
+      </div>
       </div>
 
       {/* Footer do sidebar */}
