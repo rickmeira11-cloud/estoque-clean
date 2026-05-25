@@ -302,15 +302,15 @@ export function TopNav() {
         )})()}
 
         {/* Mural — apenas Poiema BNU */}
-        {isPoiemaBNU && (()=>{ const act=active('/mural'); return (
-          <>
-            <div style={{padding:'12px 16px 4px',fontSize:'10px',fontWeight:'700',color:'var(--text-3)',textTransform:'uppercase',letterSpacing:'0.08em',borderTop:'1px solid var(--border)',marginTop:'4px'}}>Mural</div>
-            <Link href="/mural" onClick={()=>setMenuOpen(false)} style={{display:'flex',alignItems:'center',gap:'12px',padding:'12px 16px',textDecoration:'none',color:act?'var(--text-1)':'var(--text-2)',background:act?'rgba(99,102,241,0.08)':'transparent',transition:'background 0.1s',borderLeft:act?'3px solid var(--brand)':'3px solid transparent'}}>
-              <span style={{color:act?'var(--brand-light)':'var(--text-3)',flexShrink:0}}><Icon d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75M9 7a4 4 0 110 8 4 4 0 010-8z" size={16}/></span>
-              <span style={{fontSize:'14px',fontWeight:act?'600':'400'}}>Mural</span>
+        {isPoiemaBNU && <div key="mural-sec">
+          <div style={{padding:"12px 16px 4px",fontSize:"10px",fontWeight:"700",color:"var(--text-3)",textTransform:"uppercase",letterSpacing:"0.08em",borderTop:"1px solid var(--border)",marginTop:"4px"}}>Mural</div>
+          {(()=>{ const act=active("/mural"); return (
+            <Link href="/mural" onClick={()=>setMenuOpen(false)} style={{display:"flex",alignItems:"center",gap:"12px",padding:"12px 16px",textDecoration:"none",color:act?"var(--text-1)":"var(--text-2)",background:act?"rgba(99,102,241,0.08)":"transparent",transition:"background 0.1s",borderLeft:act?"3px solid var(--brand)":"3px solid transparent"}}>
+              <span style={{color:act?"var(--brand-light)":"var(--text-3)",flexShrink:0}}><Icon d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75M9 7a4 4 0 110 8 4 4 0 010-8z" size={16}/></span>
+              <span style={{fontSize:"14px",fontWeight:act?"600":"400"}}>Mural</span>
             </Link>
-          </>
-        ))()}
+          )})()}
+        </div>}
 
         {/* Cadastros */}
         {isAdmin && <>
