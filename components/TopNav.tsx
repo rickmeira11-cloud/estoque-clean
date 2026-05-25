@@ -91,6 +91,7 @@ export function TopNav() {
   const isCadastroActive = NAV_CADASTROS.some(n => active(n.href))
 
   return (
+    <>
     <header style={{position:'fixed',top:0,left:0,right:0,zIndex:50,height:'var(--topbar-h)',background:'rgba(17,17,19,0.92)',backdropFilter:'blur(20px)',borderBottom:'1px solid var(--border)'}}>
       <div style={{display:'flex',alignItems:'center',height:'100%',padding:'0 20px',gap:'8px',maxWidth:'1400px',margin:'0 auto'}}>
 
