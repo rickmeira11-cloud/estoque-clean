@@ -7,7 +7,7 @@ import {
   CartesianGrid, Tooltip, ResponsiveContainer, Cell
 } from 'recharts'
 
-type ReportTab = 'inventario' | 'movimentacoes' | 'criticos' | 'consumo' | 'depositos'
+type ReportTab = 'inventario' | 'movimentacoes' | 'criticos' | 'consumo' | 'depositos' | 'historico'
 
 const TABS: { id: ReportTab; label: string; icon: string }[] = [
   { id:'inventario',    label:'Inventário',    icon:'M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4' },
@@ -15,6 +15,7 @@ const TABS: { id: ReportTab; label: string; icon: string }[] = [
   { id:'criticos',      label:'Críticos',      icon:'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z' },
   { id:'consumo',       label:'Consumo',       icon:'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z' },
   { id:'depositos',     label:'Depósitos',     icon:'M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z' },
+  { id:'historico',     label:'Histórico',     icon:'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z' },
 ]
 
 const COLORS = ['#6366f1','#22c55e','#f59e0b','#ef4444','#a78bfa','#34d399','#fb923c','#60a5fa']
@@ -27,6 +28,10 @@ function Icon({ d, size=15 }: { d:string; size?:number }) {
 export default function RelatoriosPage() {
   const { profile } = useProfile()
   const [tab,        setTab]        = useState<ReportTab>('inventario')
+  const [histRows,    setHistRows]    = useState<any[]>([])
+  const [histPage,    setHistPage]    = useState(0)
+  const [histFilter,  setHistFilter]  = useState('all')
+  const [histLoading, setHistLoading] = useState(false)
   const [dateFrom,   setDateFrom]   = useState(() => { const d=new Date(); d.setMonth(d.getMonth()-3); return d.toISOString().split('T')[0] })
   const [dateTo,     setDateTo]     = useState(() => new Date().toISOString().split('T')[0])
   const [filterLoc,  setFilterLoc]  = useState('all')
@@ -43,6 +48,7 @@ export default function RelatoriosPage() {
   useEffect(() => { if (profile?.church_id) loadBase() }, [profile?.church_id])
   useEffect(() => { if (profile?.church_id) loadMovements() }, [profile?.church_id, dateFrom, dateTo])
   useEffect(() => { if (profile?.church_id && tab === 'depositos') loadBalances() }, [profile?.church_id, tab, filterLoc, filterCat])
+  useEffect(() => { if (profile?.church_id && tab === 'historico') loadHistorico() }, [profile?.church_id, tab, histFilter, histPage])
 
   async function loadBase() {
     const sb = createClient()
@@ -79,6 +85,21 @@ export default function RelatoriosPage() {
       const cmp = typeof va === 'number' ? va - vb : String(va).localeCompare(String(vb))
       return dir === 'asc' ? cmp : -cmp
     })
+  }
+
+  async function loadHistorico() {
+    setHistLoading(true)
+    const sb = createClient()
+    const pageSize = 20
+    let q = sb.from('stock_movements')
+      .select('id,type,quantity,created_at,note,location_id,product:products(name,category),location:locations(name)', { count: 'exact' })
+      .eq('church_id', profile!.church_id)
+      .order('created_at', { ascending: false })
+      .range(histPage * pageSize, (histPage + 1) * pageSize - 1)
+    if (histFilter !== 'all') q = q.eq('type', histFilter)
+    const { data, count } = await q
+    if (data) setHistRows(data)
+    setHistLoading(false)
   }
 
   async function loadBalances() {
