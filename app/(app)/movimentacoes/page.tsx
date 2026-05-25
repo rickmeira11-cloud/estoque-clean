@@ -81,6 +81,11 @@ export default function MovimentacoesPage() {
     if (type === 'out' && destLocationId && destLocationId === locationId) {
       setError('Depósito de origem e destino não podem ser iguais'); return
     }
+    // Deposito obrigatorio para entrada e saida
+    if ((type === 'in' || type === 'out') && !locationId) {
+      setError('Selecione o depósito de origem')
+      return
+    }
     setSaving(true); setError(null)
     // Transferencia: valida origem e destino obrigatorios
     if (type === 'transfer') {
@@ -257,7 +262,7 @@ export default function MovimentacoesPage() {
               {/* Depósito origem */}
               <div style={{ marginBottom: '16px' }}>
                 <label style={L}>
-                  {type === 'out' || type === 'transfer' ? 'Depósito de origem *' : 'Depósito'}
+                  {'Depósito *'}
                   {type !== 'transfer' && type !== 'out' && <span style={{ fontWeight: '400' }}> (opcional)</span>}
                 </label>
                 <select value={locationId} onChange={e => { setLocationId(e.target.value); setDestLocationId('') }}>
