@@ -268,6 +268,7 @@ export function TopNav() {
 
         {/* Mobile hamburguer */}
         <div style={{display:'flex',alignItems:'center',gap:'8px',marginLeft:'auto'}} className="mobile-menu-btn">
+          {/* Sino mobile */}
           <div ref={alertRef} style={{position:'relative'}}>
             <button onClick={() => setAlertOpen(o => !o)} style={{position:'relative',width:'34px',height:'34px',borderRadius:'var(--radius-sm)',background:alertOpen?'var(--bg-3)':'var(--bg-2)',border:'1px solid var(--border-md)',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer'}}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={hasAlerts ? 'var(--low)' : 'var(--text-3)'} strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0"/></svg>
@@ -291,80 +292,72 @@ export function TopNav() {
               </div>
             )}
           </div>
-          {currentPage && (
-            <span style={{fontSize:'11px',color:'var(--text-3)',background:'var(--bg-3)',border:'1px solid var(--border)',padding:'3px 10px',borderRadius:'99px',whiteSpace:'nowrap'}}>
-              {currentPage.label}
-            </span>
-          )}
-          <div ref={menuRef} style={{position:'relative'}}>
-            <button onClick={() => setMenuOpen(o => !o)} style={{width:'34px',height:'34px',borderRadius:'var(--radius-sm)',background:menuOpen?'var(--bg-3)':'var(--bg-2)',border:'1px solid var(--border-md)',cursor:'pointer',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:'4px',transition:'all 0.15s'}}>
-              <span style={{width:'14px',height:'1.5px',background:menuOpen?'var(--brand-light)':'var(--text-2)',borderRadius:'1px',transition:'all 0.15s'}}/>
-              <span style={{width:'14px',height:'1.5px',background:menuOpen?'var(--brand-light)':'var(--text-2)',borderRadius:'1px',transition:'all 0.15s'}}/>
-              <span style={{width:'10px',height:'1.5px',background:menuOpen?'var(--brand-light)':'var(--text-2)',borderRadius:'1px',alignSelf:'flex-start',marginLeft:'2px',transition:'all 0.15s'}}/>
-            </button>
-            {menuOpen && (
-              <div className="slide-down" style={{position:'absolute',top:'calc(100% + 8px)',right:0,background:'var(--bg-2)',border:'1px solid var(--border-md)',borderRadius:'var(--radius)',minWidth:'220px',overflow:'hidden',zIndex:100}}>
-                <div style={{padding:'12px 14px',borderBottom:'1px solid var(--border)',display:'flex',alignItems:'center',gap:'10px'}}>
-                  <div style={{width:'32px',height:'32px',borderRadius:'50%',background:'var(--brand-dim)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'13px',fontWeight:'600',color:'var(--brand-light)',flexShrink:0}}>
-                    {(profile?.name||profile?.email||'?').charAt(0).toUpperCase()}
-                  </div>
-                  <div style={{minWidth:0}}>
-                    <div style={{fontSize:'12px',fontWeight:'500',color:'var(--text-1)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{profile?.name||profile?.email}</div>
-                    <div style={{fontSize:'10px',color:'var(--brand-light)',marginTop:'1px',fontWeight:'500'}}>{churchName}</div>
-                  </div>
-                </div>
 
-                {/* Links principais */}
-                {NAV.map(n => {
-                  const act = active(n.href)
-                  return (
-                    <Link key={n.href} href={n.href} style={{display:'flex',alignItems:'center',gap:'10px',padding:'11px 14px',textDecoration:'none',fontSize:'13px',color:act?'var(--text-1)':'var(--text-2)',background:act?'rgba(99,102,241,0.08)':'transparent',borderBottom:'1px solid var(--border)',transition:'background 0.1s'}}>
-                      <span style={{color:act?'var(--brand-light)':'var(--text-3)'}}><Icon d={n.icon} size={15}/></span>
-                      {n.label}
-                      {act && <span style={{marginLeft:'auto',width:'5px',height:'5px',borderRadius:'50%',background:'var(--brand-light)'}}/>}
-                    </Link>
-                  )
-                })}
-
-                {/* Cadastro no mobile */}
-                {isAdmin && (
-                  <>
-                    <div style={{padding:'8px 14px 4px',fontSize:'10px',fontWeight:'600',color:'var(--text-3)',textTransform:'uppercase',letterSpacing:'0.06em',borderBottom:'1px solid var(--border)'}}>
-                      Cadastro
-                    </div>
-                    {NAV_CADASTROS.map(n => {
-                      const act = active(n.href)
-                      return (
-                        <Link key={n.href} href={n.href} style={{display:'flex',alignItems:'center',gap:'10px',padding:'11px 14px',textDecoration:'none',fontSize:'13px',color:act?'var(--text-1)':'var(--text-2)',background:act?'rgba(99,102,241,0.08)':'transparent',borderBottom:'1px solid var(--border)',transition:'background 0.1s'}}>
-                          <span style={{color:act?'var(--brand-light)':'var(--text-3)'}}><Icon d={n.icon} size={15}/></span>
-                          {n.label}
-                          {act && <span style={{marginLeft:'auto',width:'5px',height:'5px',borderRadius:'50%',background:'var(--brand-light)'}}/>}
-                        </Link>
-                      )
-                    })}
-                  </>
-                )}
-
-                <button onClick={logout} style={{width:'100%',padding:'11px 14px',background:'transparent',border:'none',cursor:'pointer',textAlign:'left',display:'flex',alignItems:'center',gap:'10px',fontSize:'13px',color:'var(--text-3)',transition:'background 0.1s'}}
-                  onMouseEnter={e=>e.currentTarget.style.background='var(--bg-3)'}
-                  onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/></svg>
-                {profile?.churches && profile.churches.length > 1 && (
-                  <button onClick={() => { setUserOpen(false); window.location.href = '/selecionar-igreja' }} style={{width:'100%',padding:'10px 14px',background:'transparent',border:'none',borderBottom:'1px solid var(--border)',cursor:'pointer',textAlign:'left',display:'flex',alignItems:'center',gap:'8px',fontSize:'13px',color:'var(--text-2)',transition:'background 0.1s'}}
-                    onMouseEnter={e=>e.currentTarget.style.background='var(--bg-3)'}
-                    onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-                    Selecionar Igreja
-                  </button>
-                )}
-                  Sair da conta
-                </button>
-              </div>
-            )}
-          </div>
+          {/* Botao hamburguer */}
+          <button onClick={() => setMenuOpen(o => !o)} style={{width:'34px',height:'34px',borderRadius:'var(--radius-sm)',background:menuOpen?'var(--bg-3)':'var(--bg-2)',border:'1px solid var(--border-md)',cursor:'pointer',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:'4px',transition:'all 0.15s'}}>
+            <span style={{width:'14px',height:'1.5px',background:menuOpen?'var(--brand-light)':'var(--text-2)',borderRadius:'1px',transition:'all 0.15s',transform:menuOpen?'rotate(45deg) translate(4px,4px)':'none'}}/>
+            <span style={{width:'14px',height:'1.5px',background:menuOpen?'var(--brand-light)':'var(--text-2)',borderRadius:'1px',transition:'all 0.15s',opacity:menuOpen?0:1}}/>
+            <span style={{width:'14px',height:'1.5px',background:menuOpen?'var(--brand-light)':'var(--text-2)',borderRadius:'1px',transition:'all 0.15s',transform:menuOpen?'rotate(-45deg) translate(4px,-4px)':'none'}}/>
+          </button>
         </div>
-
       </div>
     </header>
-  )
-}
+
+    {/* Sidebar mobile — overlay */}
+    {menuOpen && (
+      <div onClick={() => setMenuOpen(false)} style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.6)',zIndex:300,backdropFilter:'blur(2px)'}} className="mobile-menu-btn"/>
+    )}
+
+    {/* Sidebar mobile — painel lateral */}
+    <div className="mobile-menu-btn" style={{position:'fixed',top:0,left:0,bottom:0,width:'280px',background:'var(--bg-2)',zIndex:301,transform:menuOpen?'translateX(0)':'translateX(-100%)',transition:'transform 0.25s cubic-bezier(0.4,0,0.2,1)',display:'flex',flexDirection:'column',overflowY:'auto'}}>
+      {/* Header do sidebar */}
+      <div style={{padding:'16px',borderBottom:'1px solid var(--border)',display:'flex',alignItems:'center',gap:'12px',background:'var(--bg-card)'}}>
+        <div style={{width:'36px',height:'36px',borderRadius:'50%',background:'var(--brand-dim)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'14px',fontWeight:'700',color:'var(--brand-light)',flexShrink:0}}>
+          {(profile?.name||profile?.email||'?').charAt(0).toUpperCase()}
+        </div>
+        <div style={{flex:1,minWidth:0}}>
+          <div style={{fontSize:'13px',fontWeight:'600',color:'var(--text-1)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{profile?.name||profile?.email}</div>
+          <div style={{fontSize:'11px',color:'var(--brand-light)',marginTop:'1px'}}>{churchName}</div>
+        </div>
+        <button onClick={() => setMenuOpen(false)} style={{width:'28px',height:'28px',borderRadius:'50%',background:'var(--bg-3)',border:'none',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',color:'var(--text-3)',flexShrink:0}}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+
+      {/* Links principais */}
+      <div style={{flex:1,padding:'8px 0'}}>
+        {allNav.filter(n => n.href !== '/mural' || profile?.church_id === '8db14705-9da8-4844-8b01-a73845297831').map(n => {
+          const act = active(n.href)
+          const isSection = 'section' in n
+          if (isSection) return (
+            <div key={n.section} style={{padding:'12px 16px 4px',fontSize:'10px',fontWeight:'600',color:'var(--text-3)',textTransform:'uppercase',letterSpacing:'0.06em'}}>
+              {n.section}
+            </div>
+          )
+          return (
+            <Link key={n.href} href={n.href} onClick={() => setMenuOpen(false)} style={{display:'flex',alignItems:'center',gap:'12px',padding:'12px 16px',textDecoration:'none',color:act?'var(--text-1)':'var(--text-2)',background:act?'rgba(99,102,241,0.08)':'transparent',transition:'background 0.1s',borderLeft:act?'3px solid var(--brand)':'3px solid transparent'}}>
+              <span style={{color:act?'var(--brand-light)':'var(--text-3)',flexShrink:0}}><Icon d={n.icon} size={16}/></span>
+              <span style={{fontSize:'14px',fontWeight:act?'600':'400'}}>{n.label}</span>
+            </Link>
+          )
+        })}
+      </div>
+
+      {/* Footer do sidebar */}
+      <div style={{borderTop:'1px solid var(--border)',padding:'8px 0'}}>
+        {profile?.churches && profile.churches.length > 1 && (
+          <button onClick={() => { setMenuOpen(false); window.location.href = '/selecionar-igreja' }} style={{width:'100%',padding:'12px 16px',background:'transparent',border:'none',cursor:'pointer',textAlign:'left',display:'flex',alignItems:'center',gap:'12px',color:'var(--text-2)',transition:'background 0.1s'}}
+            onMouseEnter={e=>e.currentTarget.style.background='var(--bg-3)'}
+            onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+            <span style={{fontSize:'14px'}}>Selecionar Igreja</span>
+          </button>
+        )}
+        <button onClick={logout} style={{width:'100%',padding:'12px 16px',background:'transparent',border:'none',cursor:'pointer',textAlign:'left',display:'flex',alignItems:'center',gap:'12px',color:'var(--empty)',transition:'background 0.1s'}}
+          onMouseEnter={e=>e.currentTarget.style.background='var(--bg-3)'}
+          onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/></svg>
+          <span style={{fontSize:'14px'}}>Sair da conta</span>
+        </button>
+      </div>
+    </div>
