@@ -133,6 +133,20 @@ export default function MovimentacoesPage() {
 
   const L = { display: 'block' as const, fontSize: '11px', color: 'var(--text-3)', marginBottom: '6px' }
 
+
+  // Auto-preencher deposito de origem quando produto tem saldo em apenas 1 deposito
+  useEffect(() => {
+    if (!selected || (type !== 'out' && type !== 'transfer')) return
+    const locsComSaldo = locations.filter(l => (locBalance[selected.id + '|' + l.id] || 0) > 0)
+    if (locsComSaldo.length === 1) {
+      setLocationId(locsComSaldo[0].id)
+    } else {
+      setLocationId('')
+    }
+    setDestLocationId('')
+  }, [selected?.id, type])
+
+
   return (
     <div style={{ maxWidth: '900px' }}>
       <div style={{ marginBottom: '24px' }}>
