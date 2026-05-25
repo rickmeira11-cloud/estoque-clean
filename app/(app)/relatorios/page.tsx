@@ -32,6 +32,8 @@ export default function RelatoriosPage() {
   const [histPage,    setHistPage]    = useState(0)
   const [histFilter,  setHistFilter]  = useState('all')
   const [histLoading, setHistLoading] = useState(false)
+  const [histDateFrom, setHistDateFrom] = useState(() => { const d = new Date(); d.setDate(d.getDate()-30); return d.toISOString().split('T')[0] })
+  const [histDateTo,   setHistDateTo]   = useState(() => new Date().toISOString().split('T')[0])
   const [dateFrom,   setDateFrom]   = useState(() => { const d=new Date(); d.setMonth(d.getMonth()-3); return d.toISOString().split('T')[0] })
   const [dateTo,     setDateTo]     = useState(() => new Date().toISOString().split('T')[0])
   const [filterLoc,  setFilterLoc]  = useState('all')
@@ -48,7 +50,7 @@ export default function RelatoriosPage() {
   useEffect(() => { if (profile?.church_id) loadBase() }, [profile?.church_id])
   useEffect(() => { if (profile?.church_id) loadMovements() }, [profile?.church_id, dateFrom, dateTo])
   useEffect(() => { if (profile?.church_id && tab === 'depositos') loadBalances() }, [profile?.church_id, tab, filterLoc, filterCat])
-  useEffect(() => { if (profile?.church_id && tab === 'historico') loadHistorico() }, [profile?.church_id, tab, histFilter, histPage])
+  useEffect(() => { if (profile?.church_id && tab === 'historico') loadHistorico() }, [profile?.church_id, tab, histFilter, histPage, histDateFrom, histDateTo])
 
   async function loadBase() {
     const sb = createClient()
@@ -94,6 +96,8 @@ export default function RelatoriosPage() {
     let q = sb.from('stock_movements')
       .select('id,type,quantity,created_at,note,location_id,product:products(name,category),location:locations(name)', { count: 'exact' })
       .eq('church_id', profile!.church_id)
+      .gte('created_at', histDateFrom)
+      .lte('created_at', histDateTo + 'T23:59:59.999Z')
       .order('created_at', { ascending: false })
       .range(histPage * pageSize, (histPage + 1) * pageSize - 1)
     if (histFilter !== 'all') q = q.eq('type', histFilter)
