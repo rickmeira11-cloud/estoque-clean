@@ -309,11 +309,6 @@ export function TopNav() {
 
     {/* Sidebar mobile — painel lateral */}
     <div className="mobile-menu-btn" style={{position:'fixed',top:0,left:0,bottom:0,width:'280px',background:'var(--bg-2)',zIndex:301,transform:menuOpen?'translateX(0)':'translateX(-100%)',transition:'transform 0.25s cubic-bezier(0.4,0,0.2,1)',display:'flex',flexDirection:'column',overflowY:'auto'}}>
-      {/* Header do sidebar */}
-      <div style={{padding:'16px',borderBottom:'1px solid var(--border)',display:'flex',alignItems:'center',gap:'12px',background:'var(--bg-card)'}}>
-        <div style={{width:'36px',height:'36px',borderRadius:'50%',background:'var(--brand-dim)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'14px',fontWeight:'700',color:'var(--brand-light)',flexShrink:0}}>
-          {(profile?.name||profile?.email||'?').charAt(0).toUpperCase()}
-        </div>
         <div style={{flex:1,minWidth:0}}>
           <div style={{fontSize:'13px',fontWeight:'600',color:'var(--text-1)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{profile?.name||profile?.email}</div>
           <div style={{fontSize:'11px',color:'var(--brand-light)',marginTop:'1px'}}>{churchName}</div>
