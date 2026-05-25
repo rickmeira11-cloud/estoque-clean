@@ -56,6 +56,14 @@ export default function IgrejasPage() {
   function handleLogoChange(e) {
     const file = e.target.files?.[0]
     if (!file) return
+    // Validar tipo
+    if (!['image/jpeg','image/png','image/svg+xml','image/webp'].includes(file.type)) {
+      setError('Formato inválido. Use PNG, JPG, SVG ou WebP.'); return
+    }
+    // Validar tamanho (max 2MB)
+    if (file.size > 2 * 1024 * 1024) {
+      setError('Arquivo muito grande. Máximo 2MB.'); return
+    }
     setLogoFile(file)
     const reader = new FileReader()
     reader.onload = (ev) => setLogoPreview(ev.target?.result)
