@@ -1,4 +1,5 @@
 'use client'
+import { CONFIG, isMainChurch } from '@/lib/config'
 import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname } from 'next/navigation'
@@ -52,7 +53,7 @@ function NavLink({ href, label, icon, small=false, isActive }: { href:string; la
   )
 }
 
-const POIEMA_BNU_ID = '8db14705-9da8-4844-8b01-a73845297831'
+const POIEMA_BNU_ID = CONFIG.POIEMA_BNU_ID
 
 export function TopNav() {
   const pathname = usePathname()

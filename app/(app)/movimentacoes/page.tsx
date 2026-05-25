@@ -86,6 +86,22 @@ export default function MovimentacoesPage() {
       setError('Selecione o depósito de origem')
       return
     }
+    // Validar saldo suficiente para saida
+    if (type === 'out' && locationId) {
+      const saldoLocal = locBalance[selected!.id + '|' + locationId] || 0
+      if (n > saldoLocal) {
+        setError(`Saldo insuficiente no depósito selecionado. Disponível: ${saldoLocal} ${selected!.unit||'un'}`)
+        return
+      }
+    }
+    // Validar saldo suficiente para transferencia na origem
+    if (type === 'transfer' && locationId) {
+      const saldoOrigem = locBalance[selected!.id + '|' + locationId] || 0
+      if (n > saldoOrigem) {
+        setError(`Saldo insuficiente no depósito de origem. Disponível: ${saldoOrigem} ${selected!.unit||'un'}`)
+        return
+      }
+    }
     setSaving(true); setError(null)
     // Transferencia: valida origem e destino obrigatorios
     if (type === 'transfer') {
