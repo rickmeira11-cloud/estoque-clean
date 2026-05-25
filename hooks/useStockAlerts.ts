@@ -22,8 +22,11 @@ export function useStockAlerts() {
   useEffect(() => {
     if (!profile?.church_id) return
     load()
-    const interval = setInterval(load, 5 * 60 * 1000)
-    return () => clearInterval(interval)
+    const interval = setInterval(load, 15 * 60 * 1000)
+    // Refresh ao focar a janela
+    const onFocus = () => load()
+    window.addEventListener('focus', onFocus)
+    return () => { clearInterval(interval); window.removeEventListener('focus', onFocus) }
   }, [profile?.church_id])
 
   async function load() {
