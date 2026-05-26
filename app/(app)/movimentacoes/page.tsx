@@ -74,6 +74,13 @@ export default function MovimentacoesPage() {
       .eq('is_active', true)
       .order('name')
     if (data) setProducts(data as Product[])
+    // Carregar ministerios
+    const { data: mins } = await createClient()
+      .from('ministries')
+      .select('id,name')
+      .eq('church_id', profile!.church_id)
+      .order('name')
+    if (mins) setMinistries(mins)
   }
 
   async function handleSubmit() {
