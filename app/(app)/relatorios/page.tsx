@@ -660,6 +660,54 @@ export default function RelatoriosPage() {
               </div>
             </div>
           )}
+          {tab === 'auditoria' && (
+            <div>
+              <div style={{ display:'flex', gap:'10px', marginBottom:'16px', flexWrap:'wrap', alignItems:'flex-end' }}>
+                <div>
+                  <label style={{ display:'block', fontSize:'11px', color:'var(--text-3)', marginBottom:'4px' }}>De</label>
+                  <input type="date" value={auditDateFrom} onChange={e=>{ setAuditDateFrom(e.target.value); setAuditPage(0) }} style={{ padding:'6px 10px', borderRadius:'6px', border:'1px solid var(--border)', background:'var(--bg-3)', color:'var(--text-1)', fontSize:'13px' }}/>
+                </div>
+                <div>
+                  <label style={{ display:'block', fontSize:'11px', color:'var(--text-3)', marginBottom:'4px' }}>Até</label>
+                  <input type="date" value={auditDateTo} onChange={e=>{ setAuditDateTo(e.target.value); setAuditPage(0) }} style={{ padding:'6px 10px', borderRadius:'6px', border:'1px solid var(--border)', background:'var(--bg-3)', color:'var(--text-1)', fontSize:'13px' }}/>
+                </div>
+              </div>
+              {auditLoading ? (
+                <div style={{ textAlign:'center', padding:'40px', color:'var(--text-3)' }}>Carregando...</div>
+              ) : auditRows.length === 0 ? (
+                <div style={{ textAlign:'center', padding:'40px', color:'var(--text-3)' }}>Nenhum registro encontrado.</div>
+              ) : (
+                <div style={{ display:'flex', flexDirection:'column', gap:'6px' }}>
+                  {auditRows.map(a => (
+                    <div key={a.id} style={{ display:'flex', alignItems:'center', gap:'12px', padding:'10px 14px', borderRadius:'8px', background:'var(--bg-card)', border:'1px solid var(--border)' }}>
+                      <div style={{ width:'32px', height:'32px', borderRadius:'8px', flexShrink:0, display:'flex', alignItems:'center', justifyContent:'center', background:'var(--brand-dim)' }}>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--brand-light)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+                      </div>
+                      <div style={{ flex:1, minWidth:0 }}>
+                        <div style={{ fontSize:'13px', fontWeight:'500', color:'var(--text-1)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{a.description || a.action}</div>
+                        <div style={{ fontSize:'11px', color:'var(--text-3)', marginTop:'2px', display:'flex', gap:'8px' }}>
+                          <span>{new Date(a.created_at).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'})}</span>
+                          {a.user && <span>· {a.user.name || a.user.email}</span>}
+                        </div>
+                      </div>
+                      <span style={{ fontSize:'10px', padding:'2px 8px', borderRadius:'99px', background:'var(--brand-dim)', color:'var(--brand-light)', fontWeight:'500', flexShrink:0 }}>{a.entity}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div style={{ display:'flex', justifyContent:'center', gap:'8px', marginTop:'16px' }}>
+                <button onClick={() => setAuditPage(p => Math.max(0, p-1))} disabled={auditPage===0}
+                  style={{ padding:'6px 16px', borderRadius:'6px', border:'1px solid var(--border)', background:'transparent', color:'var(--text-2)', cursor:auditPage===0?'not-allowed':'pointer', opacity:auditPage===0?0.5:1 }}>
+                  ← Anterior
+                </button>
+                <span style={{ padding:'6px 12px', fontSize:'12px', color:'var(--text-3)' }}>Pág. {auditPage+1}</span>
+                <button onClick={() => setAuditPage(p => p+1)} disabled={auditRows.length < 20}
+                  style={{ padding:'6px 16px', borderRadius:'6px', border:'1px solid var(--border)', background:'transparent', color:'var(--text-2)', cursor:auditRows.length<20?'not-allowed':'pointer', opacity:auditRows.length<20?0.5:1 }}>
+                  Próximo →
+                </button>
+              </div>
+            </div>
+          )}
         </>
       )}
     </div>
