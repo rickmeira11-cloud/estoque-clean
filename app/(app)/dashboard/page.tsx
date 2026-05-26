@@ -154,13 +154,13 @@ export default function DashboardPage() {
     if (!profile?.church_id) return
     // Realtime — recarrega dashboard quando ha movimentacao
     const sb = createClient()
-    const channel = sb
-      .channel('dashboard-realtime-' + profile.church_id)
-      .on('postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'stock_movements', filter: 'church_id=eq.' + profile.church_id },
-        () => loadAll()
-      )
-      .subscribe()
+    const channelName = 'dashboard-' + profile.church_id
+    sb.removeChannel(sb.channel(channelName))
+    const channel = sb.channel(channelName)
+    channel.on('postgres_changes',
+      { event: 'INSERT', schema: 'public', table: 'stock_movements', filter: 'church_id=eq.' + profile.church_id },
+      () => loadAll()
+    ).subscribe()
     return () => { sb.removeChannel(channel) }
   }, [profile?.church_id])
 

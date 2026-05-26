@@ -1,5 +1,5 @@
 ﻿'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useProfile } from '@/hooks/useProfile'
 
@@ -32,13 +32,13 @@ export function useStockAlerts() {
 
     // Realtime — atualiza instantaneamente quando ha movimentacao
     const sb = createClient()
-    const channel = sb
-      .channel('stock-realtime-' + profile!.church_id)
-      .on('postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'stock_movements', filter: 'church_id=eq.' + profile!.church_id },
-        () => load()
-      )
-      .subscribe()
+    const channelName = 'stock-alerts-' + profile!.church_id
+    sb.removeChannel(sb.channel(channelName))
+    const channel = sb.channel(channelName)
+    channel.on('postgres_changes',
+      { event: 'INSERT', schema: 'public', table: 'stock_movements', filter: 'church_id=eq.' + profile!.church_id },
+      () => load()
+    ).subscribe()
 
     return () => {
       clearInterval(interval)
