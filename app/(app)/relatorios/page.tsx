@@ -7,7 +7,7 @@ import {
   CartesianGrid, Tooltip, ResponsiveContainer, Cell
 } from 'recharts'
 
-type ReportTab = 'inventario' | 'movimentacoes' | 'criticos' | 'consumo' | 'depositos' | 'historico'
+type ReportTab = 'inventario' | 'movimentacoes' | 'criticos' | 'consumo' | 'depositos' | 'auditoria'
 
 const TABS: { id: ReportTab; label: string; icon: string }[] = [
   { id:'inventario',    label:'Inventário',    icon:'M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4' },
@@ -15,7 +15,7 @@ const TABS: { id: ReportTab; label: string; icon: string }[] = [
   { id:'criticos',      label:'Críticos',      icon:'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z' },
   { id:'consumo',       label:'Consumo',       icon:'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z' },
   { id:'depositos',     label:'Depósitos',     icon:'M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z' },
-  { id:'historico',     label:'Histórico',     icon:'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z' },
+  { id:'auditoria',     label:'Auditoria',     icon:'M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z' },
 ]
 
 const COLORS = ['#6366f1','#22c55e','#f59e0b','#ef4444','#a78bfa','#34d399','#fb923c','#60a5fa']
@@ -32,6 +32,12 @@ export default function RelatoriosPage() {
   const [histPage,    setHistPage]    = useState(0)
   const [histFilter,  setHistFilter]  = useState('all')
   const [histLoading, setHistLoading] = useState(false)
+  const [auditRows,    setAuditRows]    = useState<any[]>([])
+  const [auditLoading, setAuditLoading] = useState(false)
+  const [auditPage,    setAuditPage]    = useState(0)
+  const [auditUser,    setAuditUser]    = useState('all')
+  const [auditDateFrom,setAuditDateFrom] = useState(() => { const d = new Date(); d.setDate(d.getDate()-30); return d.toISOString().split('T')[0] })
+  const [auditDateTo,  setAuditDateTo]  = useState(() => new Date().toISOString().split('T')[0])
   const [histDateFrom, setHistDateFrom] = useState(() => { const d = new Date(); d.setDate(d.getDate()-30); return d.toISOString().split('T')[0] })
   const [histDateTo,   setHistDateTo]   = useState(() => new Date().toISOString().split('T')[0])
   const [dateFrom,   setDateFrom]   = useState(() => { const d=new Date(); d.setMonth(d.getMonth()-3); return d.toISOString().split('T')[0] })
@@ -50,6 +56,7 @@ export default function RelatoriosPage() {
   useEffect(() => { if (profile?.church_id) loadBase() }, [profile?.church_id])
   useEffect(() => { if (profile?.church_id) loadMovements() }, [profile?.church_id, dateFrom, dateTo])
   useEffect(() => { if (profile?.church_id && tab === 'depositos') loadBalances() }, [profile?.church_id, tab, filterLoc, filterCat])
+  useEffect(() => { if (profile?.church_id && tab === 'auditoria') loadAuditoria() }, [profile?.church_id, tab, auditPage, auditUser, auditDateFrom, auditDateTo])
   useEffect(() => { if (profile?.church_id && tab === 'historico') loadHistorico() }, [profile?.church_id, tab, histFilter, histPage, histDateFrom, histDateTo])
 
   async function loadBase() {
@@ -104,6 +111,23 @@ export default function RelatoriosPage() {
     const { data, count } = await q
     if (data) setHistRows(data)
     setHistLoading(false)
+  }
+
+  async function loadAuditoria() {
+    setAuditLoading(true)
+    const sb = createClient()
+    const pageSize = 20
+    let q = sb.from('audit_log')
+      .select('id,action,entity,description,created_at,user:profiles(name,email)', { count: 'exact' })
+      .eq('church_id', profile!.church_id)
+      .gte('created_at', auditDateFrom)
+      .lte('created_at', auditDateTo + 'T23:59:59.999Z')
+      .order('created_at', { ascending: false })
+      .range(auditPage * pageSize, (auditPage + 1) * pageSize - 1)
+    if (auditUser !== 'all') q = q.eq('user_id', auditUser)
+    const { data } = await q
+    if (data) setAuditRows(data)
+    setAuditLoading(false)
   }
 
   async function loadBalances() {
