@@ -385,59 +385,121 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Gráfico linha — entradas vs saídas por semana */}
-      {lineData.length > 0 && (
-        <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '18px', marginBottom: '14px' }}>
-          <div style={{ fontSize: '13px', fontWeight: '500', color: 'var(--text-1)', marginBottom: '16px' }}>
-            Entradas vs Saídas — por semana
+      {/* Gráficos — linha + barras + pizza */}
+      {(lineData.length > 0 || barData.length > 0 || pieData.length > 0) && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginBottom: '14px' }}>
+
+          {/* Linha — entradas vs saídas por semana */}
+          {lineData.length > 0 && (
+            <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '20px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                <span style={{ fontSize: '13px', fontWeight: '500', color: 'var(--text-1)' }}>Entradas vs Saídas — por semana</span>
+                <div style={{ display: 'flex', gap: '16px' }}>
+                  <span style={{ fontSize: '11px', color: 'var(--ok)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <span style={{ width: '12px', height: '2px', background: 'var(--ok)', display: 'inline-block', borderRadius: '1px' }}/>
+                    Entradas
+                  </span>
+                  <span style={{ fontSize: '11px', color: 'var(--empty)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <span style={{ width: '12px', height: '2px', background: 'var(--empty)', display: 'inline-block', borderRadius: '1px' }}/>
+                    Saídas
+                  </span>
+                </div>
+              </div>
+              <ResponsiveContainer width="100%" height={260}>
+                <LineChart data={lineData} margin={{ top: 4, right: 16, left: 0, bottom: 4 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false}/>
+                  <XAxis
+                    dataKey="label"
+                    tick={{ fontSize: 11, fill: '#52525b' }}
+                    axisLine={false}
+                    tickLine={false}
+                    interval="preserveStartEnd"
+                    padding={{ left: 8, right: 8 }}
+                  />
+                  <YAxis
+                    tick={{ fontSize: 11, fill: '#52525b' }}
+                    axisLine={false}
+                    tickLine={false}
+                    width={32}
+                  />
+                  <Tooltip
+                    contentStyle={tooltipStyle}
+                    cursor={{ stroke: 'rgba(255,255,255,0.08)', strokeWidth: 1 }}
+                  />
+                  <Line type="monotone" dataKey="entradas" name="Entradas" stroke="var(--ok)"    strokeWidth={2} dot={false} activeDot={{ r: 5, strokeWidth: 0 }}/>
+                  <Line type="monotone" dataKey="saidas"   name="Saídas"   stroke="var(--empty)" strokeWidth={2} dot={false} activeDot={{ r: 5, strokeWidth: 0 }}/>
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+
+          {/* Barras + Pizza lado a lado */}
+          <div style={{ display: 'grid', gridTemplateColumns: barData.length > 0 && pieData.length > 0 ? '3fr 2fr' : '1fr', gap: '14px' }} className="bottom-grid">
+
+            {/* Barras — top produtos */}
+            {barData.length > 0 && (
+              <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '20px' }}>
+                <div style={{ fontSize: '13px', fontWeight: '500', color: 'var(--text-1)', marginBottom: '16px' }}>Top produtos movimentados</div>
+                <ResponsiveContainer width="100%" height={Math.max(200, barData.length * 36)}>
+                  <BarChart data={barData} layout="vertical" margin={{ top: 0, right: 16, left: 0, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={true} horizontal={false}/>
+                    <XAxis
+                      type="number"
+                      tick={{ fontSize: 10, fill: '#52525b' }}
+                      axisLine={false}
+                      tickLine={false}
+                    />
+                    <YAxis
+                      type="category"
+                      dataKey="name"
+                      tick={{ fontSize: 11, fill: '#a1a1aa' }}
+                      axisLine={false}
+                      tickLine={false}
+                      width={130}
+                    />
+                    <Tooltip contentStyle={tooltipStyle}/>
+                    <Bar dataKey="total" name="Movimentações" fill="var(--brand)" radius={[0, 6, 6, 0]} maxBarSize={22}/>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+
+            {/* Pizza — distribuição por categoria */}
+            {pieData.length > 0 && (
+              <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '20px' }}>
+                <div style={{ fontSize: '13px', fontWeight: '500', color: 'var(--text-1)', marginBottom: '16px' }}>Por categoria</div>
+                <ResponsiveContainer width="100%" height={Math.max(200, barData.length * 36)}>
+                  <PieChart>
+                    <Pie
+                      data={pieData}
+                      cx="50%"
+                      cy="45%"
+                      outerRadius={80}
+                      innerRadius={40}
+                      dataKey="value"
+                      paddingAngle={2}
+                    >
+                      {pieData.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]}/>)}
+                    </Pie>
+                    <Tooltip
+                      contentStyle={tooltipStyle}
+                      formatter={(value: any, name: any) => [`${value} un`, name]}
+                    />
+                    <Legend
+                      iconType="circle"
+                      iconSize={8}
+                      wrapperStyle={{ fontSize: '11px', paddingTop: '8px' }}
+                      formatter={(value, entry: any) => (
+                        `${value} (${((entry.payload.value / pieData.reduce((s,d) => s+d.value,0))*100).toFixed(0)}%)`
+                      )}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+            )}
           </div>
-          <ResponsiveContainer width="100%" height={220}>
-            <LineChart data={lineData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)"/>
-              <XAxis dataKey="label" tick={{ fontSize: 11, fill: '#71717a' }} axisLine={false} tickLine={false}/>
-              <YAxis tick={{ fontSize: 11, fill: '#71717a' }} axisLine={false} tickLine={false}/>
-              <Tooltip contentStyle={tooltipStyle}/>
-              <Legend wrapperStyle={{ fontSize: '12px' }}/>
-              <Line type="monotone" dataKey="entradas" name="Entradas" stroke="var(--ok)"    strokeWidth={2} dot={false} activeDot={{ r: 4 }}/>
-              <Line type="monotone" dataKey="saidas"   name="Saídas"   stroke="var(--empty)" strokeWidth={2} dot={false} activeDot={{ r: 4 }}/>
-            </LineChart>
-          </ResponsiveContainer>
         </div>
       )}
-
-      {/* Grid barras + pizza */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px', marginBottom: '14px' }} className="bottom-grid">
-        {barData.length > 0 && (
-          <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '18px' }}>
-            <div style={{ fontSize: '13px', fontWeight: '500', color: 'var(--text-1)', marginBottom: '16px' }}>Top produtos movimentados</div>
-            <ResponsiveContainer width="100%" height={220}>
-              <BarChart data={barData} layout="vertical">
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" horizontal={false}/>
-                <XAxis type="number" tick={{ fontSize: 10, fill: '#71717a' }} axisLine={false} tickLine={false}/>
-                <YAxis type="category" dataKey="name" tick={{ fontSize: 10, fill: '#a1a1aa' }} axisLine={false} tickLine={false} width={110}/>
-                <Tooltip contentStyle={tooltipStyle}/>
-                <Bar dataKey="total" name="Qtd" fill="var(--brand)" radius={[0, 4, 4, 0]}/>
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        )}
-
-        {pieData.length > 0 && (
-          <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '18px' }}>
-            <div style={{ fontSize: '13px', fontWeight: '500', color: 'var(--text-1)', marginBottom: '16px' }}>Distribuição por categoria</div>
-            <ResponsiveContainer width="100%" height={220}>
-              <PieChart>
-                <Pie data={pieData} cx="50%" cy="50%" outerRadius={80} dataKey="value"
-                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                  labelLine={false} style={{ fontSize: '10px' }}>
-                  {pieData.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]}/>)}
-                </Pie>
-                <Tooltip contentStyle={tooltipStyle}/>
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-        )}
-      </div>
     </div>
   )
 }
