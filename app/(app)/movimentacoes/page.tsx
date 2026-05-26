@@ -130,6 +130,7 @@ export default function MovimentacoesPage() {
         note:                    note || null,
         location_id:             locationId || null,
         destination_location_id: (type === 'out' || type === 'transfer') ? (destLocationId || null) : null,
+        ministry_id:             (type === 'out') ? (ministryId || null) : null,
       })
     if (err) { setError(err.message); setSaving(false); return }
     setSuccess(true)
