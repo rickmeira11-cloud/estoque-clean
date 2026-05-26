@@ -28,6 +28,7 @@ function Icon({ d, size=15 }: { d:string; size?:number }) {
 export default function RelatoriosPage() {
   const { profile } = useProfile()
   const [tab,        setTab]        = useState<ReportTab>('inventario')
+  const [locBalanceView, setLocBalanceView] = useState<any[]>([])
   const [histRows,    setHistRows]    = useState<any[]>([])
   const [histPage,    setHistPage]    = useState(0)
   const [histFilter,  setHistFilter]  = useState('all')
@@ -61,12 +62,14 @@ export default function RelatoriosPage() {
 
   async function loadBase() {
     const sb = createClient()
-    const [{ data: locs }, { data: prods }] = await Promise.all([
+    const [{ data: locs }, { data: prods }, { data: balView }] = await Promise.all([
       sb.from('locations').select('id,name').eq('church_id', profile!.church_id).eq('is_active', true).order('name'),
       sb.from('products').select('*').eq('church_id', profile!.church_id).eq('is_active', true).order('name'),
+      sb.from('product_location_balance').select('product_id,location_name,location_quantity').eq('church_id', profile!.church_id),
     ])
-    if (locs)  setLocations(locs)
-    if (prods) setProducts(prods)
+    if (locs)    setLocations(locs)
+    if (prods)   setProducts(prods)
+    if (balView) setLocBalanceView(balView)
     // Carregar produtos por deposito
     const { data: movLoc } = await sb.from('stock_movements').select('product_id,location_id').eq('church_id', profile!.church_id).not('location_id', 'is', null)
     if (movLoc && locs) {
@@ -188,6 +191,16 @@ export default function RelatoriosPage() {
     setLoading(false)
   }
 
+
+  // Helper — retorna saldo correto conforme filtro de deposito
+  function getQty(productId: string): number {
+    if (filterLoc === 'all') {
+      return products.find(p => p.id === productId)?.quantity || 0
+    }
+    const row = locBalanceView.find((r: any) => r.product_id === productId && r.location_name === filterLoc)
+    return row?.location_quantity || 0
+  }
+
   // ── filtros aplicados ──────────────────────────────────────────
   const filteredMovs = movements.filter(m => {
     const locOk  = filterLoc === 'all' || m.location?.name === filterLoc || m.location === null
@@ -199,7 +212,7 @@ export default function RelatoriosPage() {
     (filterLoc === 'all' || productsByLoc[filterLoc]?.has(p.id))
   )
   const categories = [...new Set(products.map(p => p.category).filter(Boolean))] as string[]
-  const critical   = filteredProds.filter(p => p.quantity <= p.min_stock).sort((a:any,b:any) => a.quantity - b.quantity)
+  const critical   = filteredProds.filter(p => getQty(p.id) <= p.min_stock).sort((a:any,b:any) => getQty(a.id) - getQty(b.id))
 
   // ── dados para gráficos ────────────────────────────────────────
   // Consumo por dia
@@ -245,8 +258,8 @@ export default function RelatoriosPage() {
     if (tab === 'inventario') {
       sheet = 'Inventário'
       rows = filteredProds.map(p => ({
-        'Produto':p.name, 'Categoria':p.category||'—', 'Quantidade':p.quantity,
-        'Mínimo':p.min_stock, 'Status':p.quantity===0?'Zerado':p.quantity<=p.min_stock?'Baixo':'OK',
+        'Produto':p.name, 'Categoria':p.category||'—', 'Quantidade':getQty(p.id),
+        'Mínimo':p.min_stock, 'Status':getQty(p.id)===0?'Zerado':getQty(p.id)<=p.min_stock?'Baixo':'OK',
         'Unidade':p.unit||'un', 'Tipo':p.type==='perishable'?'Perecível':'Não perecível',
         'Validade':p.expiration_date?new Date(p.expiration_date).toLocaleDateString('pt-BR'):'—',
         'Último preço':p.last_purchase_value||'—',
@@ -255,8 +268,8 @@ export default function RelatoriosPage() {
       sheet = 'Críticos'
       rows = critical.map(p => ({
         'Produto':p.name, 'Categoria':p.category||'—',
-        'Quantidade atual':p.quantity, 'Mínimo':p.min_stock,
-        'Diferença':p.quantity-p.min_stock, 'Status':p.quantity===0?'Zerado':'Baixo',
+        'Quantidade atual':getQty(p.id), 'Mínimo':p.min_stock,
+        'Diferença':getQty(p.id)-p.min_stock, 'Status':getQty(p.id)===0?'Zerado':'Baixo',
       }))
     } else if (tab === 'depositos') {
       sheet = 'Depósitos'
@@ -304,10 +317,10 @@ export default function RelatoriosPage() {
 
     if (tab === 'inventario') {
       head = [['Produto','Categoria','Qtd','Mínimo','Status','Unidade']]
-      body = filteredProds.map(p=>[p.name,p.category||'—',p.quantity,p.min_stock,p.quantity===0?'Zerado':p.quantity<=p.min_stock?'Baixo':'OK',p.unit||'un'])
+      body = filteredProds.map(p=>[p.name,p.category||'—',getQty(p.id),p.min_stock,getQty(p.id)===0?'Zerado':getQty(p.id)<=p.min_stock?'Baixo':'OK',p.unit||'un'])
     } else if (tab === 'criticos') {
       head = [['Produto','Categoria','Qtd atual','Mínimo','Diferença','Status']]
-      body = critical.map(p=>[p.name,p.category||'—',p.quantity,p.min_stock,p.quantity-p.min_stock,p.quantity===0?'Zerado':'Baixo'])
+      body = critical.map(p=>[p.name,p.category||'—',getQty(p.id),p.min_stock,getQty(p.id)-p.min_stock,getQty(p.id)===0?'Zerado':'Baixo'])
     } else if (tab === 'depositos') {
       head = [['Depósito','Entradas','Saídas','Total']]
       body = Object.entries(locMap).sort(([,a],[,b])=>b.total-a.total).map(([loc,d])=>[loc,d.entradas,d.saidas,d.total])
@@ -442,7 +455,7 @@ export default function RelatoriosPage() {
                   </thead>
                   <tbody>
                     {sortData(filteredProds, sortCol, sortDir).map((p:any) => {
-                      const s = p.quantity===0?'empty':p.quantity<=p.min_stock?'low':'ok'
+                      const s = getQty(p.id)===0?'empty':getQty(p.id)<=p.min_stock?'low':'ok'
                       const sc = {ok:{l:'OK',c:'var(--ok)',b:'var(--ok-dim)'},low:{l:'Baixo',c:'var(--low)',b:'var(--low-dim)'},empty:{l:'Zerado',c:'var(--empty)',b:'var(--empty-dim)'}}[s]
                       return (
                         <tr key={p.id} style={{ borderBottom:'1px solid var(--border)' }}
@@ -450,7 +463,7 @@ export default function RelatoriosPage() {
                           onMouseLeave={e=>(e.currentTarget.style.background='transparent')}>
                           <td style={{ padding:'10px 14px', fontSize:'13px', fontWeight:'500', color:'var(--text-1)' }}>{p.name}</td>
                           <td style={{ padding:'10px 14px', fontSize:'12px', color:'var(--text-2)' }}>{p.category||'—'}</td>
-                          <td style={{ padding:'10px 14px', fontSize:'15px', fontWeight:'700', color:sc.c, fontFamily:'var(--font-mono)' }}>{p.quantity}</td>
+                          <td style={{ padding:'10px 14px', fontSize:'15px', fontWeight:'700', color:sc.c, fontFamily:'var(--font-mono)' }}>{getQty(p.id)}</td>
                           <td style={{ padding:'10px 14px', fontSize:'12px', color:'var(--text-3)' }}>{p.min_stock}</td>
                           <td style={{ padding:'10px 14px' }}><span style={{ fontSize:'11px', fontWeight:'500', padding:'3px 10px', borderRadius:'99px', background:sc.b, color:sc.c }}>{sc.l}</span></td>
                           <td style={{ padding:'10px 14px', fontSize:'12px', color:'var(--text-3)' }}>{p.unit||'un'}</td>
@@ -512,7 +525,7 @@ export default function RelatoriosPage() {
             <div style={{ background:'var(--bg-card)', border:'1px solid var(--border)', borderRadius:'var(--radius)', overflow:'hidden' }}>
               <div style={{ padding:'12px 16px', borderBottom:'1px solid var(--border)', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
                 <span style={{ fontSize:'13px', fontWeight:'500', color:'var(--text-1)' }}>Itens críticos — {critical.length} produto(s)</span>
-                <span style={{ fontSize:'12px', color:'var(--empty)' }}>{critical.filter((p:any)=>p.quantity===0).length} zerado(s)</span>
+                <span style={{ fontSize:'12px', color:'var(--empty)' }}>{critical.filter((p:any)=>getQty(p.id)===0).length} zerado(s)</span>
               </div>
               {critical.length === 0 ? (
                 <div style={{ padding:'40px', textAlign:'center', fontSize:'13px', color:'var(--text-3)' }}>Nenhum item crítico — estoque em ordem ✓</div>
@@ -528,7 +541,7 @@ export default function RelatoriosPage() {
                     </thead>
                     <tbody>
                       {sortData(critical, sortCol, sortDir).map((p:any) => {
-                        const s = p.quantity===0?'empty':'low'
+                        const s = getQty(p.id)===0?'empty':'low'
                         const sc = {low:{l:'Baixo',c:'var(--low)',b:'var(--low-dim)'},empty:{l:'Zerado',c:'var(--empty)',b:'var(--empty-dim)'}}[s]
                         return (
                           <tr key={p.id} style={{ borderBottom:'1px solid var(--border)' }}
@@ -536,9 +549,9 @@ export default function RelatoriosPage() {
                             onMouseLeave={e=>(e.currentTarget.style.background='transparent')}>
                             <td style={{ padding:'10px 14px', fontSize:'13px', fontWeight:'500', color:'var(--text-1)' }}>{p.name}</td>
                             <td style={{ padding:'10px 14px', fontSize:'12px', color:'var(--text-2)' }}>{p.category||'—'}</td>
-                            <td style={{ padding:'10px 14px', fontSize:'15px', fontWeight:'700', color:sc.c, fontFamily:'var(--font-mono)' }}>{p.quantity}</td>
+                            <td style={{ padding:'10px 14px', fontSize:'15px', fontWeight:'700', color:sc.c, fontFamily:'var(--font-mono)' }}>{getQty(p.id)}</td>
                             <td style={{ padding:'10px 14px', fontSize:'12px', color:'var(--text-3)' }}>{p.min_stock}</td>
-                            <td style={{ padding:'10px 14px', fontSize:'13px', fontWeight:'600', color:sc.c, fontFamily:'var(--font-mono)' }}>{p.quantity-p.min_stock}</td>
+                            <td style={{ padding:'10px 14px', fontSize:'13px', fontWeight:'600', color:sc.c, fontFamily:'var(--font-mono)' }}>{getQty(p.id)-p.min_stock}</td>
                             <td style={{ padding:'10px 14px' }}><span style={{ fontSize:'11px', fontWeight:'500', padding:'3px 10px', borderRadius:'99px', background:sc.b, color:sc.c }}>{sc.l}</span></td>
                           </tr>
                         )
