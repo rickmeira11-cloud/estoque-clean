@@ -156,12 +156,10 @@ export default function DashboardPage() {
     const sb = createClient()
     const channel = sb
       .channel('dashboard-realtime-' + profile.church_id)
-      .on('postgres_changes', {
-        event: 'INSERT',
-        schema: 'public',
-        table: 'stock_movements',
-        filter: 'church_id=eq.' + profile.church_id,
-      }, () => loadAll())
+      .on('postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'stock_movements', filter: 'church_id=eq.' + profile.church_id },
+        () => loadAll()
+      )
       .subscribe()
     return () => { sb.removeChannel(channel) }
   }, [profile?.church_id])

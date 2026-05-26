@@ -34,22 +34,10 @@ export function useStockAlerts() {
     const sb = createClient()
     const channel = sb
       .channel('stock-realtime-' + profile!.church_id)
-      .on('postgres_changes', {
-        event: 'INSERT',
-        schema: 'public',
-        table: 'stock_movements',
-        filter: 'church_id=eq.' + profile!.church_id,
-      }, () => {
-        load()
-      })
-      .on('postgres_changes', {
-        event: 'UPDATE',
-        schema: 'public',
-        table: 'products',
-        filter: 'church_id=eq.' + profile!.church_id,
-      }, () => {
-        load()
-      })
+      .on('postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'stock_movements', filter: 'church_id=eq.' + profile!.church_id },
+        () => load()
+      )
       .subscribe()
 
     return () => {
