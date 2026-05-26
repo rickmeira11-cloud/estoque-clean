@@ -150,6 +150,22 @@ export default function DashboardPage() {
     setLoading(false)
   }
 
+  useEffect(() => {
+    if (!profile?.church_id) return
+    // Realtime — recarrega dashboard quando ha movimentacao
+    const sb = createClient()
+    const channel = sb
+      .channel('dashboard-realtime-' + profile.church_id)
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'stock_movements',
+        filter: 'church_id=eq.' + profile.church_id,
+      }, () => loadAll())
+      .subscribe()
+    return () => { sb.removeChannel(channel) }
+  }, [profile?.church_id])
+
   // ── cálculos memoizados — só recalcula quando movements ou period mudam ──
   const filtered = useMemo(() => {
     const cutoff = getCutoff(period)

@@ -22,11 +22,41 @@ export function useStockAlerts() {
   useEffect(() => {
     if (!profile?.church_id) return
     load()
+
+    // Polling 15min como fallback
     const interval = setInterval(load, 15 * 60 * 1000)
+
     // Refresh ao focar a janela
     const onFocus = () => load()
     window.addEventListener('focus', onFocus)
-    return () => { clearInterval(interval); window.removeEventListener('focus', onFocus) }
+
+    // Realtime — atualiza instantaneamente quando ha movimentacao
+    const sb = createClient()
+    const channel = sb
+      .channel('stock-realtime-' + profile!.church_id)
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'stock_movements',
+        filter: 'church_id=eq.' + profile!.church_id,
+      }, () => {
+        load()
+      })
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'products',
+        filter: 'church_id=eq.' + profile!.church_id,
+      }, () => {
+        load()
+      })
+      .subscribe()
+
+    return () => {
+      clearInterval(interval)
+      window.removeEventListener('focus', onFocus)
+      sb.removeChannel(channel)
+    }
   }, [profile?.church_id])
 
   async function load() {
