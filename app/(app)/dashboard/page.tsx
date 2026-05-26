@@ -183,6 +183,34 @@ export default function DashboardPage() {
       .slice(0, 8),
   }), [products, filtered])
 
+
+  // Previsao de zeramento — baseado no consumo dos ultimos 30 dias
+  const forecast = useMemo(() => {
+    const cutoff30 = new Date(); cutoff30.setDate(cutoff30.getDate() - 30)
+    const movs30 = movements.filter(m => new Date(m.created_at) >= cutoff30 && m.type === 'out')
+    
+    // Consumo por produto nos ultimos 30 dias
+    const consumoMap: Record<string, number> = {}
+    movs30.forEach(m => {
+      if (!m.product?.name) return
+      const key = m.product.name
+      consumoMap[key] = (consumoMap[key] || 0) + m.quantity
+    })
+    
+    // Calcular dias para zerar por produto
+    return products
+      .filter(p => p.quantity > 0)
+      .map(p => {
+        const consumo30d = consumoMap[p.name] || 0
+        const mediaDiaria = consumo30d / 30
+        const diasParaZerar = mediaDiaria > 0 ? Math.floor(p.quantity / mediaDiaria) : null
+        return { id: p.id, name: p.name, quantity: p.quantity, unit: p.unit, mediaDiaria: Math.round(mediaDiaria * 10) / 10, diasParaZerar }
+      })
+      .filter(p => p.diasParaZerar !== null && p.diasParaZerar <= 30)
+      .sort((a, b) => (a.diasParaZerar || 999) - (b.diasParaZerar || 999))
+      .slice(0, 8)
+  }, [movements, products])
+
   const lineData = useMemo(() => {
     const weekMap: Record<string, { label: string; entradas: number; saidas: number }> = {}
     filtered.forEach(m => {
@@ -282,7 +310,7 @@ export default function DashboardPage() {
       )}
 
       {/* Grid 4 cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '14px', marginBottom: '14px' }} className="bottom-grid">
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '14px', marginBottom: '14px' }} className="bottom-grid">
 
         {/* Saldo por depósito — via view */}
         <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '18px', display: 'flex', flexDirection: 'column', height: '320px' }}>
@@ -365,6 +393,38 @@ export default function DashboardPage() {
           )}
         </div>
 
+
+        {/* Previsao de zeramento */}
+        <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '18px', display: 'flex', flexDirection: 'column', height: '320px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+            <span style={{ fontSize: '13px', fontWeight: '500', color: 'var(--text-1)' }}>Previsão de zeramento</span>
+            {forecast.length > 0 && <span style={{ fontSize: '11px', background: 'var(--low-dim)', color: 'var(--low)', padding: '2px 9px', borderRadius: '99px', fontWeight: '500' }}>{forecast.length}</span>}
+          </div>
+          {forecast.length === 0 ? (
+            <div style={{ fontSize: '13px', color: 'var(--text-3)', textAlign: 'center', padding: '20px 0' }}>Nenhum produto crítico ✓</div>
+          ) : (
+            <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
+              {forecast.map(p => (
+                <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 10px', borderRadius: 'var(--radius-sm)', marginBottom: '6px',
+                  background: (p.diasParaZerar||99) <= 7 ? 'var(--empty-dim)' : 'var(--low-dim)',
+                  border: `1px solid ${(p.diasParaZerar||99) <= 7 ? 'rgba(239,68,68,0.12)' : 'rgba(245,158,11,0.12)'}` }}>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontSize: '12px', fontWeight: '500', color: 'var(--text-1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</div>
+                    <div style={{ fontSize: '10px', color: 'var(--text-3)', marginTop: '1px' }}>
+                      {p.mediaDiaria} {p.unit||'un'}/dia · estoque: {p.quantity}
+                    </div>
+                  </div>
+                  <div style={{ textAlign: 'right', flexShrink: 0, marginLeft: '8px' }}>
+                    <div style={{ fontSize: '16px', fontWeight: '700', color: (p.diasParaZerar||99) <= 7 ? 'var(--empty)' : 'var(--low)', fontFamily: 'var(--font-mono)' }}>
+                      {p.diasParaZerar}d
+                    </div>
+                    <div style={{ fontSize: '9px', color: 'var(--text-3)' }}>para zerar</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
         {/* Últimas movimentações */}
         <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '18px', display: 'flex', flexDirection: 'column', height: '320px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
