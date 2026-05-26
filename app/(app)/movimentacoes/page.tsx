@@ -22,6 +22,8 @@ export default function MovimentacoesPage() {
   const [locationId,     setLocationId]     = useState('')
   const [destLocationId, setDestLocationId] = useState('')
   const [locations,      setLocations]      = useState<{id:string,name:string}[]>([])
+  const [ministries,     setMinistries]     = useState<{id:string,name:string}[]>([])
+  const [ministryId,     setMinistryId]     = useState('')
   const [locBalance,     setLocBalance]     = useState<Record<string,number>>({})
   const [saving,         setSaving]         = useState(false)
   const [success,        setSuccess]        = useState(false)
@@ -124,7 +126,7 @@ export default function MovimentacoesPage() {
       })
     if (err) { setError(err.message); setSaving(false); return }
     setSuccess(true)
-    setQty(''); setNote(''); setLocationId(''); setDestLocationId('')
+    setQty(''); setNote(''); setLocationId(''); setDestLocationId(''); setMinistryId('')
     // Auditoria — registrar acao do usuario
     try {
       const typeLabel = type === "in" ? "Entrada" : type === "out" ? "Sa\u00edda" : "Transfer\u00eancia"
@@ -335,6 +337,17 @@ export default function MovimentacoesPage() {
                       Transferência: {locations.find(l=>l.id===locationId)?.name||'Origem'} → {locations.find(l=>l.id===destLocationId)?.name}
                     </div>
                   )}
+                </div>
+              )}
+
+              {/* Ministerio — apenas para saidas */}
+              {type === 'out' && ministries.length > 0 && (
+                <div>
+                  <label style={L}>Ministério <span style={{ fontWeight: '400' }}>(opcional)</span></label>
+                  <select value={ministryId} onChange={e => setMinistryId(e.target.value)}>
+                    <option value="">Nenhum / Uso geral</option>
+                    {ministries.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+                  </select>
                 </div>
               )}
 
