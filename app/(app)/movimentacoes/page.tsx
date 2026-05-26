@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useProfile } from '@/hooks/useProfile'
@@ -125,6 +125,13 @@ export default function MovimentacoesPage() {
     if (err) { setError(err.message); setSaving(false); return }
     setSuccess(true)
     setQty(''); setNote(''); setLocationId(''); setDestLocationId('')
+    // Auditoria — registrar acao do usuario
+    try {
+      const typeLabel = type === "in" ? "Entrada" : type === "out" ? "Sa\u00edda" : "Transfer\u00eancia"
+      const locName = locations.find((l:any) => l.id === locationId)?.name || ""
+      const desc = typeLabel + " de " + n + " " + selected!.name + (locName ? " \u2014 " + locName : "") + (note ? " (" + note + ")" : "")
+      await sb.from("audit_log").insert({ church_id: profile!.church_id, action: "create_movement", entity: "stock_movements", description: desc })
+    } catch (_) {}
     setSelected(null); setSearch('')
     await load()
     setSaving(false)
