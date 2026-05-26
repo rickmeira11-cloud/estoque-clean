@@ -153,7 +153,7 @@ export default function RelatoriosPage() {
     const sb = createClient()
     const pageSize = 20
     let q = sb.from('audit_log')
-      .select('id,action,entity,description,created_at,user:profiles(name,email)', { count: 'exact' })
+      .select('id,action,entity,description,created_at,user_id', { count: 'exact' })
       .eq('church_id', profile!.church_id)
       .gte('created_at', auditDateFrom)
       .lte('created_at', auditDateTo + 'T23:59:59.999Z')
