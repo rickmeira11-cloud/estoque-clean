@@ -24,6 +24,8 @@ export default function MovimentacoesPage() {
   const [locations,      setLocations]      = useState<{id:string,name:string}[]>([])
   const [ministries,     setMinistries]     = useState<{id:string,name:string}[]>([])
   const [ministryId,     setMinistryId]     = useState('')
+  const [supplier,       setSupplier]       = useState('')
+  const [unitCost,       setUnitCost]       = useState('')
   const [locBalance,     setLocBalance]     = useState<Record<string,number>>({})
   const [saving,         setSaving]         = useState(false)
   const [success,        setSuccess]        = useState(false)
@@ -131,10 +133,12 @@ export default function MovimentacoesPage() {
         location_id:             locationId || null,
         destination_location_id: (type === 'out' || type === 'transfer') ? (destLocationId || null) : null,
         ministry_id:             (type === 'out') ? (ministryId || null) : null,
+        supplier:                (type === 'in') ? (supplier || null) : null,
+        unit_cost:               (type === 'in' && unitCost) ? parseFloat(unitCost) : null,
       })
     if (err) { setError(err.message); setSaving(false); return }
     setSuccess(true)
-    setQty(''); setNote(''); setLocationId(''); setDestLocationId(''); setMinistryId('')
+    setQty(''); setNote(''); setLocationId(''); setDestLocationId(''); setMinistryId(''); setSupplier(''); setUnitCost('')
     // Auditoria — registrar acao do usuario
     try {
       const typeLabel = type === "in" ? "Entrada" : type === "out" ? "Sa\u00edda" : "Transfer\u00eancia"
@@ -356,6 +360,20 @@ export default function MovimentacoesPage() {
                     <option value="">Nenhum / Uso geral</option>
                     {ministries.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
                   </select>
+                </div>
+              )}
+
+              {/* Fornecedor e Valor — apenas para entradas */}
+              {type === 'in' && (
+                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'12px' }}>
+                  <div>
+                    <label style={L}>Fornecedor <span style={{ fontWeight:'400' }}>(opcional)</span></label>
+                    <input value={supplier} onChange={e => setSupplier(e.target.value)} placeholder="Ex: Atacadão, Dona Maria..."/>
+                  </div>
+                  <div>
+                    <label style={L}>Valor unitário <span style={{ fontWeight:'400' }}>(opcional)</span></label>
+                    <input type="number" min="0" step="0.01" value={unitCost} onChange={e => setUnitCost(e.target.value)} placeholder="Ex: 4.50"/>
+                  </div>
                 </div>
               )}
 
