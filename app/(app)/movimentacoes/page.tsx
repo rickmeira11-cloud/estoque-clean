@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useProfile } from '@/hooks/useProfile'
 import type { Product } from '@/types'
@@ -25,6 +25,10 @@ export default function MovimentacoesPage() {
   const [ministries,     setMinistries]     = useState<{id:string,name:string}[]>([])
   const [ministryId,     setMinistryId]     = useState('')
   const [supplier,       setSupplier]       = useState('')
+  const [scanning,       setScanning]       = useState(false)
+  const [scanError,      setScanError]      = useState('')
+  const videoRef = useRef<HTMLVideoElement>(null)
+  const streamRef = useRef<MediaStream | null>(null)
   const [unitCost,       setUnitCost]       = useState('')
   const [locBalance,     setLocBalance]     = useState<Record<string,number>>({})
   const [saving,         setSaving]         = useState(false)
@@ -67,6 +71,65 @@ export default function MovimentacoesPage() {
         setLocBalance(bal)
       })
   }, [profile?.church_id])
+
+
+  async function startScanner() {
+    setScanError(''); setScanning(true)
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+      streamRef.current = stream
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream
+        videoRef.current.play()
+      }
+      // Usar BarcodeDetector se disponivel
+      if ('BarcodeDetector' in window) {
+        const detector = new (window as any).BarcodeDetector({ formats: ['ean_13','ean_8','code_128','code_39','qr_code'] })
+        const scan = async () => {
+          if (!videoRef.current || !scanning) return
+          try {
+            const codes = await detector.detect(videoRef.current)
+            if (codes.length > 0) {
+              const code = codes[0].rawValue
+              stopScanner()
+              await searchByBarcode(code)
+            } else {
+              requestAnimationFrame(scan)
+            }
+          } catch { requestAnimationFrame(scan) }
+        }
+        videoRef.current?.addEventListener('playing', () => requestAnimationFrame(scan))
+      } else {
+        setScanError('BarcodeDetector não disponível neste dispositivo. Use Chrome Android.')
+        stopScanner()
+      }
+    } catch (e: any) {
+      setScanError('Erro ao acessar câmera: ' + e.message)
+      setScanning(false)
+    }
+  }
+
+  function stopScanner() {
+    streamRef.current?.getTracks().forEach(t => t.stop())
+    streamRef.current = null
+    setScanning(false)
+  }
+
+  async function searchByBarcode(code: string) {
+    const { data } = await createClient()
+      .from('products')
+      .select('*')
+      .eq('church_id', profile!.church_id)
+      .eq('barcode', code)
+      .eq('is_active', true)
+      .single()
+    if (data) {
+      setSelected(data as Product)
+      setSearch(data.name)
+    } else {
+      setScanError('Produto com código "' + code + '" não encontrado.')
+    }
+  }
 
   async function load() {
     const { data } = await createClient()
