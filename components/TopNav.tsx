@@ -12,6 +12,7 @@ const NAV = [
   { href:'/dashboard',     label:'Dashboard',    icon:'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6' },
   { href:'/estoque',       label:'Estoque',      icon:'M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4' },
   { href:'/movimentacoes', label:'Movimentação', icon:'M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4' },
+  { href:'/inventario',    label:'Inventário',      icon:'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4' },
   { href:'/relatorios',    label:'Relatórios',   icon:'M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z' },
   { href:'/mural',         label:'Mural',        icon:'M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75M9 7a4 4 0 110 8 4 4 0 010-8z' },
 ]
@@ -286,6 +287,7 @@ export function TopNav() {
         {[
           {href:'/estoque',label:'Estoque',icon:'M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4'},
           {href:'/movimentacoes',label:'Movimentação',icon:'M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4'},
+          {href:'/inventario',label:'Inventário Físico',icon:'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4'},
         ].map(n=>{ const act=active(n.href); return (
           <Link key={n.href} href={n.href} onClick={()=>setMenuOpen(false)} style={{display:'flex',alignItems:'center',gap:'12px',padding:'12px 16px',textDecoration:'none',color:act?'var(--text-1)':'var(--text-2)',background:act?'rgba(99,102,241,0.08)':'transparent',transition:'background 0.1s',borderLeft:act?'3px solid var(--brand)':'3px solid transparent'}}>
             <span style={{color:act?'var(--brand-light)':'var(--text-3)',flexShrink:0}}><Icon d={n.icon} size={16}/></span>
