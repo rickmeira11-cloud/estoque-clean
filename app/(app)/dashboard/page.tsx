@@ -363,38 +363,6 @@ export default function DashboardPage() {
           )}
         </div>
 
-        {/* Validade próxima */}
-        <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '18px', display: 'flex', flexDirection: 'column', height: '320px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
-            <span style={{ fontSize: '13px', fontWeight: '500', color: 'var(--text-1)' }}>Validade próxima</span>
-            {expiryCount > 0 && <span style={{ fontSize: '11px', background: 'var(--low-dim)', color: 'var(--low)', padding: '2px 9px', borderRadius: '99px', fontWeight: '500' }}>{expiryCount}</span>}
-          </div>
-          {expiryAlerts.length === 0 ? (
-            <div style={{ fontSize: '13px', color: 'var(--text-3)', textAlign: 'center', padding: '20px 0' }}>Tudo em dia ✓</div>
-          ) : (
-            <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
-              {expiryAlerts.map(p => (
-                <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 10px', borderRadius: 'var(--radius-sm)', marginBottom: '6px', background: (p.daysUntilExpiry || 0) < 0 ? 'var(--empty-dim)' : 'var(--low-dim)', border: `1px solid ${(p.daysUntilExpiry || 0) < 0 ? 'rgba(239,68,68,0.12)' : 'rgba(245,158,11,0.12)'}` }}>
-                  <div style={{ minWidth: 0 }}>
-                    <div style={{ fontSize: '12px', fontWeight: '500', color: 'var(--text-1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</div>
-                    <div style={{ fontSize: '10px', color: 'var(--text-3)', marginTop: '1px' }}>{p.category || '—'}</div>
-                  </div>
-                  <div style={{ textAlign: 'right', flexShrink: 0, marginLeft: '8px' }}>
-                    <div style={{ fontSize: '13px', fontWeight: '700', color: (p.daysUntilExpiry || 0) < 0 ? 'var(--empty)' : 'var(--low)' }}>
-                      {(p.daysUntilExpiry || 0) < 0 ? 'VENCIDO' : `${p.daysUntilExpiry}d`}
-                    </div>
-                    <div style={{ fontSize: '9px', color: 'var(--text-3)' }}>
-                      {p.expiration_date ? new Date(p.expiration_date + 'T12:00:00').toLocaleDateString('pt-BR') : ''}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-
-        {/* Previsao de zeramento */}
         <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '18px', display: 'flex', flexDirection: 'column', height: '320px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
             <span style={{ fontSize: '13px', fontWeight: '500', color: 'var(--text-1)' }}>Previsão de zeramento</span>
@@ -424,8 +392,41 @@ export default function DashboardPage() {
               ))}
             </div>
           )}
+        {/* Previsao de zeramento */}
+      </div>
+
+      {/* Gráficos — linha + barras + pizza */}
+      {(lineData.length > 0 || barData.length > 0 || pieData.length > 0) && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginBottom: '14px' }}>
+
+          {/* Linha — entradas vs saídas por semana */}
+          {lineData.length > 0 && (
+            <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '20px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                <span style={{ fontSize: '13px', fontWeight: '500', color: 'var(--text-1)' }}>Entradas vs Saídas — por semana</span>
+                <div style={{ display: 'flex', gap: '16px' }}>
+                  <span style={{ fontSize: '11px', color: 'var(--ok)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <span style={{ width: '12px', height: '2px', background: 'var(--ok)', display: 'inline-block', borderRadius: '1px' }}/>
+                    Entradas
+                  </span>
+                  <span style={{ fontSize: '11px', color: 'var(--empty)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <span style={{ width: '12px', height: '2px', background: 'var(--empty)', display: 'inline-block', borderRadius: '1px' }}/>
+                    Saídas
+                  </span>
+                </div>
+              </div>
+              <ResponsiveContainer width="100%" height={260}>
+                <LineChart data={lineData} margin={{ top: 4, right: 16, left: 0, bottom: 4 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false}/>
+                  <XAxis
+                    dataKey="label"
+                    tick={{ fontSize: 11, fill: '#52525b' }}
+                    axisLine={false}
+                    tickLine={false}
+
         </div>
         {/* Últimas movimentações */}
+
         <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '18px', display: 'flex', flexDirection: 'column', height: '320px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
             <span style={{ fontSize: '13px', fontWeight: '500', color: 'var(--text-1)' }}>Últimas movimentações</span>
@@ -457,36 +458,39 @@ export default function DashboardPage() {
             </div>
           )}
         </div>
-      </div>
 
-      {/* Gráficos — linha + barras + pizza */}
-      {(lineData.length > 0 || barData.length > 0 || pieData.length > 0) && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginBottom: '14px' }}>
 
-          {/* Linha — entradas vs saídas por semana */}
-          {lineData.length > 0 && (
-            <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '20px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                <span style={{ fontSize: '13px', fontWeight: '500', color: 'var(--text-1)' }}>Entradas vs Saídas — por semana</span>
-                <div style={{ display: 'flex', gap: '16px' }}>
-                  <span style={{ fontSize: '11px', color: 'var(--ok)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    <span style={{ width: '12px', height: '2px', background: 'var(--ok)', display: 'inline-block', borderRadius: '1px' }}/>
-                    Entradas
-                  </span>
-                  <span style={{ fontSize: '11px', color: 'var(--empty)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    <span style={{ width: '12px', height: '2px', background: 'var(--empty)', display: 'inline-block', borderRadius: '1px' }}/>
-                    Saídas
-                  </span>
+        {/* Validade próxima */}
+        <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '18px', display: 'flex', flexDirection: 'column', height: '320px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+            <span style={{ fontSize: '13px', fontWeight: '500', color: 'var(--text-1)' }}>Validade próxima</span>
+            {expiryCount > 0 && <span style={{ fontSize: '11px', background: 'var(--low-dim)', color: 'var(--low)', padding: '2px 9px', borderRadius: '99px', fontWeight: '500' }}>{expiryCount}</span>}
+          </div>
+          {expiryAlerts.length === 0 ? (
+            <div style={{ fontSize: '13px', color: 'var(--text-3)', textAlign: 'center', padding: '20px 0' }}>Tudo em dia ✓</div>
+          ) : (
+            <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
+              {expiryAlerts.map(p => (
+                <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 10px', borderRadius: 'var(--radius-sm)', marginBottom: '6px', background: (p.daysUntilExpiry || 0) < 0 ? 'var(--empty-dim)' : 'var(--low-dim)', border: `1px solid ${(p.daysUntilExpiry || 0) < 0 ? 'rgba(239,68,68,0.12)' : 'rgba(245,158,11,0.12)'}` }}>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontSize: '12px', fontWeight: '500', color: 'var(--text-1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</div>
+                    <div style={{ fontSize: '10px', color: 'var(--text-3)', marginTop: '1px' }}>{p.category || '—'}</div>
+                  </div>
+                  <div style={{ textAlign: 'right', flexShrink: 0, marginLeft: '8px' }}>
+                    <div style={{ fontSize: '13px', fontWeight: '700', color: (p.daysUntilExpiry || 0) < 0 ? 'var(--empty)' : 'var(--low)' }}>
+                      {(p.daysUntilExpiry || 0) < 0 ? 'VENCIDO' : `${p.daysUntilExpiry}d`}
+                    </div>
+                    <div style={{ fontSize: '9px', color: 'var(--text-3)' }}>
+                      {p.expiration_date ? new Date(p.expiration_date + 'T12:00:00').toLocaleDateString('pt-BR') : ''}
+                    </div>
+                  </div>
                 </div>
-              </div>
-              <ResponsiveContainer width="100%" height={260}>
-                <LineChart data={lineData} margin={{ top: 4, right: 16, left: 0, bottom: 4 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false}/>
-                  <XAxis
-                    dataKey="label"
-                    tick={{ fontSize: 11, fill: '#52525b' }}
-                    axisLine={false}
-                    tickLine={false}
+              ))}
+            </div>
+          )}
+        </div>
+
+
                     interval="preserveStartEnd"
                     padding={{ left: 8, right: 8 }}
                   />
