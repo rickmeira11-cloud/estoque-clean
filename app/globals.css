@@ -119,3 +119,13 @@ select option { background: var(--bg-3); }
   .estoque-filters { flex-direction: column !important; }
   .estoque-filters input { width: 100% !important; }
 }
+
+/* Dashboard mobile */
+@media (max-width: 768px) {
+  .dashboard-stats { grid-template-columns: repeat(2,1fr) !important; gap: 8px !important; }
+  .dashboard-grid  { grid-template-columns: 1fr !important; gap: 10px !important; }
+  .dashboard-card  { height: auto !important; min-height: 200px; }
+  .dashboard-chart { display: none !important; }
+  .dashboard-period { gap: 4px !important; }
+  .dashboard-period button { padding: 4px 10px !important; font-size: 11px !important; }
+}

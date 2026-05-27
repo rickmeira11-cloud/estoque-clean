@@ -285,7 +285,7 @@ export default function DashboardPage() {
             {profile?.church?.name} · {new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })}
           </p>
         </div>
-        <div style={{ display: 'flex', gap: '6px' }}>
+        <div style={{ display: 'flex', gap: '6px' }} className="dashboard-period">
           <PeriodBtn v="7d"  label="7 dias"   active={period === '7d'}  onClick={() => setPeriod('7d')}/>
           <PeriodBtn v="30d" label="30 dias"  active={period === '30d'} onClick={() => setPeriod('30d')}/>
           <PeriodBtn v="90d" label="3 meses"  active={period === '90d'} onClick={() => setPeriod('90d')}/>
@@ -293,7 +293,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Cards principais */}
-      <div className="stats-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '12px', marginBottom: '14px' }}>
+      <div className="stats-grid dashboard-stats" style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '12px', marginBottom: '14px' }}>
         <Card label="Total de itens"  value={stats.total}   color="var(--brand)"  icon="📦" href="/estoque"       sub={`${stats.ok} em estoque`}/>
         <Card label="Estoque baixo"   value={stats.low}     color="var(--low)"    icon="⚠️" href="/estoque"       sub={`${stats.empty} zerado(s)`}/>
         <Card label={`Entradas (${period === '7d' ? '7d' : period === '30d' ? '30d' : '3m'})`} value={stats.entries} color="var(--ok)"    icon="↑" sub="unidades recebidas"/>
@@ -310,7 +310,7 @@ export default function DashboardPage() {
       )}
 
       {/* Grid 4 cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '14px', marginBottom: '14px' }} className="bottom-grid">
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '14px', marginBottom: '14px' }} className="bottom-grid dashboard-grid">
 
         {/* Saldo por depósito — via view */}
         <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '18px', display: 'flex', flexDirection: 'column', height: '320px' }}>
@@ -462,6 +462,7 @@ export default function DashboardPage() {
               </div>
 
       {/* Gráficos — linha + barras + pizza */}
+      <div className="dashboard-chart">
       {(lineData.length > 0 || barData.length > 0 || pieData.length > 0) && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginBottom: '14px' }}>
 
