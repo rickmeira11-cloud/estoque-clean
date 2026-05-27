@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useProfile } from '@/hooks/useProfile'
 
@@ -42,11 +42,91 @@ export default function InventarioFisicoPage() {
   const [newNotes,    setNewNotes]    = useState('')
   const [filterLoc,   setFilterLoc]   = useState('all')
   const [locations,   setLocations]   = useState<{id:string,name:string}[]>([])
+  const [scanMode,    setScanMode]    = useState(false)
+  const [scanBarcode, setScanBarcode] = useState('')
+  const [scanQty,     setScanQty]     = useState('1')
+  const [scanMsg,     setScanMsg]     = useState('')
+  const [scanError2,  setScanError2]  = useState('')
+  const [scanning2,   setScanning2]   = useState(false)
+  const videoRef2 = useRef<HTMLVideoElement>(null)
+  const streamRef2 = useRef<MediaStream | null>(null)
+  const barcodeInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (!profile?.church_id) return
     loadInventories()
   }, [profile?.church_id])
+
+
+  async function startScannerInv() {
+    setScanError2(''); setScanning2(true)
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+      streamRef2.current = stream
+      if (videoRef2.current) {
+        videoRef2.current.srcObject = stream
+        videoRef2.current.play()
+      }
+      if ('BarcodeDetector' in window) {
+        const detector = new (window as any).BarcodeDetector({ formats: ['ean_13','ean_8','code_128','code_39','qr_code'] })
+        const scan = async () => {
+          if (!videoRef2.current) return
+          try {
+            const codes = await detector.detect(videoRef2.current)
+            if (codes.length > 0) {
+              stopScannerInv()
+              setScanBarcode(codes[0].rawValue)
+              barcodeInputRef.current?.focus()
+            } else { requestAnimationFrame(scan) }
+          } catch { requestAnimationFrame(scan) }
+        }
+        videoRef2.current?.addEventListener('playing', () => requestAnimationFrame(scan))
+      } else {
+        setScanError2('BarcodeDetector não disponível. Digite o código manualmente.')
+        stopScannerInv()
+      }
+    } catch (e: any) {
+      setScanError2('Erro ao acessar câmera: ' + e.message)
+      setScanning2(false)
+    }
+  }
+
+  function stopScannerInv() {
+    streamRef2.current?.getTracks().forEach(t => t.stop())
+    streamRef2.current = null
+    setScanning2(false)
+  }
+
+  async function submitScanCount() {
+    if (!scanBarcode.trim()) { setScanError2('Informe o código de barras'); return }
+    const qty = parseInt(scanQty)
+    if (isNaN(qty) || qty < 0) { setScanError2('Quantidade inválida'); return }
+
+    // Buscar produto pelo barcode
+    const { data: prod } = await createClient()
+      .from('products')
+      .select('id,name')
+      .eq('church_id', profile!.church_id)
+      .eq('barcode', scanBarcode.trim())
+      .single()
+
+    if (!prod) { setScanError2('Produto não encontrado para o código: ' + scanBarcode); return }
+
+    // Buscar item do inventario para este produto
+    const matchItems = items.filter(i => i.product_id === prod.id)
+    if (matchItems.length === 0) { setScanError2('Produto "' + prod.name + '" não está neste inventário'); return }
+
+    // Se tem apenas um deposito, atualizar direto
+    if (matchItems.length === 1) {
+      await updateCount(matchItems[0].id, qty)
+      setScanMsg(prod.name + ' — ' + qty + ' unidades registradas ✓')
+      setScanBarcode(''); setScanQty('1'); setScanError2('')
+      setTimeout(() => setScanMsg(''), 3000)
+    } else {
+      // Multiplos depositos — mostrar selecao
+      setScanError2('Produto em ' + matchItems.length + ' depósitos. Use a tabela para informar.')
+    }
+  }
 
   async function loadInventories() {
     setLoading(true)
@@ -196,7 +276,13 @@ export default function InventarioFisicoPage() {
             <button onClick={() => { setSelected(null); setItems([]) }} style={{ padding: '8px 16px', borderRadius: 'var(--radius-sm)', background: 'transparent', color: 'var(--text-2)', border: '1px solid var(--border)', cursor: 'pointer', fontSize: '13px' }}>
               ← Voltar
             </button>
-            {selected.status === 'open' && isAdmin && (
+            {selected.status === 'open' && (
+              <button onClick={() => setScanMode(s => !s)} style={{ padding:'8px 16px', borderRadius:'var(--radius-sm)', background:scanMode?'var(--brand)':'var(--bg-3)', color:scanMode?'#fff':'var(--text-2)', border:'1px solid var(--border)', cursor:'pointer', fontSize:'13px', display:'flex', alignItems:'center', gap:'6px' }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 9V5a2 2 0 012-2h4M3 15v4a2 2 0 002 2h4M21 9V5a2 2 0 00-2-2h-4M21 15v4a2 2 0 01-2 2h-4M7 12h10"/></svg>
+                {scanMode ? 'Fechar scanner' : 'Modo scanner'}
+              </button>
+            )}
+          {selected.status === 'open' && isAdmin && (
               <button onClick={closeInventory} disabled={saving} style={{ padding: '8px 18px', borderRadius: 'var(--radius-sm)', background: 'var(--ok)', color: '#fff', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: '500' }}>
                 {saving ? 'Fechando...' : 'Fechar inventário'}
               </button>
@@ -302,6 +388,48 @@ export default function InventarioFisicoPage() {
               <div style={{ height: '100%', borderRadius: '99px', background: 'var(--brand)', width: `${items.length > 0 ? (totalCounted / items.length) * 100 : 0}%`, transition: 'width 0.3s' }}/>
             </div>
           </div>
+
+          {/* Painel modo scanner */}
+          {scanMode && selected.status === 'open' && (
+            <div style={{ background:'var(--bg-card)', border:'1px solid var(--brand)', borderRadius:'var(--radius)', padding:'16px', marginBottom:'16px' }}>
+              <div style={{ fontSize:'13px', fontWeight:'600', color:'var(--text-1)', marginBottom:'12px', display:'flex', alignItems:'center', gap:'8px' }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--brand-light)" strokeWidth="2"><path d="M3 9V5a2 2 0 012-2h4M3 15v4a2 2 0 002 2h4M21 9V5a2 2 0 00-2-2h-4M21 15v4a2 2 0 01-2 2h-4M7 12h10"/></svg>
+                Modo scanner — escaneie ou digite o código
+              </div>
+              <div style={{ display:'flex', gap:'8px', flexWrap:'wrap', alignItems:'flex-end' }}>
+                <div style={{ flex:'1', minWidth:'160px' }}>
+                  <label style={L}>Código de barras</label>
+                  <div style={{ display:'flex', gap:'6px' }}>
+                    <input ref={barcodeInputRef} value={scanBarcode} onChange={e => setScanBarcode(e.target.value)}
+                      onKeyDown={e => e.key === 'Enter' && submitScanCount()}
+                      placeholder="Ex: 7891000100103" style={{ flex:1 }}/>
+                    <button onClick={startScannerInv} style={{ padding:'0 12px', height:'38px', borderRadius:'var(--radius-sm)', background:'var(--bg-3)', border:'1px solid var(--border)', cursor:'pointer', color:'var(--text-2)' }}>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 9V5a2 2 0 012-2h4M3 15v4a2 2 0 002 2h4M21 9V5a2 2 0 00-2-2h-4M21 15v4a2 2 0 01-2 2h-4M7 12h10"/></svg>
+                    </button>
+                  </div>
+                </div>
+                <div style={{ width:'100px' }}>
+                  <label style={L}>Quantidade</label>
+                  <input type="number" min="0" value={scanQty} onChange={e => setScanQty(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && submitScanCount()}/>
+                </div>
+                <button onClick={submitScanCount} style={{ padding:'8px 18px', height:'38px', borderRadius:'var(--radius-sm)', background:'var(--brand)', color:'#fff', border:'none', cursor:'pointer', fontSize:'13px', fontWeight:'500', flexShrink:0 }}>
+                  Registrar
+                </button>
+              </div>
+              {scanMsg && <div style={{ marginTop:'10px', padding:'8px 12px', borderRadius:'8px', background:'var(--ok-dim)', color:'var(--ok)', fontSize:'13px' }}>{scanMsg}</div>}
+              {scanError2 && <div style={{ marginTop:'10px', padding:'8px 12px', borderRadius:'8px', background:'var(--empty-dim)', color:'var(--empty)', fontSize:'13px' }}>{scanError2}</div>}
+            </div>
+          )}
+
+          {/* Modal camera scanner inventario */}
+          {scanning2 && (
+            <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.9)', zIndex:500, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:'16px' }}>
+              <div style={{ fontSize:'14px', color:'#fff', fontWeight:'500' }}>Aponte para o código de barras</div>
+              <video ref={videoRef2} style={{ width:'100%', maxWidth:'400px', borderRadius:'12px', border:'2px solid var(--brand)' }} muted playsInline/>
+              <button onClick={stopScannerInv} style={{ padding:'10px 24px', borderRadius:'99px', background:'var(--empty)', color:'#fff', border:'none', cursor:'pointer', fontSize:'14px' }}>Cancelar</button>
+            </div>
+          )}
 
           {/* Tabela de contagem */}
           <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', overflow: 'hidden' }}>
