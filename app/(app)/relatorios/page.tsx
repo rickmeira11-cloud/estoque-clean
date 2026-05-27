@@ -133,6 +133,7 @@ export default function RelatoriosPage() {
       .eq('type', 'out')
       .not('ministry_id', 'is', null)
       .gte('created_at', since.toISOString())
+    console.log('[Ministerios] data:', data?.length, 'error from query above')
     if (data) {
       const map: Record<string, { name:string; total:number; produtos: Record<string,number> }> = {}
       data.forEach((m: any) => {
