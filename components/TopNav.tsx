@@ -7,6 +7,7 @@ import { useState, useRef, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useProfile } from '@/hooks/useProfile'
 import { useStockAlerts } from '@/hooks/useStockAlerts'
+import { usePushNotifications } from '@/hooks/usePushNotifications'
 
 const NAV = [
   { href:'/dashboard',     label:'Dashboard',    icon:'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6' },
@@ -60,6 +61,7 @@ export function TopNav() {
   const pathname = usePathname()
   const { profile, isAdmin, switchChurch } = useProfile()
   const { alerts, expiryAlerts, count, hasAlerts } = useStockAlerts()
+  const { permission, subscribed, requestPermission } = usePushNotifications()
   const [menuOpen,     setMenuOpen]     = useState(false)
   const [userOpen,     setUserOpen]     = useState(false)
   const [alertOpen,    setAlertOpen]    = useState(false)
@@ -222,7 +224,15 @@ export function TopNav() {
                   Selecionar Igreja
                 </button>
               )}
-              <button onClick={logout} style={{width:'100%',padding:'10px 14px',background:'transparent',border:'none',cursor:'pointer',textAlign:'left',display:'flex',alignItems:'center',gap:'8px',fontSize:'13px',color:'var(--empty)',transition:'background 0.1s'}}
+              {permission !== 'granted' && !subscribed && (
+          <button onClick={requestPermission} style={{width:'100%',padding:'10px 16px',background:'transparent',border:'none',borderBottom:'1px solid var(--border)',cursor:'pointer',textAlign:'left',display:'flex',alignItems:'center',gap:'12px',color:'var(--brand-light)',transition:'background 0.1s'}}
+            onMouseEnter={e=>e.currentTarget.style.background='var(--bg-3)'}
+            onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0"/></svg>
+            <span style={{fontSize:'14px'}}>Ativar notificações</span>
+          </button>
+        )}
+        <button onClick={logout} style={{width:'100%',padding:'10px 14px',background:'transparent',border:'none',cursor:'pointer',textAlign:'left',display:'flex',alignItems:'center',gap:'8px',fontSize:'13px',color:'var(--empty)',transition:'background 0.1s'}}
                 onMouseEnter={e=>e.currentTarget.style.background='var(--bg-3)'}
                 onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/></svg>
