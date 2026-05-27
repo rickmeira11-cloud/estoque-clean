@@ -81,6 +81,44 @@ export async function POST() {
     const res = await fetch(url)
     const text = await res.text()
 
+    // Disparar push notifications
+    try {
+      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://gestoquepoiemav1.vercel.app'
+      
+      if (baixo.length > 0) {
+        const zerados = baixo.filter(p => p.quantity === 0)
+        const baixos  = baixo.filter(p => p.quantity > 0)
+        
+        if (zerados.length > 0) {
+          await fetch(baseUrl + '/api/push', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              title: '🔴 Estoque zerado!',
+              body: zerados.map(p => p.name).join(', '),
+              url: '/estoque',
+              tag: 'stock-empty'
+            })
+          })
+        }
+        
+        if (baixos.length > 0) {
+          await fetch(baseUrl + '/api/push', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              title: '🟡 Estoque baixo',
+              body: baixos.map(p => p.name + ' (' + p.quantity + ')').join(', '),
+              url: '/estoque',
+              tag: 'stock-low'
+            })
+          })
+        }
+      }
+    } catch (pushErr) {
+      console.error('Push error:', pushErr)
+    }
+
     return NextResponse.json({
       ok: true,
       callmebot: text,
