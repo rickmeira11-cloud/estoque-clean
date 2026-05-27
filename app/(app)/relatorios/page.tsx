@@ -294,7 +294,8 @@ export default function RelatoriosPage() {
         'Mínimo':p.min_stock, 'Status':getQty(p.id)===0?'Zerado':getQty(p.id)<=p.min_stock?'Baixo':'OK',
         'Unidade':p.unit||'un', 'Tipo':p.type==='perishable'?'Perecível':'Não perecível',
         'Validade':p.expiration_date?new Date(p.expiration_date).toLocaleDateString('pt-BR'):'—',
-        'Último preço':p.last_purchase_value||'—',
+        'Último preço': p.last_purchase_value ? 'R$ ' + Number(p.last_purchase_value).toFixed(2) : '—',
+        'Valor total': p.last_purchase_value ? 'R$ ' + (getQty(p.id) * Number(p.last_purchase_value)).toFixed(2) : '—',
       }))
     } else if (tab === 'criticos') {
       sheet = 'Críticos'
@@ -480,7 +481,7 @@ export default function RelatoriosPage() {
                 <table style={{ width:'100%', borderCollapse:'collapse' }}>
                   <thead>
                     <tr style={{ borderBottom:'1px solid var(--border)' }}>
-                      {([{l:'Produto',c:'name'},{l:'Categoria',c:'category'},{l:'Qtd',c:'quantity'},{l:'Mínimo',c:'min_stock'},{l:'Status',c:''},{l:'Unidade',c:'unit'},{l:'Tipo',c:'type'},{l:'Último preço',c:'last_purchase_value'}]).map(({l,c:col})=>(
+                      {([{l:'Produto',c:'name'},{l:'Categoria',c:'category'},{l:'Qtd',c:'quantity'},{l:'Mínimo',c:'min_stock'},{l:'Status',c:''},{l:'Unidade',c:'unit'},{l:'Tipo',c:'type'},{l:'Último preço',c:'last_purchase_value'},{l:'Valor total',c:''}]).map(({l,c:col})=>(
                         <th key={l} onClick={col?()=>toggleSort(col):undefined} style={{ padding:'10px 14px', textAlign:'left', fontSize:'11px', color:sortCol===col&&col?'var(--brand-light)':'var(--text-3)', fontWeight:'500', textTransform:'uppercase', letterSpacing:'0.04em', whiteSpace:'nowrap', cursor:col?'pointer':'default' }}>{l}{col&&sortCol===col?(sortDir==='asc'?' ↑':' ↓'):''}</th>
                       ))}
                     </tr>
@@ -501,6 +502,7 @@ export default function RelatoriosPage() {
                           <td style={{ padding:'10px 14px', fontSize:'12px', color:'var(--text-3)' }}>{p.unit||'un'}</td>
                           <td style={{ padding:'10px 14px', fontSize:'12px', color:'var(--text-3)' }}>{p.type==='perishable'?'Perecível':'Não perecível'}</td>
                           <td style={{ padding:'10px 14px', fontSize:'12px', color:'var(--text-2)', fontFamily:'var(--font-mono)' }}>{p.last_purchase_value?`R$ ${Number(p.last_purchase_value).toFixed(2)}`:'—'}</td>
+                          <td style={{ padding:'10px 14px', fontSize:'12px', fontWeight:'600', color:'var(--ok)', fontFamily:'var(--font-mono)' }}>{p.last_purchase_value ? `R$ ${(getQty(p.id) * Number(p.last_purchase_value)).toFixed(2)}` : '—'}</td>
                         </tr>
                       )
                     })}
