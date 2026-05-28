@@ -25,6 +25,8 @@ export default function MovimentacoesPage() {
   const [ministries,     setMinistries]     = useState<{id:string,name:string}[]>([])
   const [ministryId,     setMinistryId]     = useState('')
   const [supplier,       setSupplier]       = useState('')
+  const [eventId,        setEventId]        = useState('')
+  const [events,         setEvents]         = useState<{id:string,name:string,event_date:string|null}[]>([])
   const [scanning,       setScanning]       = useState(false)
   const [scanError,      setScanError]      = useState('')
   const videoRef = useRef<HTMLVideoElement>(null)
@@ -146,6 +148,20 @@ export default function MovimentacoesPage() {
       .eq('church_id', profile!.church_id)
       .order('name')
     if (mins) setMinistries(mins)
+    const { data: evs } = await createClient()
+      .from('events')
+      .select('id,name,event_date')
+      .eq('church_id', profile!.church_id)
+      .eq('is_active', true)
+      .order('event_date', { ascending: false })
+    if (evs) setEvents(evs)
+    const { data: evs } = await createClient()
+      .from('events')
+      .select('id,name,event_date')
+      .eq('church_id', profile!.church_id)
+      .eq('is_active', true)
+      .order('event_date', { ascending: false })
+    if (evs) setEvents(evs)
   }
 
   async function handleSubmit() {
@@ -196,12 +212,14 @@ export default function MovimentacoesPage() {
         location_id:             locationId || null,
         destination_location_id: (type === 'out' || type === 'transfer') ? (destLocationId || null) : null,
         ministry_id:             (type === 'out') ? (ministryId || null) : null,
+        event_id:                (type === 'out') ? (eventId || null) : null,
+        event_id:                (type === 'out') ? (eventId || null) : null,
         supplier:                (type === 'in') ? (supplier || null) : null,
         unit_cost:               (type === 'in' && unitCost) ? parseFloat(unitCost) : null,
       })
     if (err) { setError(err.message); setSaving(false); return }
     setSuccess(true)
-    setQty(''); setNote(''); setLocationId(''); setDestLocationId(''); setMinistryId(''); setSupplier(''); setUnitCost('')
+    setQty(''); setNote(''); setLocationId(''); setDestLocationId(''); setMinistryId(''); setSupplier(''); setUnitCost(''); setEventId(''); setEventId('')
     // Auditoria — registrar acao do usuario
     try {
       const typeLabel = type === "in" ? "Entrada" : type === "out" ? "Sa\u00edda" : "Transfer\u00eancia"
@@ -422,6 +440,36 @@ export default function MovimentacoesPage() {
                   <select value={ministryId} onChange={e => setMinistryId(e.target.value)}>
                     <option value="">Nenhum / Uso geral</option>
                     {ministries.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+                  </select>
+                </div>
+              )}
+
+              {/* Evento — apenas para saidas */}
+              {type === 'out' && events.length > 0 && (
+                <div>
+                  <label style={L}>Evento <span style={{ fontWeight:'400' }}>(opcional)</span></label>
+                  <select value={eventId} onChange={e => setEventId(e.target.value)}>
+                    <option value="">Nenhum / Uso geral</option>
+                    {events.map(e => (
+                      <option key={e.id} value={e.id}>
+                        {e.name}{e.event_date ? ' · ' + new Date(e.event_date + 'T12:00:00').toLocaleDateString('pt-BR', {day:'2-digit',month:'2-digit'}) : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {/* Evento — apenas para saidas */}
+              {type === 'out' && events.length > 0 && (
+                <div>
+                  <label style={L}>Evento <span style={{ fontWeight:'400' }}>(opcional)</span></label>
+                  <select value={eventId} onChange={e => setEventId(e.target.value)}>
+                    <option value="">Nenhum / Uso geral</option>
+                    {events.map(e => (
+                      <option key={e.id} value={e.id}>
+                        {e.name}{e.event_date ? ' · ' + new Date(e.event_date + 'T12:00:00').toLocaleDateString('pt-BR', {day:'2-digit',month:'2-digit'}) : ''}
+                      </option>
+                    ))}
                   </select>
                 </div>
               )}
