@@ -318,6 +318,23 @@ export default function RelatoriosPage() {
       rows = Object.entries(prodMap).sort(([,a],[,b])=>b-a).map(([nome,qtd],i) => ({
         'Posição':i+1, 'Produto':nome, 'Total movimentado':qtd,
       }))
+    } else if (tab === 'ministerios') {
+      sheet = 'Ministérios'
+      rows = minRows.flatMap((m: any) =>
+        Object.entries(m.produtos).map(([prod, qty]) => ({
+          'Ministério': m.name,
+          'Produto': prod,
+          'Total consumido': qty,
+        }))
+      )
+    } else if (tab === 'auditoria') {
+      sheet = 'Auditoria'
+      rows = auditRows.map((a: any) => ({
+        'Data': new Date(a.created_at).toLocaleString('pt-BR'),
+        'Ação': a.action,
+        'Entidade': a.entity,
+        'Descrição': a.description || '—',
+      }))
     } else {
       sheet = 'Movimentações'
       rows = filteredMovs.map(m => ({
@@ -364,6 +381,17 @@ export default function RelatoriosPage() {
     } else if (tab === 'consumo') {
       head = [['#','Produto','Total movimentado']]
       body = Object.entries(prodMap).sort(([,a],[,b])=>b-a).map(([nome,qtd],i)=>[i+1,nome,qtd])
+    } else if (tab === 'ministerios') {
+      head = [['Ministério','Produto','Total consumido']]
+      body = minRows.flatMap((m: any) =>
+        Object.entries(m.produtos).map(([prod, qty]) => [m.name, prod, qty])
+      )
+    } else if (tab === 'auditoria') {
+      head = [['Data','Ação','Entidade','Descrição']]
+      body = auditRows.map((a: any) => [
+        new Date(a.created_at).toLocaleString('pt-BR'),
+        a.action, a.entity, a.description || '—'
+      ])
     } else {
       head = [['Data','Produto','Tipo','Qtd','Depósito','Obs.']]
       body = filteredMovs.map(m=>[new Date(m.created_at).toLocaleString('pt-BR'),m.product?.name||'—',m.type==='in'?'Entrada':m.type==='out'?'Saída':'Ajuste',m.quantity,m.location?.name||'—',m.note||'—'])
