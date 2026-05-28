@@ -155,13 +155,6 @@ export default function MovimentacoesPage() {
       .eq('is_active', true)
       .order('event_date', { ascending: false })
     if (evs) setEvents(evs)
-    const { data: evs } = await createClient()
-      .from('events')
-      .select('id,name,event_date')
-      .eq('church_id', profile!.church_id)
-      .eq('is_active', true)
-      .order('event_date', { ascending: false })
-    if (evs) setEvents(evs)
   }
 
   async function handleSubmit() {
