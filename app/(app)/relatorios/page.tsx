@@ -7,7 +7,7 @@ import {
   CartesianGrid, Tooltip, ResponsiveContainer, Cell
 } from 'recharts'
 
-type ReportTab = 'inventario' | 'movimentacoes' | 'criticos' | 'consumo' | 'depositos' | 'auditoria' | 'ministerios'
+type ReportTab = 'inventario' | 'movimentacoes' | 'criticos' | 'consumo' | 'depositos' | 'auditoria' | 'ministerios' | 'precos'
 
 const TABS: { id: ReportTab; label: string; icon: string }[] = [
   { id:'inventario',    label:'Inventário',    icon:'M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4' },
@@ -16,6 +16,7 @@ const TABS: { id: ReportTab; label: string; icon: string }[] = [
   { id:'consumo',       label:'Consumo',       icon:'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z' },
   { id:'depositos',     label:'Depósitos',     icon:'M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z' },
   { id:'ministerios',   label:'Ministérios',   icon:'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z' },
+  { id:'precos',        label:'Preços',        icon:'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 10v1m0 0c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z' },
   { id:'auditoria',     label:'Auditoria',     icon:'M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z' },
 ]
 
@@ -37,6 +38,9 @@ export default function RelatoriosPage() {
   const [histLoading, setHistLoading] = useState(false)
   const [auditRows,    setAuditRows]    = useState<any[]>([])
   const [minRows,      setMinRows]      = useState<any[]>([])
+  const [precosRows,   setPrecosRows]   = useState<any[]>([])
+  const [precosLoading,setPrecosLoading] = useState(false)
+  const [precosProd,   setPrecosProd]   = useState('all')
   const [minLoading,   setMinLoading]   = useState(false)
   const [minPeriod,    setMinPeriod]    = useState('30')
   const [auditLoading, setAuditLoading] = useState(false)
@@ -64,6 +68,7 @@ export default function RelatoriosPage() {
   useEffect(() => { if (profile?.church_id && tab === 'depositos') loadBalances() }, [profile?.church_id, tab, filterLoc, filterCat])
   useEffect(() => { if (profile?.church_id && tab === 'auditoria') loadAuditoria() }, [profile?.church_id, tab, auditPage, auditUser, auditDateFrom, auditDateTo])
   useEffect(() => { if (profile?.church_id && tab === 'ministerios') loadMinisterios() }, [profile?.church_id, tab, minPeriod])
+  useEffect(() => { if (profile?.church_id && tab === 'precos') loadPrecos() }, [profile?.church_id, tab, precosProd])
   useEffect(() => { if (profile?.church_id && tab === 'historico') loadHistorico() }, [profile?.church_id, tab, histFilter, histPage, histDateFrom, histDateTo])
 
   async function loadBase() {
@@ -122,6 +127,22 @@ export default function RelatoriosPage() {
     const { data, count } = await q
     if (data) setHistRows(data)
     setHistLoading(false)
+  }
+
+  async function loadPrecos() {
+    setPrecosLoading(true)
+    const sb = createClient()
+    let q = sb.from('stock_movements')
+      .select('id,unit_cost,supplier,quantity,created_at,product:products(id,name,category)')
+      .eq('church_id', profile!.church_id)
+      .eq('type', 'in')
+      .not('unit_cost', 'is', null)
+      .order('created_at', { ascending: false })
+      .limit(200)
+    if (precosProd !== 'all') q = q.eq('product_id', precosProd)
+    const { data } = await q
+    if (data) setPrecosRows(data)
+    setPrecosLoading(false)
   }
 
   async function loadMinisterios() {
@@ -790,6 +811,77 @@ export default function RelatoriosPage() {
                       </div>
                     </div>
                   ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {tab === 'precos' && (
+            <div>
+              <div style={{ display:'flex', gap:'10px', marginBottom:'16px', flexWrap:'wrap', alignItems:'center' }}>
+                <div>
+                  <label style={{ display:'block', fontSize:'11px', color:'var(--text-3)', marginBottom:'4px' }}>Produto</label>
+                  <select value={precosProd} onChange={e=>{ setPrecosProd(e.target.value) }} style={{ padding:'6px 10px', borderRadius:'6px', border:'1px solid var(--border)', background:'var(--bg-3)', color:'var(--text-1)', fontSize:'13px' }}>
+                    <option value="all">Todos os produtos</option>
+                    {[...new Set(precosRows.map((r:any) => r.product?.id).filter(Boolean))].map(id => {
+                      const name = precosRows.find((r:any) => r.product?.id === id)?.product?.name || id
+                      return <option key={id} value={id}>{name}</option>
+                    })}
+                  </select>
+                </div>
+              </div>
+              {precosLoading ? (
+                <div style={{ textAlign:'center', padding:'40px', color:'var(--text-3)' }}>Carregando...</div>
+              ) : precosRows.length === 0 ? (
+                <div style={{ textAlign:'center', padding:'40px', color:'var(--text-3)' }}>
+                  <div style={{ fontSize:'32px', marginBottom:'12px' }}>💰</div>
+                  <div>Nenhuma entrada com valor registrado.</div>
+                  <div style={{ fontSize:'12px', color:'var(--text-3)', marginTop:'6px' }}>Informe o valor unitário ao registrar entradas.</div>
+                </div>
+              ) : (
+                <div style={{ background:'var(--bg-card)', border:'1px solid var(--border)', borderRadius:'var(--radius)', overflow:'hidden' }}>
+                  <table style={{ width:'100%', borderCollapse:'collapse' }}>
+                    <thead>
+                      <tr style={{ borderBottom:'1px solid var(--border)', background:'var(--bg-3)' }}>
+                        {['Data','Produto','Fornecedor','Qtd','Valor unit.','Total'].map(h => (
+                          <th key={h} style={{ padding:'10px 14px', textAlign:'left', fontSize:'10px', fontWeight:'600', color:'var(--text-3)', textTransform:'uppercase', letterSpacing:'0.05em' }}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {precosRows.map((r:any) => (
+                        <tr key={r.id} style={{ borderBottom:'1px solid var(--border)' }}
+                          onMouseEnter={e=>(e.currentTarget.style.background='rgba(255,255,255,0.02)')}
+                          onMouseLeave={e=>(e.currentTarget.style.background='transparent')}>
+                          <td style={{ padding:'10px 14px', fontSize:'12px', color:'var(--text-3)' }}>
+                            {new Date(r.created_at).toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit'})}
+                          </td>
+                          <td style={{ padding:'10px 14px', fontSize:'13px', fontWeight:'500', color:'var(--text-1)' }}>{r.product?.name || '—'}</td>
+                          <td style={{ padding:'10px 14px', fontSize:'12px', color:'var(--text-2)' }}>{r.supplier || '—'}</td>
+                          <td style={{ padding:'10px 14px', fontSize:'13px', color:'var(--text-2)', fontFamily:'var(--font-mono)' }}>{r.quantity}</td>
+                          <td style={{ padding:'10px 14px', fontSize:'13px', fontWeight:'600', color:'var(--ok)', fontFamily:'var(--font-mono)' }}>
+                            R$ {Number(r.unit_cost).toFixed(2)}
+                          </td>
+                          <td style={{ padding:'10px 14px', fontSize:'13px', fontWeight:'700', color:'var(--brand-light)', fontFamily:'var(--font-mono)' }}>
+                            R$ {(r.quantity * Number(r.unit_cost)).toFixed(2)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot>
+                      <tr style={{ borderTop:'2px solid var(--border)', background:'var(--bg-3)' }}>
+                        <td colSpan={4} style={{ padding:'10px 14px', fontSize:'12px', fontWeight:'600', color:'var(--text-2)' }}>
+                          Total de {precosRows.length} compra(s)
+                        </td>
+                        <td style={{ padding:'10px 14px', fontSize:'13px', fontWeight:'700', color:'var(--ok)', fontFamily:'var(--font-mono)' }}>
+                          R$ {(precosRows.reduce((s:number,r:any)=>s+Number(r.unit_cost),0)/precosRows.length).toFixed(2)} (média)
+                        </td>
+                        <td style={{ padding:'10px 14px', fontSize:'13px', fontWeight:'700', color:'var(--brand-light)', fontFamily:'var(--font-mono)' }}>
+                          R$ {precosRows.reduce((s:number,r:any)=>s+(r.quantity*Number(r.unit_cost)),0).toFixed(2)}
+                        </td>
+                      </tr>
+                    </tfoot>
+                  </table>
                 </div>
               )}
             </div>
