@@ -7,7 +7,7 @@ import {
   CartesianGrid, Tooltip, ResponsiveContainer, Cell
 } from 'recharts'
 
-type ReportTab = 'inventario' | 'movimentacoes' | 'criticos' | 'consumo' | 'depositos' | 'auditoria' | 'ministerios' | 'precos'
+type ReportTab = 'inventario' | 'movimentacoes' | 'criticos' | 'consumo' | 'depositos' | 'auditoria' | 'ministerios' | 'precos' | 'eventos'
 
 const TABS: { id: ReportTab; label: string; icon: string }[] = [
   { id:'inventario',    label:'Inventário',    icon:'M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4' },
@@ -16,6 +16,7 @@ const TABS: { id: ReportTab; label: string; icon: string }[] = [
   { id:'consumo',       label:'Consumo',       icon:'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z' },
   { id:'depositos',     label:'Depósitos',     icon:'M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z' },
   { id:'ministerios',   label:'Ministérios',   icon:'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z' },
+  { id:'eventos',       label:'Eventos',       icon:'M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z' },
   { id:'precos',        label:'Preços',        icon:'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 10v1m0 0c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z' },
   { id:'auditoria',     label:'Auditoria',     icon:'M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z' },
 ]
@@ -39,6 +40,9 @@ export default function RelatoriosPage() {
   const [auditRows,    setAuditRows]    = useState<any[]>([])
   const [minRows,      setMinRows]      = useState<any[]>([])
   const [precosRows,   setPrecosRows]   = useState<any[]>([])
+  const [eventosRows,  setEventosRows]  = useState<any[]>([])
+  const [eventosLoading,setEventosLoading] = useState(false)
+  const [eventosPeriod,setEventosPeriod] = useState('30')
   const [precosLoading,setPrecosLoading] = useState(false)
   const [precosProd,   setPrecosProd]   = useState('all')
   const [minLoading,   setMinLoading]   = useState(false)
@@ -69,6 +73,7 @@ export default function RelatoriosPage() {
   useEffect(() => { if (profile?.church_id && tab === 'auditoria') loadAuditoria() }, [profile?.church_id, tab, auditPage, auditUser, auditDateFrom, auditDateTo])
   useEffect(() => { if (profile?.church_id && tab === 'ministerios') loadMinisterios() }, [profile?.church_id, tab, minPeriod])
   useEffect(() => { if (profile?.church_id && tab === 'precos') loadPrecos() }, [profile?.church_id, tab, precosProd])
+  useEffect(() => { if (profile?.church_id && tab === 'eventos') loadEventos() }, [profile?.church_id, tab, eventosPeriod])
   useEffect(() => { if (profile?.church_id && tab === 'historico') loadHistorico() }, [profile?.church_id, tab, histFilter, histPage, histDateFrom, histDateTo])
 
   async function loadBase() {
@@ -127,6 +132,33 @@ export default function RelatoriosPage() {
     const { data, count } = await q
     if (data) setHistRows(data)
     setHistLoading(false)
+  }
+
+  async function loadEventos() {
+    setEventosLoading(true)
+    const sb = createClient()
+    const since = new Date()
+    since.setDate(since.getDate() - parseInt(eventosPeriod))
+    const { data } = await sb
+      .from('stock_movements')
+      .select('quantity,event:events(id,name,event_date),product:products(name,category)')
+      .eq('church_id', profile!.church_id)
+      .eq('type', 'out')
+      .not('event_id', 'is', null)
+      .gte('created_at', since.toISOString())
+    if (data) {
+      const map: Record<string, { name:string; date:string|null; total:number; produtos: Record<string,number> }> = {}
+      data.forEach((m: any) => {
+        const ev = m.event?.name || 'Sem evento'
+        const ev_id = m.event?.id || 'none'
+        if (!map[ev_id]) map[ev_id] = { name: ev, date: m.event?.event_date || null, total: 0, produtos: {} }
+        map[ev_id].total += m.quantity
+        const prod = m.product?.name || 'Desconhecido'
+        map[ev_id].produtos[prod] = (map[ev_id].produtos[prod] || 0) + m.quantity
+      })
+      setEventosRows(Object.values(map).sort((a,b) => b.total - a.total))
+    }
+    setEventosLoading(false)
   }
 
   async function loadPrecos() {
@@ -803,6 +835,65 @@ export default function RelatoriosPage() {
                       </div>
                       <div style={{ display:'flex', flexWrap:'wrap', gap:'6px' }}>
                         {Object.entries(m.produtos).sort(([,a],[,b]) => (b as number)-(a as number)).map(([prod, qty]) => (
+                          <div key={prod} style={{ display:'flex', alignItems:'center', gap:'5px', padding:'3px 10px', borderRadius:'99px', background:'var(--bg-3)', border:'1px solid var(--border)', fontSize:'11px' }}>
+                            <span style={{ color:'var(--text-1)', fontWeight:'500' }}>{prod}</span>
+                            <span style={{ color:'var(--empty)', fontWeight:'700', fontFamily:'var(--font-mono)' }}>-{qty as number}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {tab === 'eventos' && (
+            <div>
+              <div style={{ display:'flex', gap:'8px', marginBottom:'16px', flexWrap:'wrap', alignItems:'center' }}>
+                <span style={{ fontSize:'13px', color:'var(--text-2)' }}>Período:</span>
+                {[{v:'30',l:'30 dias'},{v:'90',l:'3 meses'},{v:'365',l:'1 ano'}].map(o => (
+                  <button key={o.v} onClick={() => setEventosPeriod(o.v)}
+                    style={{ padding:'5px 14px', borderRadius:'99px', border:'1px solid', fontSize:'12px', cursor:'pointer',
+                      background: eventosPeriod===o.v ? 'var(--brand)' : 'transparent',
+                      color: eventosPeriod===o.v ? '#fff' : 'var(--text-3)',
+                      borderColor: eventosPeriod===o.v ? 'var(--brand)' : 'var(--border)' }}>
+                    {o.l}
+                  </button>
+                ))}
+              </div>
+              {eventosLoading ? (
+                <div style={{ textAlign:'center', padding:'40px', color:'var(--text-3)' }}>Carregando...</div>
+              ) : eventosRows.length === 0 ? (
+                <div style={{ textAlign:'center', padding:'40px', color:'var(--text-3)' }}>
+                  <div style={{ fontSize:'32px', marginBottom:'12px' }}>📅</div>
+                  <div>Nenhuma saída vinculada a eventos neste período.</div>
+                  <div style={{ fontSize:'12px', color:'var(--text-3)', marginTop:'6px' }}>Vincule saídas a eventos na tela de Movimentação.</div>
+                </div>
+              ) : (
+                <div style={{ display:'flex', flexDirection:'column', gap:'12px' }}>
+                  {eventosRows.map((ev, i) => (
+                    <div key={i} style={{ background:'var(--bg-card)', border:'1px solid var(--border)', borderRadius:'var(--radius)', padding:'16px' }}>
+                      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'12px' }}>
+                        <div style={{ display:'flex', alignItems:'center', gap:'10px' }}>
+                          <div style={{ width:'36px', height:'36px', borderRadius:'8px', background:'var(--brand-dim)', display:'flex', alignItems:'center', justifyContent:'center' }}>
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--brand-light)" strokeWidth="2"><path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                          </div>
+                          <div>
+                            <div style={{ fontSize:'14px', fontWeight:'600', color:'var(--text-1)' }}>{ev.name}</div>
+                            <div style={{ fontSize:'11px', color:'var(--text-3)' }}>
+                              {ev.date ? new Date(ev.date + 'T12:00:00').toLocaleDateString('pt-BR', {day:'2-digit',month:'long',year:'numeric'}) : ''}
+                              {' · '}{Object.keys(ev.produtos).length} produto(s)
+                            </div>
+                          </div>
+                        </div>
+                        <div style={{ textAlign:'right' }}>
+                          <div style={{ fontSize:'22px', fontWeight:'700', color:'var(--empty)', fontFamily:'var(--font-mono)' }}>{ev.total}</div>
+                          <div style={{ fontSize:'10px', color:'var(--text-3)' }}>unidades</div>
+                        </div>
+                      </div>
+                      <div style={{ display:'flex', flexWrap:'wrap', gap:'6px' }}>
+                        {Object.entries(ev.produtos).sort(([,a],[,b]) => (b as number)-(a as number)).map(([prod, qty]) => (
                           <div key={prod} style={{ display:'flex', alignItems:'center', gap:'5px', padding:'3px 10px', borderRadius:'99px', background:'var(--bg-3)', border:'1px solid var(--border)', fontSize:'11px' }}>
                             <span style={{ color:'var(--text-1)', fontWeight:'500' }}>{prod}</span>
                             <span style={{ color:'var(--empty)', fontWeight:'700', fontFamily:'var(--font-mono)' }}>-{qty as number}</span>
