@@ -29,6 +29,7 @@ function Icon({ d, size=15 }: { d:string; size?:number }) {
 export default function RelatoriosPage() {
   const { profile } = useProfile()
   const [tab,        setTab]        = useState<ReportTab>('inventario')
+  const [categories,  setCategories]  = useState<string[]>([])
   const [locBalanceView, setLocBalanceView] = useState<any[]>([])
   const [histRows,    setHistRows]    = useState<any[]>([])
   const [histPage,    setHistPage]    = useState(0)
@@ -67,14 +68,16 @@ export default function RelatoriosPage() {
 
   async function loadBase() {
     const sb = createClient()
-    const [{ data: locs }, { data: prods }, { data: balView }] = await Promise.all([
+    const [{ data: locs }, { data: prods }, { data: balView }, { data: cats }] = await Promise.all([
       sb.from('locations').select('id,name').eq('church_id', profile!.church_id).eq('is_active', true).order('name'),
       sb.from('products').select('*').eq('church_id', profile!.church_id).eq('is_active', true).order('name'),
       sb.from('product_location_balance').select('product_id,location_name,location_quantity').eq('church_id', profile!.church_id),
+      sb.from('product_categories').select('name').eq('church_id', profile!.church_id).order('name'),
     ])
     if (locs)    setLocations(locs)
     if (prods)   setProducts(prods)
     if (balView) setLocBalanceView(balView)
+    if (cats) setCategories(cats.map((c: any) => c.name))
     // Carregar produtos por deposito
     const { data: movLoc } = await sb.from('stock_movements').select('product_id,location_id').eq('church_id', profile!.church_id).not('location_id', 'is', null)
     if (movLoc && locs) {
@@ -244,7 +247,7 @@ export default function RelatoriosPage() {
     (filterCat === 'all' || p.category === filterCat) &&
     (filterLoc === 'all' || productsByLoc[filterLoc]?.has(p.id))
   )
-  const categories = [...new Set(products.map(p => p.category).filter(Boolean))] as string[]
+  // categorias carregadas da tabela product_categories
   const critical   = filteredProds.filter(p => getQty(p.id) <= p.min_stock).sort((a:any,b:any) => getQty(a.id) - getQty(b.id))
 
   // ── dados para gráficos ────────────────────────────────────────

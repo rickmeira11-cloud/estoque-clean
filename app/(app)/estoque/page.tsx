@@ -100,6 +100,15 @@ export default function EstoquePage() {
     doc.save('lista-compras-' + new Date().toISOString().split('T')[0] + '.pdf');
   }
 
+  async function loadCategories() {
+    const { data } = await createClient()
+      .from('product_categories')
+      .select('name')
+      .eq('church_id', profile!.church_id)
+      .order('name')
+    if (data) setCategories(data.map((c: any) => c.name))
+  }
+
   async function load() {
     setLoading(true)
     const {data,error}=await createClient().from('products').select('*').eq('church_id',profile!.church_id).eq('is_active',true).order('name')
