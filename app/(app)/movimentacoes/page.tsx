@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useState, useRef } from 'react'
+import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { useProfile } from '@/hooks/useProfile'
 import type { Product } from '@/types'
@@ -13,6 +14,7 @@ const CFG = {
 
 export default function MovimentacoesPage() {
   const { profile } = useProfile()
+  const router = useRouter()
   const [products,       setProducts]       = useState<Product[]>([])
   const [search,         setSearch]         = useState('')
   const [selected,       setSelected]       = useState<Product | null>(null)
