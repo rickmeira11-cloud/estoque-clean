@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useState, useRef } from 'react'
+import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { useProfile } from '@/hooks/useProfile'
 
@@ -30,6 +31,7 @@ const L: React.CSSProperties = {
 
 export default function InventarioFisicoPage() {
   const { profile, isAdmin } = useProfile()
+  const router = useRouter()
   const [inventories, setInventories] = useState<Inventory[]>([])
   const [selected,    setSelected]    = useState<Inventory | null>(null)
   const [items,       setItems]       = useState<InventoryItem[]>([])
@@ -110,7 +112,14 @@ export default function InventarioFisicoPage() {
       .eq('barcode', scanBarcode.trim())
       .single()
 
-    if (!prod) { setScanError2('Produto não encontrado para o código: ' + scanBarcode); return }
+    if (!prod) {
+      if (confirm('Produto com código "' + scanBarcode + '" não encontrado.\nDeseja cadastrar este produto agora?')) {
+        router.push('/estoque?barcode=' + encodeURIComponent(scanBarcode))
+      } else {
+        setScanError2('Produto não encontrado: ' + scanBarcode)
+      }
+      return
+    }
 
     // Buscar item do inventario para este produto
     const matchItems = items.filter(i => i.product_id === prod.id)
