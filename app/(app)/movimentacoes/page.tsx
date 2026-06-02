@@ -15,7 +15,6 @@ const CFG = {
 export default function MovimentacoesPage() {
   const { profile } = useProfile()
   const router = useRouter()
-  const router = useRouter()
   const [products,       setProducts]       = useState<Product[]>([])
   const [search,         setSearch]         = useState('')
   const [selected,       setSelected]       = useState<Product | null>(null)
