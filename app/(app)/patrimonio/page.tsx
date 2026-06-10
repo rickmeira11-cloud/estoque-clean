@@ -184,7 +184,7 @@ export default function PatrimonioPage() {
   if (loading) return <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-3)' }}>Carregando...</div>
 
   // Se há um item em detalhe, mostrar a ficha
-  if (detail) return <PatrimonioDetalhe item={detail} ministries={ministries} onBack={() => { setDetail(null); loadBase() }} isAdmin={isAdmin} profile={profile}/>
+  if (detail) return <PatrimonioDetalhe item={detail} ministries={ministries} onBack={() => { setDetail(null); loadBase() }} onEdit={(p) => { setDetail(null); openEdit(p) }} isAdmin={isAdmin} profile={profile}/>
 
   return (
     <div>
@@ -316,8 +316,8 @@ export default function PatrimonioPage() {
 }
 
 // ─── Componente de detalhe (ficha do bem) ───────────────────────
-function PatrimonioDetalhe({ item, ministries, onBack, isAdmin, profile }: {
-  item: Patrimonio; ministries: { id: string; name: string }[]; onBack: () => void; isAdmin: boolean; profile: any
+function PatrimonioDetalhe({ item, ministries, onBack, onEdit, isAdmin, profile }: {
+  item: Patrimonio; ministries: { id: string; name: string }[]; onBack: () => void; onEdit: (p: Patrimonio) => void; isAdmin: boolean; profile: any
 }) {
   const [manutencoes, setManutencoes] = useState<Manutencao[]>([])
   const [movimentacoes, setMovimentacoes] = useState<Movimentacao[]>([])
@@ -399,6 +399,7 @@ function PatrimonioDetalhe({ item, ministries, onBack, isAdmin, profile }: {
           </div>
         </div>
         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+          {isAdmin && <button onClick={() => onEdit(item)} style={{ padding: '8px 14px', borderRadius: 'var(--radius-sm)', background: 'var(--bg-3)', border: '1px solid var(--border)', color: 'var(--text-1)', cursor: 'pointer', fontSize: '13px' }}>Editar</button>}
           <button onClick={() => setShowManut(true)} style={{ padding: '8px 14px', borderRadius: 'var(--radius-sm)', background: 'var(--bg-3)', border: '1px solid var(--border)', color: 'var(--text-1)', cursor: 'pointer', fontSize: '13px' }}>+ Manutenção</button>
           {item.status === 'emprestado' ? (
             <button onClick={devolverEmprestimo} style={{ padding: '8px 14px', borderRadius: 'var(--radius-sm)', background: 'var(--ok)', color: '#fff', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: '500' }}>Registrar devolução</button>
