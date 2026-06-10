@@ -18,6 +18,8 @@ type Patrimonio = {
   physical_location: string | null
   ministry_id: string | null
   quantity: number
+  nfe_key: string | null
+  nfe_file_url: string | null
   status: 'ativo' | 'em_manutencao' | 'emprestado' | 'baixado'
   notes: string | null
   is_active: boolean
@@ -79,7 +81,7 @@ function valorAquisicaoTotal(p: Patrimonio): number {
 const blank = {
   name: '', description: '', category: '', serial_number: '', barcode: '',
   acquisition_date: '', acquisition_value: '', useful_life_years: '5', depreciation_rate: '20',
-  location_id: '', physical_location: '', ministry_id: '', notes: '', supplier: '', quantity: '1',
+  location_id: '', physical_location: '', ministry_id: '', notes: '', supplier: '', quantity: '1', nfe_key: '', nfe_file_url: '',
 }
 
 export default function PatrimonioPage() {
@@ -92,6 +94,7 @@ export default function PatrimonioPage() {
   const [editItem,   setEditItem]   = useState<Patrimonio | null>(null)
   const [form,       setForm]       = useState(blank)
   const [saving,     setSaving]     = useState(false)
+  const [uploading,  setUploading]  = useState(false)
   const [formError,  setFormError]  = useState<string | null>(null)
   const [success,    setSuccess]    = useState('')
   const [search,     setSearch]     = useState('')
@@ -132,10 +135,24 @@ export default function PatrimonioPage() {
       acquisition_date: p.acquisition_date || '', acquisition_value: p.acquisition_value ? String(p.acquisition_value) : '',
       useful_life_years: String(p.useful_life_years), depreciation_rate: String(p.depreciation_rate),
       location_id: p.location_id || '', physical_location: p.physical_location || '',
-      ministry_id: p.ministry_id || '', notes: p.notes || '', supplier: (p as any).supplier || '', quantity: String(p.quantity || 1),
+      ministry_id: p.ministry_id || '', notes: p.notes || '', supplier: (p as any).supplier || '', quantity: String(p.quantity || 1), nfe_key: (p as any).nfe_key || '', nfe_file_url: (p as any).nfe_file_url || '',
     })
     setFormError(null); setShowModal(true)
     setTimeout(() => formRef.current?.scrollIntoView({ behavior: 'smooth' }), 100)
+  }
+
+  async function handleUploadNfe(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploading(true)
+    const sb = createClient()
+    const ext = file.name.split('.').pop()
+    const fileName = profile!.church_id + '/' + Date.now() + '.' + ext
+    const { error } = await sb.storage.from('patrimonio-nfe').upload(fileName, file, { upsert: true })
+    if (error) { setFormError('Erro ao enviar arquivo: ' + error.message); setUploading(false); return }
+    const { data } = sb.storage.from('patrimonio-nfe').getPublicUrl(fileName)
+    setForm(f => ({ ...f, nfe_file_url: data.publicUrl }))
+    setUploading(false)
   }
 
   async function handleSave() {
@@ -159,6 +176,8 @@ export default function PatrimonioPage() {
       notes:             form.notes || null,
       supplier:          form.supplier || null,
       quantity:          parseInt(form.quantity) || 1,
+      nfe_key:           form.nfe_key || null,
+      nfe_file_url:      form.nfe_file_url || null,
     }
 
     if (editItem) {
@@ -310,6 +329,15 @@ export default function PatrimonioPage() {
             </div>
             <div><label style={L}>Localização física</label><input value={form.physical_location} onChange={e => setForm(f => ({ ...f, physical_location: e.target.value }))} placeholder="Ex: Sala de som, Auditório..."/></div>
             <div><label style={L}>Fornecedor</label><input value={form.supplier} onChange={e => setForm(f => ({ ...f, supplier: e.target.value }))} placeholder="Onde foi adquirido"/></div>
+            <div><label style={L}>Chave da NF-e</label><input value={form.nfe_key} onChange={e => setForm(f => ({ ...f, nfe_key: e.target.value.replace(/\D/g, '').slice(0,44) }))} placeholder="44 dígitos" style={{ fontFamily:'var(--font-mono)', fontSize:'12px' }}/></div>
+            <div style={{ gridColumn: '1 / -1' }}>
+              <label style={L}>Foto / arquivo da nota fiscal</label>
+              <div style={{ display:'flex', gap:'8px', alignItems:'center', flexWrap:'wrap' }}>
+                <input type="file" accept="image/*,.pdf,.xml" onChange={handleUploadNfe} style={{ fontSize:'12px' }}/>
+                {uploading && <span style={{ fontSize:'12px', color:'var(--text-3)' }}>Enviando...</span>}
+                {form.nfe_file_url && <a href={form.nfe_file_url} target="_blank" rel="noopener noreferrer" style={{ fontSize:'12px', color:'var(--brand-light)' }}>✓ Ver arquivo enviado</a>}
+              </div>
+            </div>
             <div>
               <label style={L}>Ministério responsável</label>
               <select value={form.ministry_id} onChange={e => setForm(f => ({ ...f, ministry_id: e.target.value }))}>
