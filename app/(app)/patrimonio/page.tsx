@@ -17,6 +17,7 @@ type Patrimonio = {
   location_id: string | null
   physical_location: string | null
   ministry_id: string | null
+  quantity: number
   status: 'ativo' | 'em_manutencao' | 'emprestado' | 'baixado'
   notes: string | null
   is_active: boolean
@@ -68,7 +69,7 @@ function valorAtual(p: Patrimonio): number {
 const blank = {
   name: '', description: '', category: '', serial_number: '', barcode: '',
   acquisition_date: '', acquisition_value: '', useful_life_years: '5', depreciation_rate: '20',
-  location_id: '', physical_location: '', ministry_id: '', notes: '', supplier: '',
+  location_id: '', physical_location: '', ministry_id: '', notes: '', supplier: '', quantity: '1',
 }
 
 export default function PatrimonioPage() {
@@ -121,7 +122,7 @@ export default function PatrimonioPage() {
       acquisition_date: p.acquisition_date || '', acquisition_value: p.acquisition_value ? String(p.acquisition_value) : '',
       useful_life_years: String(p.useful_life_years), depreciation_rate: String(p.depreciation_rate),
       location_id: p.location_id || '', physical_location: p.physical_location || '',
-      ministry_id: p.ministry_id || '', notes: p.notes || '', supplier: (p as any).supplier || '',
+      ministry_id: p.ministry_id || '', notes: p.notes || '', supplier: (p as any).supplier || '', quantity: String(p.quantity || 1),
     })
     setFormError(null); setShowModal(true)
     setTimeout(() => formRef.current?.scrollIntoView({ behavior: 'smooth' }), 100)
@@ -147,6 +148,7 @@ export default function PatrimonioPage() {
       ministry_id:       form.ministry_id || null,
       notes:             form.notes || null,
       supplier:          form.supplier || null,
+      quantity:          parseInt(form.quantity) || 1,
     }
 
     if (editItem) {
@@ -252,7 +254,7 @@ export default function PatrimonioPage() {
                 onMouseEnter={e => (e.currentTarget.style.transform = 'translateY(-2px)')}
                 onMouseLeave={e => (e.currentTarget.style.transform = 'translateY(0)')}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '10px' }}>
-                  <div style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text-1)', minWidth: 0 }}>{p.name}</div>
+                  <div style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text-1)', minWidth: 0 }}>{p.name}{p.quantity > 1 && <span style={{ fontSize: '11px', color: 'var(--text-3)', fontWeight: '400' }}> ×{p.quantity}</span>}</div>
                   <span style={{ fontSize: '10px', padding: '2px 8px', borderRadius: '99px', background: st.bg, color: st.color, fontWeight: '600', flexShrink: 0, marginLeft: '8px' }}>{st.label}</span>
                 </div>
                 <div style={{ fontSize: '11px', color: 'var(--text-3)', display: 'flex', flexDirection: 'column', gap: '3px' }}>
@@ -287,6 +289,7 @@ export default function PatrimonioPage() {
             <div><label style={L}>Data de aquisição</label><input type="date" value={form.acquisition_date} onChange={e => setForm(f => ({ ...f, acquisition_date: e.target.value }))}/></div>
             <div><label style={L}>Valor de aquisição (R$)</label><input type="number" step="0.01" value={form.acquisition_value} onChange={e => setForm(f => ({ ...f, acquisition_value: e.target.value }))}/></div>
             <div><label style={L}>Vida útil (anos)</label><input type="number" value={form.useful_life_years} onChange={e => setForm(f => ({ ...f, useful_life_years: e.target.value }))}/></div>
+            <div><label style={L}>Quantidade</label><input type="number" min="1" value={form.quantity} onChange={e => setForm(f => ({ ...f, quantity: e.target.value }))}/></div>
             <div><label style={L}>Depreciação anual (%)</label><input type="number" step="0.1" value={form.depreciation_rate} onChange={e => setForm(f => ({ ...f, depreciation_rate: e.target.value }))}/></div>
             <div>
               <label style={L}>Depósito</label>
