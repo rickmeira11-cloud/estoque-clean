@@ -59,11 +59,21 @@ const STATUS_CFG: Record<string, { label: string; color: string; bg: string }> =
 }
 
 // Calcular valor depreciado
-function valorAtual(p: Patrimonio): number {
+function valorAtualUnitario(p: Patrimonio): number {
   if (!p.acquisition_value || !p.acquisition_date) return p.acquisition_value || 0
   const anos = (Date.now() - new Date(p.acquisition_date).getTime()) / (1000 * 60 * 60 * 24 * 365.25)
   const valor = p.acquisition_value * Math.pow(1 - p.depreciation_rate / 100, anos)
   return Math.max(valor, p.acquisition_value * 0.1) // valor residual mínimo de 10%
+}
+
+// Valor total atual = unitario depreciado × quantidade
+function valorAtual(p: Patrimonio): number {
+  return valorAtualUnitario(p) * (p.quantity || 1)
+}
+
+// Valor total de aquisicao = unitario × quantidade
+function valorAquisicaoTotal(p: Patrimonio): number {
+  return (p.acquisition_value || 0) * (p.quantity || 1)
 }
 
 const blank = {
@@ -181,7 +191,7 @@ export default function PatrimonioPage() {
     return true
   })
 
-  const totalAquisicao = items.reduce((s, p) => s + (p.acquisition_value || 0), 0)
+  const totalAquisicao = items.reduce((s, p) => s + valorAquisicaoTotal(p), 0)
   const totalAtual = items.reduce((s, p) => s + valorAtual(p), 0)
 
   if (loading) return <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-3)' }}>Carregando...</div>
@@ -386,8 +396,11 @@ function PatrimonioDetalhe({ item, ministries, onBack, onEdit, isAdmin, profile 
   }
 
   const anos = item.acquisition_date ? ((Date.now() - new Date(item.acquisition_date).getTime()) / (1000 * 60 * 60 * 24 * 365.25)) : 0
-  const vAtual = valorAtual(item)
-  const depreciado = (item.acquisition_value || 0) - vAtual
+  const qtd = item.quantity || 1
+  const vUnitarioAtual = valorAtualUnitario(item)
+  const vAtual = vUnitarioAtual * qtd
+  const vAquisicaoTotal = (item.acquisition_value || 0) * qtd
+  const depreciado = vAquisicaoTotal - vAtual
 
   return (
     <div>
@@ -419,13 +432,16 @@ function PatrimonioDetalhe({ item, ministries, onBack, onEdit, isAdmin, profile 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '12px', marginBottom: '20px' }}>
           <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '14px' }}>
             <div style={{ fontSize: '10px', color: 'var(--text-3)', textTransform: 'uppercase', fontWeight: '600' }}>Valor de aquisição</div>
-            <div style={{ fontSize: '18px', fontWeight: '700', color: 'var(--ok)', fontFamily: 'var(--font-mono)', marginTop: '4px' }}>R$ {item.acquisition_value.toFixed(2)}</div>
-            {item.acquisition_date && <div style={{ fontSize: '10px', color: 'var(--text-3)', marginTop: '2px' }}>{new Date(item.acquisition_date).toLocaleDateString('pt-BR')}</div>}
+            <div style={{ fontSize: '18px', fontWeight: '700', color: 'var(--ok)', fontFamily: 'var(--font-mono)', marginTop: '4px' }}>R$ {vAquisicaoTotal.toFixed(2)}</div>
+            <div style={{ fontSize: '10px', color: 'var(--text-3)', marginTop: '2px' }}>
+              {qtd > 1 ? `R$ ${item.acquisition_value.toFixed(2)} × ${qtd} un` : ''}
+              {item.acquisition_date && (qtd > 1 ? ' · ' : '') + new Date(item.acquisition_date).toLocaleDateString('pt-BR')}
+            </div>
           </div>
           <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '14px' }}>
             <div style={{ fontSize: '10px', color: 'var(--text-3)', textTransform: 'uppercase', fontWeight: '600' }}>Valor atual</div>
             <div style={{ fontSize: '18px', fontWeight: '700', color: 'var(--low)', fontFamily: 'var(--font-mono)', marginTop: '4px' }}>R$ {vAtual.toFixed(2)}</div>
-            <div style={{ fontSize: '10px', color: 'var(--text-3)', marginTop: '2px' }}>{anos.toFixed(1)} anos · {item.depreciation_rate}%/ano</div>
+            <div style={{ fontSize: '10px', color: 'var(--text-3)', marginTop: '2px' }}>{qtd > 1 ? `R$ ${vUnitarioAtual.toFixed(2)}/un · ` : ''}{anos.toFixed(1)} anos · {item.depreciation_rate}%/ano</div>
           </div>
           <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '14px' }}>
             <div style={{ fontSize: '10px', color: 'var(--text-3)', textTransform: 'uppercase', fontWeight: '600' }}>Depreciação acumulada</div>
