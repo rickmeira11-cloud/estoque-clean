@@ -335,7 +335,12 @@ export default function PatrimonioPage() {
               <div style={{ display:'flex', gap:'8px', alignItems:'center', flexWrap:'wrap' }}>
                 <input type="file" accept="image/*,.pdf,.xml" onChange={handleUploadNfe} style={{ fontSize:'12px' }}/>
                 {uploading && <span style={{ fontSize:'12px', color:'var(--text-3)' }}>Enviando...</span>}
-                {form.nfe_file_url && <a href={form.nfe_file_url} target="_blank" rel="noopener noreferrer" style={{ fontSize:'12px', color:'var(--brand-light)' }}>✓ Ver arquivo enviado</a>}
+                {form.nfe_file_url && (
+                  <>
+                    <a href={form.nfe_file_url} target="_blank" rel="noopener noreferrer" style={{ fontSize:'12px', color:'var(--brand-light)' }}>✓ Ver arquivo</a>
+                    <button type="button" onClick={() => setForm(f => ({ ...f, nfe_file_url: '' }))} style={{ fontSize:'12px', color:'var(--empty)', background:'none', border:'1px solid rgba(239,68,68,0.3)', borderRadius:'6px', padding:'3px 10px', cursor:'pointer' }}>Remover arquivo</button>
+                  </>
+                )}
               </div>
             </div>
             <div>
