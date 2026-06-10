@@ -68,7 +68,7 @@ function valorAtual(p: Patrimonio): number {
 const blank = {
   name: '', description: '', category: '', serial_number: '', barcode: '',
   acquisition_date: '', acquisition_value: '', useful_life_years: '5', depreciation_rate: '20',
-  location_id: '', physical_location: '', ministry_id: '', notes: '',
+  location_id: '', physical_location: '', ministry_id: '', notes: '', supplier: '',
 }
 
 export default function PatrimonioPage() {
@@ -121,7 +121,7 @@ export default function PatrimonioPage() {
       acquisition_date: p.acquisition_date || '', acquisition_value: p.acquisition_value ? String(p.acquisition_value) : '',
       useful_life_years: String(p.useful_life_years), depreciation_rate: String(p.depreciation_rate),
       location_id: p.location_id || '', physical_location: p.physical_location || '',
-      ministry_id: p.ministry_id || '', notes: p.notes || '',
+      ministry_id: p.ministry_id || '', notes: p.notes || '', supplier: (p as any).supplier || '',
     })
     setFormError(null); setShowModal(true)
     setTimeout(() => formRef.current?.scrollIntoView({ behavior: 'smooth' }), 100)
@@ -146,6 +146,7 @@ export default function PatrimonioPage() {
       physical_location: form.physical_location || null,
       ministry_id:       form.ministry_id || null,
       notes:             form.notes || null,
+      supplier:          form.supplier || null,
     }
 
     if (editItem) {
@@ -295,6 +296,7 @@ export default function PatrimonioPage() {
               </select>
             </div>
             <div><label style={L}>Localização física</label><input value={form.physical_location} onChange={e => setForm(f => ({ ...f, physical_location: e.target.value }))} placeholder="Ex: Sala de som, Auditório..."/></div>
+            <div><label style={L}>Fornecedor</label><input value={form.supplier} onChange={e => setForm(f => ({ ...f, supplier: e.target.value }))} placeholder="Onde foi adquirido"/></div>
             <div>
               <label style={L}>Ministério responsável</label>
               <select value={form.ministry_id} onChange={e => setForm(f => ({ ...f, ministry_id: e.target.value }))}>
