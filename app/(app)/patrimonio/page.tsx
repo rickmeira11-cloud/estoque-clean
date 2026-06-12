@@ -654,10 +654,10 @@ function PatrimonioDetalhe({ item, ministries, onBack, onEdit, isAdmin, profile 
         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
           {isAdmin && <button onClick={() => onEdit(item)} style={{ padding: '8px 14px', borderRadius: 'var(--radius-sm)', background: 'var(--bg-3)', border: '1px solid var(--border)', color: 'var(--text-1)', cursor: 'pointer', fontSize: '13px' }}>Editar</button>}
           <button onClick={() => setShowManut(true)} style={{ padding: '8px 14px', borderRadius: 'var(--radius-sm)', background: 'var(--bg-3)', border: '1px solid var(--border)', color: 'var(--text-1)', cursor: 'pointer', fontSize: '13px' }}>+ Manutenção</button>
-          {item.status === 'emprestado' ? (
+          {item.status === 'emprestado' ? (<>
             <button onClick={gerarTermo} style={{ padding: '8px 14px', borderRadius: 'var(--radius-sm)', background: 'var(--bg-3)', border: '1px solid var(--border)', color: 'var(--text-1)', cursor: 'pointer', fontSize: '13px' }}>📄 Termo</button>
             <button onClick={devolverEmprestimo} style={{ padding: '8px 14px', borderRadius: 'var(--radius-sm)', background: 'var(--ok)', color: '#fff', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: '500' }}>Registrar devolução</button>
-          ) : (
+          </>) : (
             <button onClick={() => setShowEmprestimo(true)} style={{ padding: '8px 14px', borderRadius: 'var(--radius-sm)', background: 'var(--info)', color: '#fff', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: '500' }}>Emprestar</button>
           )}
         </div>
