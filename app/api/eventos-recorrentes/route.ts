@@ -59,7 +59,16 @@ export async function POST() {
       .eq('is_active', true)
 
     if (!rules || rules.length === 0) {
-      return NextResponse.json({ ok: true, message: 'Nenhuma regra ativa', created: 0 })
+      // Diagnostico: buscar todas as regras sem filtro
+      const { data: allRules, error: allErr } = await sb
+        .from('recurring_events')
+        .select('id,name,is_active,church_id')
+      return NextResponse.json({
+        ok: true,
+        message: 'Nenhuma regra ativa',
+        created: 0,
+        debug: { church_id_usado: CHURCH_ID, total_regras_encontradas: allRules?.length || 0, regras: allRules, erro: allErr?.message }
+      })
     }
 
     const created: string[] = []
