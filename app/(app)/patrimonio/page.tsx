@@ -483,6 +483,41 @@ function PatrimonioDetalhe({ item, ministries, onBack, onEdit, isAdmin, profile 
         </div>
       )}
 
+      {/* Informações adicionais */}
+      {((item as any).supplier || (item as any).nfe_key || (item as any).nfe_file_url || item.serial_number) && (
+        <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '16px', marginBottom: '20px' }}>
+          <h3 style={{ fontSize: '13px', fontWeight: '600', marginBottom: '12px', color: 'var(--text-2)' }}>Informações de aquisição</h3>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px', fontSize: '13px' }}>
+            {(item as any).supplier && (
+              <div>
+                <div style={{ fontSize: '10px', color: 'var(--text-3)', textTransform: 'uppercase', fontWeight: '600', marginBottom: '3px' }}>Fornecedor</div>
+                <div style={{ color: 'var(--text-1)' }}>{(item as any).supplier}</div>
+              </div>
+            )}
+            {item.serial_number && (
+              <div>
+                <div style={{ fontSize: '10px', color: 'var(--text-3)', textTransform: 'uppercase', fontWeight: '600', marginBottom: '3px' }}>Nº de série</div>
+                <div style={{ color: 'var(--text-1)', fontFamily: 'var(--font-mono)' }}>{item.serial_number}</div>
+              </div>
+            )}
+            {(item as any).nfe_key && (
+              <div style={{ gridColumn: '1 / -1' }}>
+                <div style={{ fontSize: '10px', color: 'var(--text-3)', textTransform: 'uppercase', fontWeight: '600', marginBottom: '3px' }}>Chave da NF-e</div>
+                <div style={{ color: 'var(--text-1)', fontFamily: 'var(--font-mono)', fontSize: '11px', wordBreak: 'break-all' }}>{(item as any).nfe_key}</div>
+              </div>
+            )}
+            {(item as any).nfe_file_url && (
+              <div>
+                <div style={{ fontSize: '10px', color: 'var(--text-3)', textTransform: 'uppercase', fontWeight: '600', marginBottom: '3px' }}>Nota fiscal</div>
+                <a href={(item as any).nfe_file_url} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', color: 'var(--brand-light)', textDecoration: 'none', fontSize: '13px' }}>
+                  📎 Ver arquivo da nota
+                </a>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Form manutenção */}
       {showManut && (
         <div style={{ background: 'var(--bg-card)', border: '1px solid var(--low)', borderRadius: 'var(--radius)', padding: '18px', marginBottom: '16px' }}>
