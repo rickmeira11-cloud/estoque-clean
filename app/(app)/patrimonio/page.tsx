@@ -204,6 +204,76 @@ export default function PatrimonioPage() {
     await loadBase()
   }
 
+  async function exportDepreciacao() {
+    const { utils, writeFile } = await import('xlsx')
+    const rows = items.map(p => {
+      const qtd = p.quantity || 1
+      const vUnit = p.acquisition_value || 0
+      const vAquisTotal = vUnit * qtd
+      const vAtualTotal = valorAtual(p)
+      const anos = p.acquisition_date ? ((Date.now() - new Date(p.acquisition_date).getTime()) / (1000*60*60*24*365.25)) : 0
+      return {
+        'Bem': p.name,
+        'Categoria': p.category || '—',
+        'Ministério': p.ministry?.name || '—',
+        'Qtd': qtd,
+        'Status': STATUS_CFG[p.status].label,
+        'Data aquisição': p.acquisition_date ? new Date(p.acquisition_date).toLocaleDateString('pt-BR') : '—',
+        'Valor unit.': vUnit ? 'R$ ' + vUnit.toFixed(2) : '—',
+        'Valor aquisição total': vAquisTotal ? 'R$ ' + vAquisTotal.toFixed(2) : '—',
+        'Anos de uso': anos.toFixed(1),
+        'Taxa depreciação': p.depreciation_rate + '%',
+        'Valor atual': 'R$ ' + vAtualTotal.toFixed(2),
+        'Depreciação acumulada': 'R$ ' + (vAquisTotal - vAtualTotal).toFixed(2),
+      }
+    })
+    const ws = utils.json_to_sheet(rows)
+    const wb = utils.book_new()
+    utils.book_append_sheet(wb, ws, 'Depreciação')
+    ws['!cols'] = Object.keys(rows[0]||{}).map(k => ({ wch: Math.max(k.length, 14) }))
+    writeFile(wb, 'patrimonio-depreciacao-' + new Date().toISOString().split('T')[0] + '.xlsx')
+  }
+
+  async function exportDepreciacaoPDF() {
+    const { default: jsPDF } = await import('jspdf')
+    const { default: autoTable } = await import('jspdf-autotable')
+    const doc = new jsPDF({ orientation: 'landscape', format: 'a4' })
+    const church = profile?.church?.name || 'Poiema'
+    const today = new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })
+
+    doc.setFillColor(17,17,19); doc.rect(0,0,297,30,'F')
+    doc.setTextColor(250,250,250); doc.setFontSize(16); doc.setFont('helvetica','bold')
+    doc.text('Relatório de Depreciação — Patrimônio', 14, 12)
+    doc.setFontSize(10); doc.setFont('helvetica','normal'); doc.setTextColor(161,161,170)
+    doc.text(church + ' · Gerado em ' + today, 14, 20)
+
+    const totalAq = items.reduce((s,p) => s + valorAquisicaoTotal(p), 0)
+    const totalAt = items.reduce((s,p) => s + valorAtual(p), 0)
+    doc.text('Valor total de aquisição: R$ ' + totalAq.toFixed(2) + '  ·  Valor atual: R$ ' + totalAt.toFixed(2) + '  ·  Depreciação: R$ ' + (totalAq-totalAt).toFixed(2), 14, 26)
+
+    const head = [['Bem','Categoria','Qtd','Aquisição','Valor aquis.','Anos','Taxa','Valor atual','Depreciado']]
+    const body = items.map(p => {
+      const vAquisTotal = valorAquisicaoTotal(p)
+      const vAtualTotal = valorAtual(p)
+      const anos = p.acquisition_date ? ((Date.now() - new Date(p.acquisition_date).getTime()) / (1000*60*60*24*365.25)) : 0
+      return [
+        p.name, p.category || '—', p.quantity || 1,
+        p.acquisition_date ? new Date(p.acquisition_date).toLocaleDateString('pt-BR') : '—',
+        'R$ ' + vAquisTotal.toFixed(2), anos.toFixed(1), p.depreciation_rate + '%',
+        'R$ ' + vAtualTotal.toFixed(2), 'R$ ' + (vAquisTotal - vAtualTotal).toFixed(2),
+      ]
+    })
+
+    autoTable(doc, {
+      head, body, startY: 34,
+      styles: { fontSize: 8, cellPadding: 3 },
+      headStyles: { fillColor: [99,102,241], textColor: [255,255,255], fontStyle: 'bold' },
+      alternateRowStyles: { fillColor: [248,248,250] },
+    })
+
+    doc.save('patrimonio-depreciacao-' + new Date().toISOString().split('T')[0] + '.pdf')
+  }
+
   const filtered = items.filter(p => {
     if (filterStatus !== 'all' && p.status !== filterStatus) return false
     if (search && !p.name.toLowerCase().includes(search.toLowerCase())) return false
@@ -226,11 +296,23 @@ export default function PatrimonioPage() {
           <h1 style={{ fontSize: '22px', fontWeight: '600', letterSpacing: '-0.02em' }}>Patrimônio</h1>
           <p style={{ fontSize: '13px', color: 'var(--text-3)', marginTop: '4px' }}>Gestão de bens imobilizados</p>
         </div>
-        {isAdmin && (
-          <button onClick={openNew} style={{ padding: '8px 18px', borderRadius: 'var(--radius-sm)', background: 'var(--brand)', color: '#fff', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: '500' }}>
-            + Novo bem
-          </button>
-        )}
+        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+          {items.length > 0 && (
+            <>
+              <button onClick={exportDepreciacao} style={{ padding: '8px 14px', borderRadius: 'var(--radius-sm)', background: '#1a6e3c', color: '#fff', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: '500' }}>
+                Excel
+              </button>
+              <button onClick={exportDepreciacaoPDF} style={{ padding: '8px 14px', borderRadius: 'var(--radius-sm)', background: '#b91c1c', color: '#fff', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: '500' }}>
+                PDF
+              </button>
+            </>
+          )}
+          {isAdmin && (
+            <button onClick={openNew} style={{ padding: '8px 18px', borderRadius: 'var(--radius-sm)', background: 'var(--brand)', color: '#fff', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: '500' }}>
+              + Novo bem
+            </button>
+          )}
+        </div>
       </div>
 
       {success && (
