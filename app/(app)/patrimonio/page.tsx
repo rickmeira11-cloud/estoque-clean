@@ -274,12 +274,29 @@ export default function PatrimonioPage() {
       }
     }).filter(r => r.external_id && r.name) // ignorar linhas sem ID ou nome
 
-    // Marcar quais sao novos e quais existem
-    const existingIds = new Set(items.map(i => (i as any).external_id).filter(Boolean))
-    const preview = rows.map(r => ({
-      ...r,
-      action: existingIds.has(r.external_id) ? 'atualizar' : 'criar'
-    }))
+    // Mapa de items existentes por external_id
+    const byExternalId = new Map(items.filter(i => (i as any).external_id).map(i => [(i as any).external_id, i]))
+    // Mapa por Nome+Modelo (normalizado) para detectar possiveis duplicatas
+    const normalize = (s: string) => (s || '').toLowerCase().replace(/\s+/g, ' ').trim()
+    const byNomeModelo = new Map<string, any>()
+    items.forEach(i => {
+      const key = normalize(i.name) + '|' + normalize(i.description || '')
+      byNomeModelo.set(key, i)
+    })
+
+    const preview = rows.map(r => {
+      // 1. Se external_id ja existe -> atualizar
+      if (byExternalId.has(r.external_id)) {
+        return { ...r, action: 'atualizar', warning: false, selected: true }
+      }
+      // 2. Se nao existe por ID mas existe Nome+Modelo igual -> possivel duplicata
+      const keyNM = normalize(r.name) + '|' + normalize(r.description || '')
+      if (byNomeModelo.has(keyNM)) {
+        return { ...r, action: 'criar', warning: true, selected: false } // desmarcado por padrao
+      }
+      // 3. Novo item limpo
+      return { ...r, action: 'criar', warning: false, selected: true }
+    })
 
     setImportPreview(preview)
     e.target.value = ''
@@ -291,7 +308,7 @@ export default function PatrimonioPage() {
     const sb = createClient()
     let criados = 0, atualizados = 0
 
-    for (const row of importPreview) {
+    for (const row of importPreview.filter((r: any) => r.selected)) {
       const payload = {
         church_id:         profile!.church_id,
         external_id:       row.external_id,
@@ -556,24 +573,34 @@ export default function PatrimonioPage() {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
               <h3 style={{ fontSize: '16px', fontWeight: '600' }}>Prévia da importação</h3>
               <div style={{ display: 'flex', gap: '8px' }}>
-                <span style={{ fontSize: '12px', padding: '3px 10px', borderRadius: '99px', background: 'var(--ok-dim)', color: 'var(--ok)', fontWeight: '600' }}>{importPreview.filter(r => r.action === 'criar').length} novos</span>
-                <span style={{ fontSize: '12px', padding: '3px 10px', borderRadius: '99px', background: 'var(--low-dim)', color: 'var(--low)', fontWeight: '600' }}>{importPreview.filter(r => r.action === 'atualizar').length} atualizações</span>
+                <span style={{ fontSize: '12px', padding: '3px 10px', borderRadius: '99px', background: 'var(--ok-dim)', color: 'var(--ok)', fontWeight: '600' }}>{importPreview.filter(r => r.action === 'criar' && r.selected).length} novos</span>
+                <span style={{ fontSize: '12px', padding: '3px 10px', borderRadius: '99px', background: 'var(--low-dim)', color: 'var(--low)', fontWeight: '600' }}>{importPreview.filter(r => r.action === 'atualizar' && r.selected).length} atualizações</span>
+                {importPreview.some(r => r.warning) && <span style={{ fontSize: '12px', padding: '3px 10px', borderRadius: '99px', background: 'rgba(245,158,11,0.15)', color: 'var(--low)', fontWeight: '600' }}>⚠️ {importPreview.filter(r => r.warning).length} possíveis duplicatas</span>}
               </div>
             </div>
             <div style={{ flex: 1, overflowY: 'auto', border: '1px solid var(--border)', borderRadius: '8px' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
                 <thead>
                   <tr style={{ background: 'var(--bg-3)', position: 'sticky', top: 0 }}>
-                    {['ID', 'Nome', 'Qtd', 'Valor', 'Ação'].map(h => (
+                    {['', 'ID', 'Nome', 'Modelo', 'Qtd', 'Valor', 'Ação'].map(h => (
                       <th key={h} style={{ padding: '8px 12px', textAlign: 'left', fontSize: '10px', fontWeight: '600', color: 'var(--text-3)', textTransform: 'uppercase' }}>{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {importPreview.map((r, i) => (
-                    <tr key={i} style={{ borderBottom: '1px solid var(--border)' }}>
+                    <tr key={i} style={{ borderBottom: '1px solid var(--border)', background: r.warning ? 'rgba(245,158,11,0.06)' : 'transparent' }}>
+                      <td style={{ padding: '8px 12px' }}>
+                        <input type="checkbox" checked={r.selected} onChange={() => {
+                          setImportPreview(prev => prev!.map((x, xi) => xi === i ? { ...x, selected: !x.selected } : x))
+                        }}/>
+                      </td>
                       <td style={{ padding: '8px 12px', fontFamily: 'var(--font-mono)', color: 'var(--text-3)' }}>{r.external_id}</td>
-                      <td style={{ padding: '8px 12px', color: 'var(--text-1)' }}>{r.name}</td>
+                      <td style={{ padding: '8px 12px', color: 'var(--text-1)' }}>
+                        {r.name}
+                        {r.warning && <span style={{ marginLeft: '6px', fontSize: '10px', color: 'var(--low)' }}>⚠️ já existe similar</span>}
+                      </td>
+                      <td style={{ padding: '8px 12px', color: 'var(--text-3)', fontSize: '11px' }}>{r.description || '—'}</td>
                       <td style={{ padding: '8px 12px', fontFamily: 'var(--font-mono)' }}>{r.quantity}</td>
                       <td style={{ padding: '8px 12px', fontFamily: 'var(--font-mono)', color: 'var(--ok)' }}>{r.acquisition_value ? 'R$ ' + r.acquisition_value.toFixed(2) : '—'}</td>
                       <td style={{ padding: '8px 12px' }}>
@@ -589,7 +616,7 @@ export default function PatrimonioPage() {
             <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', marginTop: '16px' }}>
               <button onClick={() => setImportPreview(null)} style={{ padding: '8px 16px', borderRadius: 'var(--radius-sm)', background: 'transparent', border: '1px solid var(--border)', color: 'var(--text-2)', cursor: 'pointer', fontSize: '13px' }}>Cancelar</button>
               <button onClick={confirmImport} disabled={importing} style={{ padding: '8px 18px', borderRadius: 'var(--radius-sm)', background: 'var(--brand)', color: '#fff', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: '500' }}>
-                {importing ? 'Importando...' : 'Confirmar importação de ' + importPreview.length + ' itens'}
+                {importing ? 'Importando...' : 'Confirmar ' + importPreview.filter(r => r.selected).length + ' selecionado(s)'}
               </button>
             </div>
           </div>
