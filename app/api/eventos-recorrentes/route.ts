@@ -94,7 +94,7 @@ export async function POST() {
 
       if (existing) continue
 
-      const { error } = await sb.from('events').insert({
+      const { error: insErr } = await sb.from('events').insert({
         church_id:   CHURCH_ID,
         name:        rule.name,
         event_date:  targetDate,
@@ -102,7 +102,10 @@ export async function POST() {
         is_active:   true,
       })
 
-      if (!error) created.push(rule.name + ' (' + new Date(targetDate + 'T12:00:00').toLocaleDateString('pt-BR') + ')')
+      if (insErr) {
+        return NextResponse.json({ ok: false, insert_error: insErr.message, regra: rule.name, data: targetDate })
+      }
+      created.push(rule.name + ' (' + new Date(targetDate + 'T12:00:00').toLocaleDateString('pt-BR') + ')')
     }
 
     if (created.length > 0) {
