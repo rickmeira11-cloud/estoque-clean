@@ -100,6 +100,7 @@ export default function PatrimonioPage() {
   const [search,     setSearch]     = useState('')
   const [filterStatus, setFilterStatus] = useState('all')
   const [detail,     setDetail]     = useState<Patrimonio | null>(null)
+  const [emprestimos, setEmprestimos] = useState<any[]>([])
   const formRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => { if (profile?.church_id) loadBase() }, [profile?.church_id])
@@ -119,6 +120,20 @@ export default function PatrimonioPage() {
     if (pats) setItems(pats as Patrimonio[])
     if (locs) setLocations(locs)
     if (mins) setMinistries(mins)
+
+    // Carregar emprestimos pendentes (sem devolucao registrada)
+    const { data: emps } = await sb
+      .from('patrimonio_movimentacoes')
+      .select('id,patrimonio_id,responsible_person,expected_return_date,created_at,patrimonio:patrimonio(name,status)')
+      .eq('church_id', profile!.church_id)
+      .eq('type', 'emprestimo')
+      .order('expected_return_date', { ascending: true })
+    if (emps) {
+      // Filtrar apenas os que ainda estao emprestados
+      const pendentes = emps.filter((e: any) => e.patrimonio?.status === 'emprestado')
+      setEmprestimos(pendentes)
+    }
+
     setLoading(false)
   }
 
@@ -320,6 +335,47 @@ export default function PatrimonioPage() {
           ✓ {success}
         </div>
       )}
+
+      {/* Alertas de emprestimos pendentes */}
+      {emprestimos.length > 0 && (() => {
+        const hoje = new Date(); hoje.setHours(0,0,0,0)
+        const vencidos = emprestimos.filter(e => e.expected_return_date && new Date(e.expected_return_date) < hoje)
+        const proximos = emprestimos.filter(e => {
+          if (!e.expected_return_date) return false
+          const d = new Date(e.expected_return_date)
+          const diff = (d.getTime() - hoje.getTime()) / (1000*60*60*24)
+          return diff >= 0 && diff <= 7
+        })
+        if (vencidos.length === 0 && proximos.length === 0 && emprestimos.length === 0) return null
+        return (
+          <div style={{ marginBottom: '20px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            {vencidos.length > 0 && (
+              <div style={{ padding: '12px 16px', borderRadius: 'var(--radius)', background: 'var(--empty-dim)', border: '1px solid rgba(239,68,68,0.2)' }}>
+                <div style={{ fontSize: '13px', fontWeight: '600', color: 'var(--empty)', marginBottom: '6px' }}>
+                  🔴 {vencidos.length} empréstimo(s) com devolução vencida
+                </div>
+                {vencidos.map(e => (
+                  <div key={e.id} style={{ fontSize: '12px', color: 'var(--text-2)', marginTop: '2px' }}>
+                    <strong>{e.patrimonio?.name}</strong> — {e.responsible_person} · venceu em {new Date(e.expected_return_date + 'T12:00:00').toLocaleDateString('pt-BR')}
+                  </div>
+                ))}
+              </div>
+            )}
+            {proximos.length > 0 && (
+              <div style={{ padding: '12px 16px', borderRadius: 'var(--radius)', background: 'var(--low-dim)', border: '1px solid rgba(245,158,11,0.2)' }}>
+                <div style={{ fontSize: '13px', fontWeight: '600', color: 'var(--low)', marginBottom: '6px' }}>
+                  🟡 {proximos.length} devolução(ões) nos próximos 7 dias
+                </div>
+                {proximos.map(e => (
+                  <div key={e.id} style={{ fontSize: '12px', color: 'var(--text-2)', marginTop: '2px' }}>
+                    <strong>{e.patrimonio?.name}</strong> — {e.responsible_person} · devolver até {new Date(e.expected_return_date + 'T12:00:00').toLocaleDateString('pt-BR')}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )
+      })()}
 
       {/* Cards resumo */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px', marginBottom: '20px' }}>
