@@ -101,6 +101,9 @@ export default function PatrimonioPage() {
   const [filterStatus, setFilterStatus] = useState('all')
   const [detail,     setDetail]     = useState<Patrimonio | null>(null)
   const [emprestimos, setEmprestimos] = useState<any[]>([])
+  const [importPreview, setImportPreview] = useState<any[] | null>(null)
+  const [importing, setImporting] = useState(false)
+  const [importMsg, setImportMsg] = useState('')
   const formRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => { if (profile?.church_id) loadBase() }, [profile?.church_id])
@@ -217,6 +220,111 @@ export default function PatrimonioPage() {
     setSuccess('Bem removido!')
     setTimeout(() => setSuccess(''), 3000)
     await loadBase()
+  }
+
+  // Converter valor BR (R$ 6.890,00) para numero
+  function parseValorBR(v: string): number | null {
+    if (!v) return null
+    const limpo = v.replace(/R\$/g, '').replace(/\./g, '').replace(',', '.').trim()
+    const n = parseFloat(limpo)
+    return isNaN(n) ? null : n
+  }
+
+  // Converter data BR (DD/MM/AAAA) para ISO (AAAA-MM-DD)
+  function parseDataBR(d: string): string | null {
+    if (!d) return null
+    const parts = d.trim().split('/')
+    if (parts.length !== 3) return null
+    const [dia, mes, ano] = parts
+    if (!dia || !mes || !ano) return null
+    return ano + '-' + mes.padStart(2,'0') + '-' + dia.padStart(2,'0')
+  }
+
+  async function handleImportFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setImportMsg('')
+    const Papa = (await import('papaparse')).default
+    const text = await file.text()
+    const parsed = Papa.parse(text, { header: true, skipEmptyLines: true })
+
+    // Mapear colunas da planilha
+    const rows = (parsed.data as any[]).map(row => {
+      // Tentar varias variacoes de nome de coluna
+      const get = (keys: string[]) => {
+        for (const k of keys) {
+          const found = Object.keys(row).find(rk => rk.toLowerCase().trim() === k.toLowerCase())
+          if (found && row[found]) return String(row[found]).trim()
+        }
+        return ''
+      }
+      return {
+        external_id:   get(['ID']),
+        name:          get(['Nome / Item', 'Nome', 'Item']),
+        quantity:      parseInt(get(['Quantidade'])) || 1,
+        description:   get(['Descrição/Especificação/Modelo (categoria)', 'Descrição', 'Modelo']),
+        serial_number: get(['numero de série', 'número de série', 'serie']),
+        barcode:       get(['Cod de Barras', 'Código de Barras', 'barcode']),
+        acquisition_date: parseDataBR(get(['Data aquisição/Doação', 'Data aquisição', 'Data'])),
+        acquisition_value: parseValorBR(get(['Valor'])),
+        useful_life_years: parseInt(get(['Vida útil'])) || 5,
+        depreciation_rate: parseFloat(get(['% Depreciação Anual', 'Depreciação'])) || 20,
+        nfe_key:       get(['Número da NF', 'NF', 'Nota']),
+        supplier:      get(['Fornecedor']),
+      }
+    }).filter(r => r.external_id && r.name) // ignorar linhas sem ID ou nome
+
+    // Marcar quais sao novos e quais existem
+    const existingIds = new Set(items.map(i => (i as any).external_id).filter(Boolean))
+    const preview = rows.map(r => ({
+      ...r,
+      action: existingIds.has(r.external_id) ? 'atualizar' : 'criar'
+    }))
+
+    setImportPreview(preview)
+    e.target.value = ''
+  }
+
+  async function confirmImport() {
+    if (!importPreview) return
+    setImporting(true)
+    const sb = createClient()
+    let criados = 0, atualizados = 0
+
+    for (const row of importPreview) {
+      const payload = {
+        church_id:         profile!.church_id,
+        external_id:       row.external_id,
+        name:              row.name,
+        quantity:          row.quantity,
+        description:       row.description || null,
+        serial_number:     row.serial_number || null,
+        barcode:           row.barcode || null,
+        acquisition_date:  row.acquisition_date,
+        acquisition_value: row.acquisition_value,
+        useful_life_years: row.useful_life_years,
+        depreciation_rate: row.depreciation_rate,
+        nfe_key:           row.nfe_key || null,
+        supplier:          row.supplier || null,
+      }
+
+      if (row.action === 'atualizar') {
+        const existing = items.find(i => (i as any).external_id === row.external_id)
+        if (existing) {
+          await sb.from('patrimonio').update(payload).eq('id', existing.id)
+          atualizados++
+        }
+      } else {
+        await sb.from('patrimonio').insert(payload)
+        criados++
+      }
+    }
+
+    setImportMsg(criados + ' criado(s), ' + atualizados + ' atualizado(s)')
+    setImportPreview(null)
+    setImporting(false)
+    await loadBase()
+    setTimeout(() => setImportMsg(''), 5000)
   }
 
   async function exportDepreciacao() {
@@ -438,6 +546,53 @@ export default function PatrimonioPage() {
               </div>
             )
           })}
+        </div>
+      )}
+
+      {/* Modal de preview da importacao */}
+      {importPreview && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 500, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+          <div style={{ background: 'var(--bg-2)', borderRadius: 'var(--radius)', padding: '24px', maxWidth: '900px', width: '100%', maxHeight: '85vh', display: 'flex', flexDirection: 'column' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <h3 style={{ fontSize: '16px', fontWeight: '600' }}>Prévia da importação</h3>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <span style={{ fontSize: '12px', padding: '3px 10px', borderRadius: '99px', background: 'var(--ok-dim)', color: 'var(--ok)', fontWeight: '600' }}>{importPreview.filter(r => r.action === 'criar').length} novos</span>
+                <span style={{ fontSize: '12px', padding: '3px 10px', borderRadius: '99px', background: 'var(--low-dim)', color: 'var(--low)', fontWeight: '600' }}>{importPreview.filter(r => r.action === 'atualizar').length} atualizações</span>
+              </div>
+            </div>
+            <div style={{ flex: 1, overflowY: 'auto', border: '1px solid var(--border)', borderRadius: '8px' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+                <thead>
+                  <tr style={{ background: 'var(--bg-3)', position: 'sticky', top: 0 }}>
+                    {['ID', 'Nome', 'Qtd', 'Valor', 'Ação'].map(h => (
+                      <th key={h} style={{ padding: '8px 12px', textAlign: 'left', fontSize: '10px', fontWeight: '600', color: 'var(--text-3)', textTransform: 'uppercase' }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {importPreview.map((r, i) => (
+                    <tr key={i} style={{ borderBottom: '1px solid var(--border)' }}>
+                      <td style={{ padding: '8px 12px', fontFamily: 'var(--font-mono)', color: 'var(--text-3)' }}>{r.external_id}</td>
+                      <td style={{ padding: '8px 12px', color: 'var(--text-1)' }}>{r.name}</td>
+                      <td style={{ padding: '8px 12px', fontFamily: 'var(--font-mono)' }}>{r.quantity}</td>
+                      <td style={{ padding: '8px 12px', fontFamily: 'var(--font-mono)', color: 'var(--ok)' }}>{r.acquisition_value ? 'R$ ' + r.acquisition_value.toFixed(2) : '—'}</td>
+                      <td style={{ padding: '8px 12px' }}>
+                        <span style={{ fontSize: '10px', padding: '2px 8px', borderRadius: '99px', background: r.action === 'criar' ? 'var(--ok-dim)' : 'var(--low-dim)', color: r.action === 'criar' ? 'var(--ok)' : 'var(--low)', fontWeight: '600' }}>
+                          {r.action === 'criar' ? 'Novo' : 'Atualizar'}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', marginTop: '16px' }}>
+              <button onClick={() => setImportPreview(null)} style={{ padding: '8px 16px', borderRadius: 'var(--radius-sm)', background: 'transparent', border: '1px solid var(--border)', color: 'var(--text-2)', cursor: 'pointer', fontSize: '13px' }}>Cancelar</button>
+              <button onClick={confirmImport} disabled={importing} style={{ padding: '8px 18px', borderRadius: 'var(--radius-sm)', background: 'var(--brand)', color: '#fff', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: '500' }}>
+                {importing ? 'Importando...' : 'Confirmar importação de ' + importPreview.length + ' itens'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
