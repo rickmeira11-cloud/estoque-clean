@@ -566,6 +566,70 @@ function PatrimonioDetalhe({ item, ministries, onBack, onEdit, isAdmin, profile 
     await load()
   }
 
+  async function gerarTermo() {
+    // Buscar o emprestimo ativo mais recente
+    const empAtivo = movimentacoes.find(mv => mv.type === 'emprestimo')
+    const { default: jsPDF } = await import('jspdf')
+    const doc = new jsPDF({ format: 'a4' })
+    const church = profile?.church?.name || 'Poiema'
+    const hoje = new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })
+
+    // Cabecalho
+    doc.setFontSize(16); doc.setFont('helvetica','bold')
+    doc.text('TERMO DE RESPONSABILIDADE', 105, 25, { align: 'center' })
+    doc.setFontSize(11); doc.setFont('helvetica','normal')
+    doc.text(church, 105, 33, { align: 'center' })
+    doc.setDrawColor(200,200,200); doc.line(20, 38, 190, 38)
+
+    // Corpo
+    let y = 50
+    doc.setFontSize(11)
+    const responsavel = empAtivo?.responsible_person || '_______________________________'
+    const devolucao = empAtivo?.expected_return_date ? new Date(empAtivo.expected_return_date + 'T12:00:00').toLocaleDateString('pt-BR') : '____/____/______'
+
+    const texto = [
+      'Eu, ' + responsavel + ', declaro ter recebido o(s)',
+      'bem(ns) abaixo descrito(s), de propriedade de ' + church + ',',
+      'comprometendo-me a zelar pela sua conservacao e a devolve-lo(s) na',
+      'data acordada, em perfeitas condicoes de uso.',
+    ]
+    texto.forEach(linha => { doc.text(linha, 20, y); y += 7 })
+
+    y += 8
+    // Dados do bem
+    doc.setFont('helvetica','bold'); doc.text('DADOS DO BEM', 20, y); y += 8
+    doc.setFont('helvetica','normal')
+    const dados = [
+      ['Bem:', item.name],
+      ['Categoria:', item.category || '-'],
+      ['Quantidade:', String(item.quantity || 1)],
+      ['Numero de serie:', item.serial_number || '-'],
+      ['Valor de referencia:', item.acquisition_value ? 'R$ ' + (item.acquisition_value * (item.quantity||1)).toFixed(2) : '-'],
+      ['Data de emprestimo:', hoje],
+      ['Devolucao prevista:', devolucao],
+    ]
+    dados.forEach(([label, val]) => {
+      doc.setFont('helvetica','bold'); doc.text(label, 20, y)
+      doc.setFont('helvetica','normal'); doc.text(String(val), 70, y)
+      y += 7
+    })
+
+    // Assinaturas
+    y += 25
+    doc.line(25, y, 95, y)
+    doc.line(115, y, 185, y)
+    y += 6
+    doc.setFontSize(9)
+    doc.text('Responsavel pelo emprestimo', 30, y)
+    doc.text('Responsavel pelo patrimonio', 120, y)
+
+    y += 20
+    doc.setFontSize(10)
+    doc.text('Local e data: _________________________, ' + hoje, 20, y)
+
+    doc.save('termo-responsabilidade-' + item.name.replace(/[^a-zA-Z0-9]/g,'-') + '.pdf')
+  }
+
   const anos = item.acquisition_date ? ((Date.now() - new Date(item.acquisition_date).getTime()) / (1000 * 60 * 60 * 24 * 365.25)) : 0
   const qtd = item.quantity || 1
   const vUnitarioAtual = valorAtualUnitario(item)
@@ -591,6 +655,7 @@ function PatrimonioDetalhe({ item, ministries, onBack, onEdit, isAdmin, profile 
           {isAdmin && <button onClick={() => onEdit(item)} style={{ padding: '8px 14px', borderRadius: 'var(--radius-sm)', background: 'var(--bg-3)', border: '1px solid var(--border)', color: 'var(--text-1)', cursor: 'pointer', fontSize: '13px' }}>Editar</button>}
           <button onClick={() => setShowManut(true)} style={{ padding: '8px 14px', borderRadius: 'var(--radius-sm)', background: 'var(--bg-3)', border: '1px solid var(--border)', color: 'var(--text-1)', cursor: 'pointer', fontSize: '13px' }}>+ Manutenção</button>
           {item.status === 'emprestado' ? (
+            <button onClick={gerarTermo} style={{ padding: '8px 14px', borderRadius: 'var(--radius-sm)', background: 'var(--bg-3)', border: '1px solid var(--border)', color: 'var(--text-1)', cursor: 'pointer', fontSize: '13px' }}>📄 Termo</button>
             <button onClick={devolverEmprestimo} style={{ padding: '8px 14px', borderRadius: 'var(--radius-sm)', background: 'var(--ok)', color: '#fff', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: '500' }}>Registrar devolução</button>
           ) : (
             <button onClick={() => setShowEmprestimo(true)} style={{ padding: '8px 14px', borderRadius: 'var(--radius-sm)', background: 'var(--info)', color: '#fff', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: '500' }}>Emprestar</button>
