@@ -118,7 +118,22 @@ export async function POST() {
       }
     }
 
-    return NextResponse.json({ ok: true, created: created.length, events: created })
+    // Debug do calculo
+    const debugCalc = rules.map((rule: any) => {
+      const lead = rule.lead_days || 2
+      const target = new Date()
+      target.setDate(target.getDate() + lead)
+      target.setHours(0, 0, 0, 0)
+      return {
+        regra: rule.name,
+        hoje: new Date().toISOString(),
+        target_date: target.toISOString().split('T')[0],
+        target_weekday: target.getDay(),
+        regra_weekday: rule.weekday,
+        bate: rule.weekday === target.getDay(),
+      }
+    })
+    return NextResponse.json({ ok: true, created: created.length, events: created, debugCalc })
 
   } catch (err: any) {
     return NextResponse.json({ ok: false, error: err.message }, { status: 500 })
