@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useProfile } from '@/hooks/useProfile'
+import { mapRowPlanilha } from '@/lib/patrimonio-planilha'
 
 type Patrimonio = {
   id: string
@@ -111,6 +112,11 @@ export default function PatrimonioPage() {
   const [importPreview, setImportPreview] = useState<any[] | null>(null)
   const [importing, setImporting] = useState(false)
   const [importMsg, setImportMsg] = useState('')
+  const [pendingChanges, setPendingChanges] = useState<any[]>([])
+  const [showPending, setShowPending] = useState(false)
+  const [syncing, setSyncing] = useState(false)
+  const [syncMsg, setSyncMsg] = useState('')
+  const [resolvingId, setResolvingId] = useState<string | null>(null)
 
   useEffect(() => { if (profile?.church_id) loadBase() }, [profile?.church_id])
 
@@ -142,6 +148,15 @@ export default function PatrimonioPage() {
       const pendentes = emps.filter((e: any) => e.patrimonio?.status === 'emprestado')
       setEmprestimos(pendentes)
     }
+
+    // Carregar propostas de alteração pendentes (sync planilha)
+    const { data: pend } = await sb
+      .from('patrimonio_pending_changes')
+      .select('*')
+      .eq('church_id', profile!.church_id)
+      .eq('status', 'pendente')
+      .order('created_at', { ascending: false })
+    setPendingChanges(pend || [])
 
     setLoading(false)
     return (pats as Patrimonio[]) || []
@@ -232,24 +247,6 @@ export default function PatrimonioPage() {
     await loadBase()
   }
 
-  // Converter valor BR (R$ 6.890,00) para numero
-  function parseValorBR(v: string): number | null {
-    if (!v) return null
-    const limpo = v.replace(/R\$/g, '').replace(/\./g, '').replace(',', '.').trim()
-    const n = parseFloat(limpo)
-    return isNaN(n) ? null : n
-  }
-
-  // Converter data BR (DD/MM/AAAA) para ISO (AAAA-MM-DD)
-  function parseDataBR(d: string): string | null {
-    if (!d) return null
-    const parts = d.trim().split('/')
-    if (parts.length !== 3) return null
-    const [dia, mes, ano] = parts
-    if (!dia || !mes || !ano) return null
-    return ano + '-' + mes.padStart(2,'0') + '-' + dia.padStart(2,'0')
-  }
-
   async function handleImportFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
@@ -258,31 +255,10 @@ export default function PatrimonioPage() {
     const text = await file.text()
     const parsed = Papa.parse(text, { header: true, skipEmptyLines: true })
 
-    // Mapear colunas da planilha
-    const rows = (parsed.data as any[]).map(row => {
-      // Tentar varias variacoes de nome de coluna
-      const get = (keys: string[]) => {
-        for (const k of keys) {
-          const found = Object.keys(row).find(rk => rk.toLowerCase().trim() === k.toLowerCase())
-          if (found && row[found]) return String(row[found]).trim()
-        }
-        return ''
-      }
-      return {
-        external_id:   get(['ID']),
-        name:          get(['Nome / Item', 'Nome', 'Item']),
-        quantity:      parseInt(get(['Quantidade'])) || 1,
-        description:   get(['Descrição/Especificação/Modelo (categoria)', 'Descrição', 'Modelo']),
-        serial_number: get(['numero de série', 'número de série', 'serie']),
-        barcode:       get(['Cod de Barras', 'Código de Barras', 'barcode']),
-        acquisition_date: parseDataBR(get(['Data aquisição/Doação', 'Data aquisição', 'Data'])),
-        acquisition_value: parseValorBR(get(['Valor'])),
-        useful_life_years: parseInt(get(['Vida útil'])) || 5,
-        depreciation_rate: parseFloat(get(['% Depreciação Anual', 'Depreciação'])) || 20,
-        nfe_key:       get(['Número da NF', 'NF', 'Nota']),
-        supplier:      get(['Fornecedor']),
-      }
-    }).filter(r => r.external_id && r.name) // ignorar linhas sem ID ou nome
+    // Mapear colunas da planilha (mesmo parser usado pelo sync — lib/patrimonio-planilha)
+    const rows = (parsed.data as any[])
+      .map(mapRowPlanilha)
+      .filter(r => r.external_id && r.name) // ignorar linhas sem ID ou nome
 
     // Mapa de items existentes por external_id
     const byExternalId = new Map(items.filter(i => (i as any).external_id).map(i => [(i as any).external_id, i]))
@@ -424,6 +400,86 @@ export default function PatrimonioPage() {
     doc.save('patrimonio-depreciacao-' + new Date().toISOString().split('T')[0] + '.pdf')
   }
 
+  // ── Sync com a planilha (propostas de alteração) ──
+  async function verificarPlanilha() {
+    setSyncing(true); setSyncMsg('')
+    try {
+      const res = await fetch('/api/patrimonio/sync-planilha', { method: 'POST' })
+      const json = await res.json()
+      if (!json.ok) {
+        setSyncMsg('Erro: ' + (json.error || 'falha na verificação'))
+      } else {
+        setSyncMsg(json.novas + ' nova(s), ' + json.atualizadas + ' atualizada(s) · ' + json.total_pendentes + ' pendente(s)')
+        await loadBase()
+        if (json.total_pendentes > 0) setShowPending(true)
+      }
+    } catch (e: any) {
+      setSyncMsg('Erro: ' + e.message)
+    }
+    setSyncing(false)
+    setTimeout(() => setSyncMsg(''), 6000)
+  }
+
+  async function aprovarProposta(prop: any) {
+    setResolvingId(prop.id)
+    const sb = createClient()
+    const pd = prop.proposed_data || {}
+    if (prop.change_type === 'criar') {
+      await sb.from('patrimonio').insert({
+        church_id:         profile!.church_id,
+        external_id:       pd.external_id || prop.external_id,
+        name:              pd.name,
+        quantity:          pd.quantity ?? 1,
+        description:       pd.description ?? null,
+        serial_number:     pd.serial_number ?? null,
+        barcode:           pd.barcode ?? null,
+        acquisition_date:  pd.acquisition_date ?? null,
+        acquisition_value: pd.acquisition_value ?? null,
+        useful_life_years: pd.useful_life_years ?? 5,
+        depreciation_rate: pd.depreciation_rate ?? 20,
+        nfe_key:           pd.nfe_key ?? null,
+        supplier:          pd.supplier ?? null,
+        ministry_id:       pd.ministry_id ?? null,
+      })
+    } else if (prop.change_type === 'atualizar' && prop.patrimonio_id) {
+      const upd: any = {}
+      for (const f of (prop.diff_fields || [])) upd[f] = pd[f] ?? null
+      await sb.from('patrimonio').update(upd).eq('id', prop.patrimonio_id)
+    }
+    // 'sumiu_planilha': apenas resolve, sem apagar/inativar
+    await sb.from('patrimonio_pending_changes')
+      .update({ status: 'aprovado', resolved_at: new Date().toISOString(), resolved_by: profile!.id })
+      .eq('id', prop.id)
+    setResolvingId(null)
+    await loadBase()
+  }
+
+  async function rejeitarProposta(prop: any) {
+    setResolvingId(prop.id)
+    const sb = createClient()
+    await sb.from('patrimonio_pending_changes')
+      .update({ status: 'rejeitado', resolved_at: new Date().toISOString(), resolved_by: profile!.id })
+      .eq('id', prop.id)
+    setResolvingId(null)
+    await loadBase()
+  }
+
+  const CAMPO_LABEL: Record<string, string> = {
+    name: 'Nome', quantity: 'Quantidade', description: 'Descrição', serial_number: 'Nº de série',
+    barcode: 'Cód. de barras', acquisition_date: 'Data de aquisição', acquisition_value: 'Valor',
+    useful_life_years: 'Vida útil', depreciation_rate: 'Depreciação anual', nfe_key: 'Nº da NF',
+    supplier: 'Fornecedor', ministry_id: 'Ministério',
+  }
+
+  function displayCampo(f: string, v: any): string {
+    if (v === null || v === undefined || v === '') return '—'
+    if (f === 'acquisition_value') return fmtBRL(Number(v))
+    if (f === 'acquisition_date') return new Date(v + 'T12:00:00').toLocaleDateString('pt-BR')
+    if (f === 'depreciation_rate') return v + '%'
+    if (f === 'ministry_id') { const m = ministries.find(x => x.id === v); return m ? m.name : String(v) }
+    return String(v)
+  }
+
   const filtered = items.filter(p => {
     if (filterStatus !== 'all' && p.status !== filterStatus) return false
     if (search && !p.name.toLowerCase().includes(search.toLowerCase())) return false
@@ -448,6 +504,16 @@ export default function PatrimonioPage() {
           <p style={{ fontSize: '13px', color: 'var(--text-3)', marginTop: '4px' }}>Gestão de bens imobilizados</p>
         </div>
         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+          {pendingChanges.length > 0 && (
+            <button onClick={() => setShowPending(true)} style={{ padding: '8px 14px', borderRadius: 'var(--radius-sm)', background: 'var(--low-dim)', border: '1px solid var(--low)', color: 'var(--low)', cursor: 'pointer', fontSize: '13px', fontWeight: '600' }}>
+              🔔 Mudanças pendentes ({pendingChanges.length})
+            </button>
+          )}
+          {isAdmin && (
+            <button onClick={verificarPlanilha} disabled={syncing} style={{ padding: '8px 14px', borderRadius: 'var(--radius-sm)', background: 'var(--bg-3)', border: '1px solid var(--border)', color: 'var(--text-1)', cursor: 'pointer', fontSize: '13px' }}>
+              {syncing ? 'Verificando...' : '🔄 Verificar planilha agora'}
+            </button>
+          )}
           {isAdmin && (
             <label style={{ padding: '8px 14px', borderRadius: 'var(--radius-sm)', background: 'var(--bg-3)', border: '1px solid var(--border)', color: 'var(--text-1)', cursor: 'pointer', fontSize: '13px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
               📥 Importar planilha
@@ -475,6 +541,12 @@ export default function PatrimonioPage() {
       {success && (
         <div style={{ marginBottom: '16px', padding: '10px 16px', borderRadius: '8px', background: 'var(--ok-dim)', color: 'var(--ok)', fontSize: '13px', fontWeight: '500' }}>
           ✓ {success}
+        </div>
+      )}
+
+      {syncMsg && (
+        <div style={{ marginBottom: '16px', padding: '10px 16px', borderRadius: '8px', background: 'var(--bg-3)', color: 'var(--text-2)', fontSize: '13px' }}>
+          {syncMsg}
         </div>
       )}
 
@@ -699,6 +771,77 @@ export default function PatrimonioPage() {
             <button onClick={handleSave} disabled={saving} style={{ padding: '8px 18px', borderRadius: 'var(--radius-sm)', background: 'var(--brand)', color: '#fff', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: '500' }}>{saving ? 'Salvando...' : editItem ? 'Atualizar' : 'Cadastrar'}</button>
           </div>
         </div>
+        </div>
+      )}
+
+      {/* Modal de propostas de alteração da planilha — overlay, aparece sobre lista ou ficha */}
+      {showPending && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 500, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+          <div style={{ background: 'var(--bg-2)', borderRadius: 'var(--radius)', padding: '24px', maxWidth: '760px', width: '100%', maxHeight: '85vh', display: 'flex', flexDirection: 'column' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <h3 style={{ fontSize: '16px', fontWeight: '600' }}>Mudanças pendentes da planilha ({pendingChanges.length})</h3>
+              <button onClick={() => setShowPending(false)} style={{ padding: '6px 12px', borderRadius: 'var(--radius-sm)', background: 'transparent', border: '1px solid var(--border)', color: 'var(--text-2)', cursor: 'pointer', fontSize: '13px' }}>Fechar</button>
+            </div>
+            {pendingChanges.length === 0 ? (
+              <div style={{ padding: '30px', textAlign: 'center', color: 'var(--text-3)', fontSize: '13px' }}>Nenhuma mudança pendente. 🎉</div>
+            ) : (
+              <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                {pendingChanges.map((prop) => {
+                  const pd = prop.proposed_data || {}
+                  const cd = prop.current_data || {}
+                  const cfg = prop.change_type === 'criar'
+                    ? { label: 'Novo item', color: 'var(--ok)', bg: 'var(--ok-dim)' }
+                    : prop.change_type === 'atualizar'
+                    ? { label: 'Atualização', color: 'var(--low)', bg: 'var(--low-dim)' }
+                    : { label: 'Sumiu da planilha', color: 'var(--empty)', bg: 'var(--empty-dim)' }
+                  return (
+                    <div key={prop.id} style={{ border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '14px', background: 'var(--bg-card)' }}>
+                      <div style={{ marginBottom: '10px' }}>
+                        <span style={{ fontSize: '10px', padding: '2px 8px', borderRadius: '99px', background: cfg.bg, color: cfg.color, fontWeight: '600' }}>{cfg.label}</span>
+                        <div style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text-1)', marginTop: '6px' }}>{pd.name || cd.name || '—'}</div>
+                        <div style={{ fontSize: '11px', color: 'var(--text-3)', fontFamily: 'var(--font-mono)' }}>ID {prop.external_id}</div>
+                      </div>
+
+                      {prop.change_type === 'criar' && (
+                        <div style={{ fontSize: '12px', color: 'var(--text-2)', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '6px' }}>
+                          <div><span style={{ color: 'var(--text-3)' }}>Qtd:</span> {pd.quantity ?? 1}</div>
+                          <div><span style={{ color: 'var(--text-3)' }}>Valor:</span> {displayCampo('acquisition_value', pd.acquisition_value)}</div>
+                          <div><span style={{ color: 'var(--text-3)' }}>Ministério:</span> {displayCampo('ministry_id', pd.ministry_id)}</div>
+                          {pd.description && <div style={{ gridColumn: '1 / -1' }}><span style={{ color: 'var(--text-3)' }}>Descrição:</span> {pd.description}</div>}
+                        </div>
+                      )}
+
+                      {prop.change_type === 'atualizar' && (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                          {(prop.diff_fields || []).map((f: string) => (
+                            <div key={f} style={{ fontSize: '12px' }}>
+                              <span style={{ color: 'var(--text-3)' }}>{CAMPO_LABEL[f] || f}:</span>{' '}
+                              <span style={{ color: 'var(--empty)', textDecoration: 'line-through' }}>{displayCampo(f, cd[f])}</span>
+                              {' → '}
+                              <span style={{ color: 'var(--ok)', fontWeight: '600' }}>{displayCampo(f, pd[f])}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {prop.change_type === 'sumiu_planilha' && (
+                        <div style={{ fontSize: '12px', color: 'var(--text-2)' }}>
+                          Este item existe no Gestoque mas <strong>sumiu da planilha</strong>. Aprovar apenas marca como revisado — nada é apagado ou inativado.
+                        </div>
+                      )}
+
+                      {isAdmin && (
+                        <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', marginTop: '12px' }}>
+                          <button onClick={() => rejeitarProposta(prop)} disabled={resolvingId === prop.id} style={{ padding: '6px 14px', borderRadius: 'var(--radius-sm)', background: 'transparent', border: '1px solid var(--border)', color: 'var(--text-2)', cursor: 'pointer', fontSize: '13px' }}>Rejeitar</button>
+                          <button onClick={() => aprovarProposta(prop)} disabled={resolvingId === prop.id} style={{ padding: '6px 16px', borderRadius: 'var(--radius-sm)', background: 'var(--brand)', color: '#fff', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: '500' }}>{resolvingId === prop.id ? '...' : 'Aprovar'}</button>
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>
