@@ -60,6 +60,12 @@ const STATUS_CFG: Record<string, { label: string; color: string; bg: string }> =
   baixado:        { label: 'Baixado',        color: 'var(--empty)', bg: 'var(--empty-dim)' },
 }
 
+// Formatar valor no padrao brasileiro: R$ 1.000,00
+function fmtBRL(v: number | null | undefined): string {
+  if (v == null || isNaN(v)) return 'R$ 0,00'
+  return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+}
+
 // Calcular valor depreciado
 function valorAtualUnitario(p: Patrimonio): number {
   if (!p.acquisition_value || !p.acquisition_date) return p.acquisition_value || 0
@@ -359,12 +365,12 @@ export default function PatrimonioPage() {
         'Qtd': qtd,
         'Status': STATUS_CFG[p.status].label,
         'Data aquisição': p.acquisition_date ? new Date(p.acquisition_date).toLocaleDateString('pt-BR') : '—',
-        'Valor unit.': vUnit ? 'R$ ' + vUnit.toFixed(2) : '—',
-        'Valor aquisição total': vAquisTotal ? 'R$ ' + vAquisTotal.toFixed(2) : '—',
+        'Valor unit.': vUnit ? fmtBRL(vUnit) : '—',
+        'Valor aquisição total': vAquisTotal ? fmtBRL(vAquisTotal) : '—',
         'Anos de uso': anos.toFixed(1),
         'Taxa depreciação': p.depreciation_rate + '%',
-        'Valor atual': 'R$ ' + vAtualTotal.toFixed(2),
-        'Depreciação acumulada': 'R$ ' + (vAquisTotal - vAtualTotal).toFixed(2),
+        'Valor atual': fmtBRL(vAtualTotal),
+        'Depreciação acumulada': fmtBRL(vAquisTotal - vAtualTotal),
       }
     })
     const ws = utils.json_to_sheet(rows)
@@ -389,7 +395,7 @@ export default function PatrimonioPage() {
 
     const totalAq = items.reduce((s,p) => s + valorAquisicaoTotal(p), 0)
     const totalAt = items.reduce((s,p) => s + valorAtual(p), 0)
-    doc.text('Valor total de aquisição: R$ ' + totalAq.toFixed(2) + '  ·  Valor atual: R$ ' + totalAt.toFixed(2) + '  ·  Depreciação: R$ ' + (totalAq-totalAt).toFixed(2), 14, 26)
+    doc.text('Valor total de aquisição: ' + fmtBRL(totalAq) + '  ·  Valor atual: ' + fmtBRL(totalAt) + '  ·  Depreciação: ' + fmtBRL(totalAq-totalAt), 14, 26)
 
     const head = [['Bem','Categoria','Qtd','Aquisição','Valor aquis.','Anos','Taxa','Valor atual','Depreciado']]
     const body = items.map(p => {
@@ -399,8 +405,8 @@ export default function PatrimonioPage() {
       return [
         p.name, p.category || '—', p.quantity || 1,
         p.acquisition_date ? new Date(p.acquisition_date).toLocaleDateString('pt-BR') : '—',
-        'R$ ' + vAquisTotal.toFixed(2), anos.toFixed(1), p.depreciation_rate + '%',
-        'R$ ' + vAtualTotal.toFixed(2), 'R$ ' + (vAquisTotal - vAtualTotal).toFixed(2),
+        fmtBRL(vAquisTotal), anos.toFixed(1), p.depreciation_rate + '%',
+        fmtBRL(vAtualTotal), fmtBRL(vAquisTotal - vAtualTotal),
       ]
     })
 
@@ -516,11 +522,11 @@ export default function PatrimonioPage() {
         </div>
         <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '16px', borderTop: '2px solid var(--ok)' }}>
           <div style={{ fontSize: '10px', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: '600' }}>Valor de aquisição</div>
-          <div style={{ fontSize: '20px', fontWeight: '700', color: 'var(--ok)', fontFamily: 'var(--font-mono)', marginTop: '6px' }}>R$ {totalAquisicao.toFixed(2)}</div>
+          <div style={{ fontSize: '20px', fontWeight: '700', color: 'var(--ok)', fontFamily: 'var(--font-mono)', marginTop: '6px' }}>{fmtBRL(totalAquisicao)}</div>
         </div>
         <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '16px', borderTop: '2px solid var(--low)' }}>
           <div style={{ fontSize: '10px', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: '600' }}>Valor atual (depreciado)</div>
-          <div style={{ fontSize: '20px', fontWeight: '700', color: 'var(--low)', fontFamily: 'var(--font-mono)', marginTop: '6px' }}>R$ {totalAtual.toFixed(2)}</div>
+          <div style={{ fontSize: '20px', fontWeight: '700', color: 'var(--low)', fontFamily: 'var(--font-mono)', marginTop: '6px' }}>{fmtBRL(totalAtual)}</div>
         </div>
       </div>
 
@@ -563,7 +569,7 @@ export default function PatrimonioPage() {
                 {p.acquisition_value && (
                   <div style={{ marginTop: '10px', paddingTop: '10px', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', fontSize: '11px' }}>
                     <span style={{ color: 'var(--text-3)' }}>Valor atual:</span>
-                    <span style={{ color: 'var(--low)', fontWeight: '600', fontFamily: 'var(--font-mono)' }}>R$ {valorAtual(p).toFixed(2)}</span>
+                    <span style={{ color: 'var(--low)', fontWeight: '600', fontFamily: 'var(--font-mono)' }}>{fmtBRL(valorAtual(p))}</span>
                   </div>
                 )}
               </div>
@@ -608,7 +614,7 @@ export default function PatrimonioPage() {
                       </td>
                       <td style={{ padding: '8px 12px', color: 'var(--text-3)', fontSize: '11px' }}>{r.description || '—'}</td>
                       <td style={{ padding: '8px 12px', fontFamily: 'var(--font-mono)' }}>{r.quantity}</td>
-                      <td style={{ padding: '8px 12px', fontFamily: 'var(--font-mono)', color: 'var(--ok)' }}>{r.acquisition_value ? 'R$ ' + r.acquisition_value.toFixed(2) : '—'}</td>
+                      <td style={{ padding: '8px 12px', fontFamily: 'var(--font-mono)', color: 'var(--ok)' }}>{r.acquisition_value ? fmtBRL(r.acquisition_value) : '—'}</td>
                       <td style={{ padding: '8px 12px' }}>
                         <span style={{ fontSize: '10px', padding: '2px 8px', borderRadius: '99px', background: r.action === 'criar' ? 'var(--ok-dim)' : 'var(--low-dim)', color: r.action === 'criar' ? 'var(--ok)' : 'var(--low)', fontWeight: '600' }}>
                           {r.action === 'criar' ? 'Novo' : 'Atualizar'}
@@ -792,7 +798,7 @@ function PatrimonioDetalhe({ item, ministries, onBack, onEdit, isAdmin, profile 
       ['Categoria:', item.category || '-'],
       ['Quantidade:', String(item.quantity || 1)],
       ['Numero de serie:', item.serial_number || '-'],
-      ['Valor de referencia:', item.acquisition_value ? 'R$ ' + (item.acquisition_value * (item.quantity||1)).toFixed(2) : '-'],
+      ['Valor de referencia:', item.acquisition_value ? fmtBRL(item.acquisition_value * (item.quantity||1)) : '-'],
       ['Data de emprestimo:', hoje],
       ['Devolucao prevista:', devolucao],
     ]
@@ -856,20 +862,20 @@ function PatrimonioDetalhe({ item, ministries, onBack, onEdit, isAdmin, profile 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '12px', marginBottom: '20px' }}>
           <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '14px' }}>
             <div style={{ fontSize: '10px', color: 'var(--text-3)', textTransform: 'uppercase', fontWeight: '600' }}>Valor de aquisição</div>
-            <div style={{ fontSize: '18px', fontWeight: '700', color: 'var(--ok)', fontFamily: 'var(--font-mono)', marginTop: '4px' }}>R$ {vAquisicaoTotal.toFixed(2)}</div>
+            <div style={{ fontSize: '18px', fontWeight: '700', color: 'var(--ok)', fontFamily: 'var(--font-mono)', marginTop: '4px' }}>{fmtBRL(vAquisicaoTotal)}</div>
             <div style={{ fontSize: '10px', color: 'var(--text-3)', marginTop: '2px' }}>
-              {qtd > 1 ? `R$ ${item.acquisition_value.toFixed(2)} × ${qtd} un` : ''}
+              {qtd > 1 ? `${fmtBRL(item.acquisition_value)} × ${qtd} un` : ''}
               {item.acquisition_date && (qtd > 1 ? ' · ' : '') + new Date(item.acquisition_date).toLocaleDateString('pt-BR')}
             </div>
           </div>
           <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '14px' }}>
             <div style={{ fontSize: '10px', color: 'var(--text-3)', textTransform: 'uppercase', fontWeight: '600' }}>Valor atual</div>
-            <div style={{ fontSize: '18px', fontWeight: '700', color: 'var(--low)', fontFamily: 'var(--font-mono)', marginTop: '4px' }}>R$ {vAtual.toFixed(2)}</div>
-            <div style={{ fontSize: '10px', color: 'var(--text-3)', marginTop: '2px' }}>{qtd > 1 ? `R$ ${vUnitarioAtual.toFixed(2)}/un · ` : ''}{anos.toFixed(1)} anos · {item.depreciation_rate}%/ano</div>
+            <div style={{ fontSize: '18px', fontWeight: '700', color: 'var(--low)', fontFamily: 'var(--font-mono)', marginTop: '4px' }}>{fmtBRL(vAtual)}</div>
+            <div style={{ fontSize: '10px', color: 'var(--text-3)', marginTop: '2px' }}>{qtd > 1 ? `${fmtBRL(vUnitarioAtual)}/un · ` : ''}{anos.toFixed(1)} anos · {item.depreciation_rate}%/ano</div>
           </div>
           <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '14px' }}>
             <div style={{ fontSize: '10px', color: 'var(--text-3)', textTransform: 'uppercase', fontWeight: '600' }}>Depreciação acumulada</div>
-            <div style={{ fontSize: '18px', fontWeight: '700', color: 'var(--empty)', fontFamily: 'var(--font-mono)', marginTop: '4px' }}>R$ {depreciado.toFixed(2)}</div>
+            <div style={{ fontSize: '18px', fontWeight: '700', color: 'var(--empty)', fontFamily: 'var(--font-mono)', marginTop: '4px' }}>{fmtBRL(depreciado)}</div>
           </div>
         </div>
       )}
@@ -960,7 +966,7 @@ function PatrimonioDetalhe({ item, ministries, onBack, onEdit, isAdmin, profile 
                     {m.next_maintenance_date && ` · próxima: ${new Date(m.next_maintenance_date + 'T12:00:00').toLocaleDateString('pt-BR')}`}
                   </div>
                 </div>
-                {m.cost != null && <span style={{ fontSize: '13px', fontWeight: '600', color: 'var(--empty)', fontFamily: 'var(--font-mono)' }}>R$ {m.cost.toFixed(2)}</span>}
+                {m.cost != null && <span style={{ fontSize: '13px', fontWeight: '600', color: 'var(--empty)', fontFamily: 'var(--font-mono)' }}>{fmtBRL(m.cost)}</span>}
               </div>
             ))}
           </div>
