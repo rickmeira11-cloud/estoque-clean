@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useProfile } from '@/hooks/useProfile'
 
@@ -111,7 +111,6 @@ export default function PatrimonioPage() {
   const [importPreview, setImportPreview] = useState<any[] | null>(null)
   const [importing, setImporting] = useState(false)
   const [importMsg, setImportMsg] = useState('')
-  const formRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => { if (profile?.church_id) loadBase() }, [profile?.church_id])
 
@@ -150,7 +149,6 @@ export default function PatrimonioPage() {
 
   function openNew() {
     setEditItem(null); setForm(blank); setFormError(null); setShowModal(true)
-    setTimeout(() => formRef.current?.scrollIntoView({ behavior: 'smooth' }), 100)
   }
 
   function openEdit(p: Patrimonio) {
@@ -164,7 +162,6 @@ export default function PatrimonioPage() {
       ministry_id: p.ministry_id || '', notes: p.notes || '', supplier: (p as any).supplier || '', quantity: String(p.quantity || 1), nfe_key: (p as any).nfe_key || '', nfe_file_url: (p as any).nfe_file_url || '',
     })
     setFormError(null); setShowModal(true)
-    setTimeout(() => formRef.current?.scrollIntoView({ behavior: 'smooth' }), 100)
   }
 
   async function handleUploadNfe(e: React.ChangeEvent<HTMLInputElement>) {
@@ -438,11 +435,12 @@ export default function PatrimonioPage() {
 
   if (loading) return <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-3)' }}>Carregando...</div>
 
-  // Se há um item em detalhe, mostrar a ficha
-  if (detail) return <PatrimonioDetalhe item={detail} ministries={ministries} onBack={() => { setDetail(null); loadBase() }} onEdit={(p) => { setReturnToDetailId(p.id); setDetail(null); openEdit(p) }} isAdmin={isAdmin} profile={profile}/>
-
   return (
     <div>
+      {detail ? (
+        <PatrimonioDetalhe item={detail} ministries={ministries} onBack={() => { setDetail(null); loadBase() }} onEdit={(p) => { setReturnToDetailId(p.id); openEdit(p) }} isAdmin={isAdmin} profile={profile}/>
+      ) : (
+      <>
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
         <div>
@@ -642,9 +640,13 @@ export default function PatrimonioPage() {
         </div>
       )}
 
-      {/* Modal de cadastro */}
+      </>
+      )}
+
+      {/* Modal de cadastro/edição — overlay flutuante, aparece sobre a lista ou a ficha */}
       {showModal && (
-        <div ref={formRef} style={{ background: 'var(--bg-card)', border: '1px solid var(--brand)', borderRadius: 'var(--radius)', padding: '24px', marginTop: '20px' }}>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 500, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+        <div style={{ background: 'var(--bg-card)', border: '1px solid var(--brand)', borderRadius: 'var(--radius)', padding: '24px', maxWidth: '760px', width: '100%', maxHeight: '90vh', overflowY: 'auto' }}>
           <h3 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '18px' }}>{editItem ? 'Editar bem' : 'Novo bem'}</h3>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '14px', marginBottom: '14px' }}>
             <div style={{ gridColumn: '1 / -1' }}>
@@ -696,6 +698,7 @@ export default function PatrimonioPage() {
             <button onClick={() => { setShowModal(false); setEditItem(null); if (returnToDetailId) { const r = items.find(x => x.id === returnToDetailId); if (r) setDetail(r); setReturnToDetailId(null) } }} style={{ padding: '8px 16px', borderRadius: 'var(--radius-sm)', background: 'transparent', border: '1px solid var(--border)', color: 'var(--text-2)', cursor: 'pointer', fontSize: '13px' }}>Cancelar</button>
             <button onClick={handleSave} disabled={saving} style={{ padding: '8px 18px', borderRadius: 'var(--radius-sm)', background: 'var(--brand)', color: '#fff', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: '500' }}>{saving ? 'Salvando...' : editItem ? 'Atualizar' : 'Cadastrar'}</button>
           </div>
+        </div>
         </div>
       )}
     </div>
