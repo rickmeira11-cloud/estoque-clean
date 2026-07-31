@@ -106,6 +106,10 @@ export default function PatrimonioPage() {
   const [success,    setSuccess]    = useState('')
   const [search,     setSearch]     = useState('')
   const [filterStatus, setFilterStatus] = useState('all')
+  const [viewMode, setViewMode] = useState<'cards' | 'lista'>(() => {
+    if (typeof window === 'undefined') return 'cards'
+    try { return localStorage.getItem('patrimonio_view') === 'lista' ? 'lista' : 'cards' } catch { return 'cards' }
+  })
   const [detail,     setDetail]     = useState<Patrimonio | null>(null)
   const [returnToDetailId, setReturnToDetailId] = useState<string | null>(null)
   const [emprestimos, setEmprestimos] = useState<any[]>([])
@@ -224,6 +228,7 @@ export default function PatrimonioPage() {
       const { error } = await sb.from('patrimonio').update(payload).eq('id', editItem.id)
       if (error) { setFormError(error.message); setSaving(false); return }
       setSuccess('Bem atualizado!')
+      try { await sb.from('audit_log').insert({ church_id: profile!.church_id, action: 'update_patrimonio', entity: 'patrimonio', description: 'Editou ' + payload.name }) } catch (_) {}
     } else {
       const { error } = await sb.from('patrimonio').insert(payload)
       if (error) { setFormError(error.message); setSaving(false); return }
@@ -426,9 +431,8 @@ export default function PatrimonioPage() {
   async function aplicarNoGestoque(prop: any, sb: any) {
     const pd = prop.proposed_data || {}
     if (prop.change_type === 'criar') {
-      await sb.from('patrimonio').insert({
-        church_id:         profile!.church_id,
-        external_id:       pd.external_id || prop.external_id,
+      const extId = pd.external_id || prop.external_id
+      const dados = {
         name:              pd.name,
         quantity:          pd.quantity ?? 1,
         description:       pd.description ?? null,
@@ -441,7 +445,23 @@ export default function PatrimonioPage() {
         nfe_key:           pd.nfe_key ?? null,
         supplier:          pd.supplier ?? null,
         ministry_id:       pd.ministry_id ?? null,
-      })
+      }
+      // Idempotência: se já existe um bem ativo com esse external_id, atualiza em vez de duplicar.
+      let existingId: string | null = null
+      if (extId) {
+        const { data: ex } = await sb.from('patrimonio')
+          .select('id')
+          .eq('church_id', profile!.church_id)
+          .eq('external_id', extId)
+          .eq('is_active', true)
+          .maybeSingle()
+        existingId = ex?.id || null
+      }
+      if (existingId) {
+        await sb.from('patrimonio').update(dados).eq('id', existingId)
+      } else {
+        await sb.from('patrimonio').insert({ church_id: profile!.church_id, external_id: extId, ...dados })
+      }
     } else if (prop.change_type === 'atualizar' && prop.patrimonio_id) {
       const upd: any = {}
       for (const f of (prop.diff_fields || [])) upd[f] = pd[f] ?? null
@@ -529,6 +549,11 @@ export default function PatrimonioPage() {
     if (f === 'depreciation_rate') return v + '%'
     if (f === 'ministry_id') { const m = ministries.find(x => x.id === v); return m ? m.name : String(v) }
     return String(v)
+  }
+
+  function changeView(v: 'cards' | 'lista') {
+    setViewMode(v)
+    try { localStorage.setItem('patrimonio_view', v) } catch {}
   }
 
   const filtered = items.filter(p => {
@@ -668,6 +693,10 @@ export default function PatrimonioPage() {
           <option value="emprestado">Emprestado</option>
           <option value="baixado">Baixado</option>
         </select>
+        <div style={{ display: 'inline-flex', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', overflow: 'hidden' }}>
+          <button onClick={() => changeView('cards')} style={{ padding: '8px 12px', background: viewMode === 'cards' ? 'var(--brand)' : 'transparent', color: viewMode === 'cards' ? '#fff' : 'var(--text-2)', border: 'none', cursor: 'pointer', fontSize: '13px' }}>Cards</button>
+          <button onClick={() => changeView('lista')} style={{ padding: '8px 12px', background: viewMode === 'lista' ? 'var(--brand)' : 'transparent', color: viewMode === 'lista' ? '#fff' : 'var(--text-2)', border: 'none', cursor: 'pointer', fontSize: '13px' }}>Lista</button>
+        </div>
       </div>
 
       {/* Lista */}
@@ -675,6 +704,35 @@ export default function PatrimonioPage() {
         <div style={{ textAlign: 'center', padding: '60px', color: 'var(--text-3)' }}>
           <div style={{ fontSize: '40px', marginBottom: '12px' }}>🏛️</div>
           <div>{items.length === 0 ? 'Nenhum bem cadastrado ainda.' : 'Nenhum bem encontrado com os filtros.'}</div>
+        </div>
+      ) : viewMode === 'lista' ? (
+        <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+            <thead>
+              <tr style={{ background: 'var(--bg-3)' }}>
+                {['Nome', 'Categoria', 'Ministério', 'Status', 'Valor atual', ''].map((h, i) => (
+                  <th key={i} style={{ padding: '10px 14px', textAlign: i === 4 ? 'right' : 'left', fontSize: '10px', fontWeight: '600', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map(p => {
+                const st = STATUS_CFG[p.status]
+                return (
+                  <tr key={p.id} onClick={() => setDetail(p)} style={{ borderTop: '1px solid var(--border)', cursor: 'pointer' }}
+                    onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.02)')}
+                    onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+                    <td style={{ padding: '10px 14px', fontWeight: '500', color: 'var(--text-1)' }}>{p.name}{p.quantity > 1 && <span style={{ fontSize: '11px', color: 'var(--text-3)', fontWeight: '400' }}> ×{p.quantity}</span>}</td>
+                    <td style={{ padding: '10px 14px', color: 'var(--text-2)' }}>{p.category || '—'}</td>
+                    <td style={{ padding: '10px 14px', color: 'var(--text-2)' }}>{p.ministry?.name || '—'}</td>
+                    <td style={{ padding: '10px 14px' }}><span style={{ fontSize: '10px', padding: '2px 8px', borderRadius: '99px', background: st.bg, color: st.color, fontWeight: '600', whiteSpace: 'nowrap' }}>{st.label}</span></td>
+                    <td style={{ padding: '10px 14px', textAlign: 'right', color: 'var(--low)', fontWeight: '600', fontFamily: 'var(--font-mono)', whiteSpace: 'nowrap' }}>{p.acquisition_value ? fmtBRL(valorAtual(p)) : '—'}</td>
+                    <td style={{ padding: '10px 14px', textAlign: 'right', color: 'var(--text-3)' }}>›</td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
         </div>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '12px' }}>
@@ -939,6 +997,15 @@ function PatrimonioDetalhe({ item, ministries, onBack, onEdit, isAdmin, profile 
   const [eForm, setEForm] = useState({ responsible_person: '', expected_return_date: '', notes: '' })
   const [saving, setSaving] = useState(false)
 
+  // Excluir = inativar (nunca delete físico) + registrar no audit_log
+  async function excluirBem() {
+    if (!confirm('Excluir "' + item.name + '" do patrimônio?')) return
+    const sb = createClient()
+    await sb.from('patrimonio').update({ is_active: false }).eq('id', item.id)
+    try { await sb.from('audit_log').insert({ church_id: profile.church_id, action: 'deactivate_patrimonio', entity: 'patrimonio', description: 'Inativou ' + item.name + ' do patrimônio' }) } catch (_) {}
+    onBack()
+  }
+
   useEffect(() => { load() }, [item.id])
 
   async function load() {
@@ -1079,6 +1146,7 @@ function PatrimonioDetalhe({ item, ministries, onBack, onEdit, isAdmin, profile 
         </div>
         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
           {isAdmin && <button onClick={() => onEdit(item)} style={{ padding: '8px 14px', borderRadius: 'var(--radius-sm)', background: 'var(--bg-3)', border: '1px solid var(--border)', color: 'var(--text-1)', cursor: 'pointer', fontSize: '13px' }}>Editar</button>}
+          {isAdmin && <button onClick={excluirBem} style={{ padding: '8px 14px', borderRadius: 'var(--radius-sm)', background: 'var(--empty-dim)', border: '1px solid var(--empty)', color: 'var(--empty)', cursor: 'pointer', fontSize: '13px' }}>Excluir</button>}
           <button onClick={() => setShowManut(true)} style={{ padding: '8px 14px', borderRadius: 'var(--radius-sm)', background: 'var(--bg-3)', border: '1px solid var(--border)', color: 'var(--text-1)', cursor: 'pointer', fontSize: '13px' }}>+ Manutenção</button>
           {item.status === 'emprestado' ? (<>
             <button onClick={gerarTermo} style={{ padding: '8px 14px', borderRadius: 'var(--radius-sm)', background: 'var(--bg-3)', border: '1px solid var(--border)', color: 'var(--text-1)', cursor: 'pointer', fontSize: '13px' }}>📄 Termo</button>
