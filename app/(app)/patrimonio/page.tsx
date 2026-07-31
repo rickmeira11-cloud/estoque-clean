@@ -117,6 +117,8 @@ export default function PatrimonioPage() {
   const [syncing, setSyncing] = useState(false)
   const [syncMsg, setSyncMsg] = useState('')
   const [resolvingId, setResolvingId] = useState<string | null>(null)
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [bulkProgress, setBulkProgress] = useState<{ done: number; total: number } | null>(null)
 
   useEffect(() => { if (profile?.church_id) loadBase() }, [profile?.church_id])
 
@@ -420,9 +422,8 @@ export default function PatrimonioPage() {
     setTimeout(() => setSyncMsg(''), 6000)
   }
 
-  async function aprovarProposta(prop: any) {
-    setResolvingId(prop.id)
-    const sb = createClient()
+  // Aplica a proposta no Gestoque (insert/update em patrimonio). Não mexe no status.
+  async function aplicarNoGestoque(prop: any, sb: any) {
     const pd = prop.proposed_data || {}
     if (prop.change_type === 'criar') {
       await sb.from('patrimonio').insert({
@@ -446,7 +447,13 @@ export default function PatrimonioPage() {
       for (const f of (prop.diff_fields || [])) upd[f] = pd[f] ?? null
       await sb.from('patrimonio').update(upd).eq('id', prop.patrimonio_id)
     }
-    // 'sumiu_planilha': apenas resolve, sem apagar/inativar
+    // 'sumiu_planilha': nada em patrimonio — só resolve o status depois
+  }
+
+  async function aprovarProposta(prop: any) {
+    setResolvingId(prop.id)
+    const sb = createClient()
+    await aplicarNoGestoque(prop, sb)
     await sb.from('patrimonio_pending_changes')
       .update({ status: 'aprovado', resolved_at: new Date().toISOString(), resolved_by: profile!.id })
       .eq('id', prop.id)
@@ -462,6 +469,50 @@ export default function PatrimonioPage() {
       .eq('id', prop.id)
     setResolvingId(null)
     await loadBase()
+  }
+
+  // ── Ações em massa ──
+  async function aprovarEmLote(props: any[]) {
+    if (props.length === 0) return
+    const sb = createClient()
+    setBulkProgress({ done: 0, total: props.length })
+    const ids: string[] = []
+    for (let i = 0; i < props.length; i++) {
+      await aplicarNoGestoque(props[i], sb)
+      ids.push(props[i].id)
+      setBulkProgress({ done: i + 1, total: props.length })
+    }
+    // Marca o status de todas em uma única query
+    await sb.from('patrimonio_pending_changes')
+      .update({ status: 'aprovado', resolved_at: new Date().toISOString(), resolved_by: profile!.id })
+      .in('id', ids)
+    setBulkProgress(null)
+    setSelectedIds(new Set())
+    await loadBase()
+  }
+
+  async function rejeitarEmLote(props: any[]) {
+    if (props.length === 0) return
+    const sb = createClient()
+    setBulkProgress({ done: props.length, total: props.length })
+    await sb.from('patrimonio_pending_changes')
+      .update({ status: 'rejeitado', resolved_at: new Date().toISOString(), resolved_by: profile!.id })
+      .in('id', props.map(p => p.id))
+    setBulkProgress(null)
+    setSelectedIds(new Set())
+    await loadBase()
+  }
+
+  function toggleSelected(id: string) {
+    setSelectedIds(prev => {
+      const n = new Set(prev)
+      if (n.has(id)) n.delete(id); else n.add(id)
+      return n
+    })
+  }
+
+  function toggleSelectAll() {
+    setSelectedIds(prev => prev.size === pendingChanges.length ? new Set() : new Set(pendingChanges.map(p => p.id)))
   }
 
   const CAMPO_LABEL: Record<string, string> = {
@@ -785,6 +836,28 @@ export default function PatrimonioPage() {
             {pendingChanges.length === 0 ? (
               <div style={{ padding: '30px', textAlign: 'center', color: 'var(--text-3)', fontSize: '13px' }}>Nenhuma mudança pendente. 🎉</div>
             ) : (
+              <>
+              {/* Barra de ações em massa */}
+              {isAdmin && (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'center', marginBottom: '12px', paddingBottom: '12px', borderBottom: '1px solid var(--border)' }}>
+                  <label style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: 'var(--text-2)', cursor: 'pointer' }}>
+                    <input type="checkbox" checked={selectedIds.size === pendingChanges.length && pendingChanges.length > 0} onChange={toggleSelectAll} disabled={!!bulkProgress}/>
+                    Selecionar todas
+                  </label>
+                  {selectedIds.size > 0 && <span style={{ fontSize: '12px', color: 'var(--text-3)' }}>{selectedIds.size} selecionada(s)</span>}
+                  <div style={{ flex: 1 }}/>
+                  {bulkProgress ? (
+                    <span style={{ fontSize: '13px', color: 'var(--low)', fontWeight: '600' }}>Aplicando {bulkProgress.done}/{bulkProgress.total}...</span>
+                  ) : (
+                    <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                      <button onClick={() => { if (confirm('Aprovar as ' + selectedIds.size + ' propostas selecionadas?')) aprovarEmLote(pendingChanges.filter(p => selectedIds.has(p.id))) }} disabled={selectedIds.size === 0} style={{ padding: '6px 12px', borderRadius: 'var(--radius-sm)', background: selectedIds.size === 0 ? 'var(--bg-3)' : 'var(--brand)', color: selectedIds.size === 0 ? 'var(--text-3)' : '#fff', border: 'none', cursor: selectedIds.size === 0 ? 'default' : 'pointer', fontSize: '12px', fontWeight: '500' }}>Aprovar selecionadas</button>
+                      <button onClick={() => { if (confirm('Rejeitar as ' + selectedIds.size + ' propostas selecionadas?')) rejeitarEmLote(pendingChanges.filter(p => selectedIds.has(p.id))) }} disabled={selectedIds.size === 0} style={{ padding: '6px 12px', borderRadius: 'var(--radius-sm)', background: 'transparent', border: '1px solid var(--border)', color: selectedIds.size === 0 ? 'var(--text-3)' : 'var(--text-2)', cursor: selectedIds.size === 0 ? 'default' : 'pointer', fontSize: '12px' }}>Rejeitar selecionadas</button>
+                      <button onClick={() => { if (confirm('Aprovar TODAS as ' + pendingChanges.length + ' propostas pendentes?')) aprovarEmLote(pendingChanges) }} style={{ padding: '6px 12px', borderRadius: 'var(--radius-sm)', background: 'var(--ok-dim)', color: 'var(--ok)', border: '1px solid var(--ok)', cursor: 'pointer', fontSize: '12px', fontWeight: '600' }}>Aprovar todas</button>
+                      <button onClick={() => { if (confirm('Rejeitar TODAS as ' + pendingChanges.length + ' propostas pendentes?')) rejeitarEmLote(pendingChanges) }} style={{ padding: '6px 12px', borderRadius: 'var(--radius-sm)', background: 'var(--empty-dim)', color: 'var(--empty)', border: '1px solid var(--empty)', cursor: 'pointer', fontSize: '12px', fontWeight: '600' }}>Rejeitar todas</button>
+                    </div>
+                  )}
+                </div>
+              )}
               <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '12px' }}>
                 {pendingChanges.map((prop) => {
                   const pd = prop.proposed_data || {}
@@ -795,11 +868,16 @@ export default function PatrimonioPage() {
                     ? { label: 'Atualização', color: 'var(--low)', bg: 'var(--low-dim)' }
                     : { label: 'Sumiu da planilha', color: 'var(--empty)', bg: 'var(--empty-dim)' }
                   return (
-                    <div key={prop.id} style={{ border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '14px', background: 'var(--bg-card)' }}>
-                      <div style={{ marginBottom: '10px' }}>
-                        <span style={{ fontSize: '10px', padding: '2px 8px', borderRadius: '99px', background: cfg.bg, color: cfg.color, fontWeight: '600' }}>{cfg.label}</span>
-                        <div style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text-1)', marginTop: '6px' }}>{pd.name || cd.name || '—'}</div>
-                        <div style={{ fontSize: '11px', color: 'var(--text-3)', fontFamily: 'var(--font-mono)' }}>ID {prop.external_id}</div>
+                    <div key={prop.id} style={{ border: '1px solid ' + (selectedIds.has(prop.id) ? 'var(--brand)' : 'var(--border)'), borderRadius: 'var(--radius)', padding: '14px', background: 'var(--bg-card)' }}>
+                      <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-start', marginBottom: '10px' }}>
+                        {isAdmin && (
+                          <input type="checkbox" checked={selectedIds.has(prop.id)} onChange={() => toggleSelected(prop.id)} disabled={!!bulkProgress} style={{ marginTop: '3px' }}/>
+                        )}
+                        <div style={{ minWidth: 0 }}>
+                          <span style={{ fontSize: '10px', padding: '2px 8px', borderRadius: '99px', background: cfg.bg, color: cfg.color, fontWeight: '600' }}>{cfg.label}</span>
+                          <div style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text-1)', marginTop: '6px' }}>{pd.name || cd.name || '—'}</div>
+                          <div style={{ fontSize: '11px', color: 'var(--text-3)', fontFamily: 'var(--font-mono)' }}>ID {prop.external_id}</div>
+                        </div>
                       </div>
 
                       {prop.change_type === 'criar' && (
@@ -832,14 +910,15 @@ export default function PatrimonioPage() {
 
                       {isAdmin && (
                         <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', marginTop: '12px' }}>
-                          <button onClick={() => rejeitarProposta(prop)} disabled={resolvingId === prop.id} style={{ padding: '6px 14px', borderRadius: 'var(--radius-sm)', background: 'transparent', border: '1px solid var(--border)', color: 'var(--text-2)', cursor: 'pointer', fontSize: '13px' }}>Rejeitar</button>
-                          <button onClick={() => aprovarProposta(prop)} disabled={resolvingId === prop.id} style={{ padding: '6px 16px', borderRadius: 'var(--radius-sm)', background: 'var(--brand)', color: '#fff', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: '500' }}>{resolvingId === prop.id ? '...' : 'Aprovar'}</button>
+                          <button onClick={() => rejeitarProposta(prop)} disabled={resolvingId === prop.id || !!bulkProgress} style={{ padding: '6px 14px', borderRadius: 'var(--radius-sm)', background: 'transparent', border: '1px solid var(--border)', color: 'var(--text-2)', cursor: 'pointer', fontSize: '13px' }}>Rejeitar</button>
+                          <button onClick={() => aprovarProposta(prop)} disabled={resolvingId === prop.id || !!bulkProgress} style={{ padding: '6px 16px', borderRadius: 'var(--radius-sm)', background: 'var(--brand)', color: '#fff', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: '500' }}>{resolvingId === prop.id ? '...' : 'Aprovar'}</button>
                         </div>
                       )}
                     </div>
                   )
                 })}
               </div>
+              </>
             )}
           </div>
         </div>

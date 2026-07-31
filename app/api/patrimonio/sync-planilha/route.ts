@@ -112,12 +112,32 @@ export async function POST() {
           atualizadas++
         }
       } else {
-        const { data: inserted } = await sb.from('patrimonio_pending_changes')
+        const { data: inserted, error } = await sb.from('patrimonio_pending_changes')
           .insert({ church_id: CHURCH_ID, change_type, external_id, patrimonio_id, proposed_data, current_data, diff_fields, status: 'pendente' })
           .select('*')
           .single()
-        novas++
-        if (inserted) pendByKey.set(key, inserted)
+        if (error) {
+          // Índice único parcial barrou: já existe uma pendente para este
+          // external_id+change_type (ex.: execução concorrente). Atualiza a existente
+          // em vez de duplicar.
+          const { data: existRow } = await sb.from('patrimonio_pending_changes')
+            .select('*')
+            .eq('church_id', CHURCH_ID)
+            .eq('external_id', external_id)
+            .eq('change_type', change_type)
+            .eq('status', 'pendente')
+            .maybeSingle()
+          if (existRow) {
+            await sb.from('patrimonio_pending_changes')
+              .update({ proposed_data, current_data, diff_fields, patrimonio_id, created_at: new Date().toISOString() })
+              .eq('id', existRow.id)
+            atualizadas++
+            pendByKey.set(key, existRow)
+          }
+        } else {
+          novas++
+          if (inserted) pendByKey.set(key, inserted)
+        }
       }
     }
 
