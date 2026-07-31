@@ -7,7 +7,7 @@ import {
   CartesianGrid, Tooltip, ResponsiveContainer, Cell
 } from 'recharts'
 
-type ReportTab = 'inventario' | 'movimentacoes' | 'criticos' | 'consumo' | 'depositos' | 'auditoria' | 'ministerios' | 'precos' | 'eventos'
+type ReportTab = 'inventario' | 'movimentacoes' | 'criticos' | 'consumo' | 'depositos' | 'auditoria' | 'ministerios' | 'precos' | 'eventos' | 'patrimonio'
 
 const TABS: { id: ReportTab; label: string; icon: string }[] = [
   { id:'inventario',    label:'Inventário',    icon:'M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4' },
@@ -19,6 +19,7 @@ const TABS: { id: ReportTab; label: string; icon: string }[] = [
   { id:'eventos',       label:'Eventos',       icon:'M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z' },
   { id:'precos',        label:'Preços',        icon:'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 10v1m0 0c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z' },
   { id:'auditoria',     label:'Auditoria',     icon:'M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z' },
+  { id:'patrimonio',    label:'Patrimônio',    icon:'M3 21h18M5 21V10m14 11V10M4 10l8-6 8 6M9 21v-6h6v6' },
 ]
 
 const COLORS = ['#6366f1','#22c55e','#f59e0b','#ef4444','#a78bfa','#34d399','#fb923c','#60a5fa']
@@ -27,6 +28,29 @@ const tooltipStyle = { background:'var(--bg-2)', border:'1px solid var(--border-
 function Icon({ d, size=15 }: { d:string; size?:number }) {
   return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d={d}/></svg>
 }
+
+// ── Patrimônio: helpers replicados de app/(app)/patrimonio/page.tsx (não exportáveis lá) ──
+// Formato BR: R$ 1.000,00
+function fmtBRL(v: number | null | undefined): string {
+  if (v == null || isNaN(v)) return 'R$ 0,00'
+  return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+}
+// Valor depreciado unitário (depreciação exponencial, piso de 10%)
+function valorAtualUnitario(p: any): number {
+  if (!p.acquisition_value || !p.acquisition_date) return p.acquisition_value || 0
+  const anos = (Date.now() - new Date(p.acquisition_date).getTime()) / (1000 * 60 * 60 * 24 * 365.25)
+  const valor = p.acquisition_value * Math.pow(1 - p.depreciation_rate / 100, anos)
+  return Math.max(valor, p.acquisition_value * 0.1)
+}
+function valorAtual(p: any): number { return valorAtualUnitario(p) * (p.quantity || 1) }
+function valorAquisicaoTotal(p: any): number { return (p.acquisition_value || 0) * (p.quantity || 1) }
+
+const PATR_STATUS: { id: string; label: string; color: string; bg: string }[] = [
+  { id:'ativo',         label:'Ativo',         color:'var(--ok)',    bg:'var(--ok-dim)' },
+  { id:'em_manutencao', label:'Em manutenção', color:'var(--low)',   bg:'var(--low-dim)' },
+  { id:'emprestado',    label:'Emprestado',    color:'var(--info)',  bg:'var(--info-dim)' },
+  { id:'baixado',       label:'Baixado',       color:'var(--empty)', bg:'var(--empty-dim)' },
+]
 
 export default function RelatoriosPage() {
   const { profile } = useProfile()
@@ -66,6 +90,12 @@ export default function RelatoriosPage() {
   const [sortDir,    setSortDir]    = useState('asc')
   const [balances,   setBalances]   = useState<any[]>([])
   const [productsByLoc, setProductsByLoc] = useState<Record<string,Set<string>>>({})
+  const [patrItems,      setPatrItems]      = useState<any[]>([])
+  const [patrEmprestimos, setPatrEmprestimos] = useState<any[]>([])
+  const [patrManut,      setPatrManut]      = useState<any[]>([])
+  const [patrLoading,    setPatrLoading]    = useState(false)
+  const [patrManutPeriod, setPatrManutPeriod] = useState('90')
+  const [patrPend,       setPatrPend]       = useState<'nf'|'ministerio'|'valor'|'local'>('nf')
 
   useEffect(() => { if (profile?.church_id) loadBase() }, [profile?.church_id])
   useEffect(() => { if (profile?.church_id) loadMovements() }, [profile?.church_id, dateFrom, dateTo])
@@ -74,6 +104,8 @@ export default function RelatoriosPage() {
   useEffect(() => { if (profile?.church_id && tab === 'ministerios') loadMinisterios() }, [profile?.church_id, tab, minPeriod])
   useEffect(() => { if (profile?.church_id && tab === 'precos') loadPrecos() }, [profile?.church_id, tab, precosProd])
   useEffect(() => { if (profile?.church_id && tab === 'eventos') loadEventos() }, [profile?.church_id, tab, eventosPeriod])
+  useEffect(() => { if (profile?.church_id && tab === 'patrimonio') loadPatrimonio() }, [profile?.church_id, tab])
+  useEffect(() => { if (profile?.church_id && tab === 'patrimonio') loadPatrManut() }, [profile?.church_id, tab, patrManutPeriod])
   useEffect(() => { if (profile?.church_id && tab === 'historico') loadHistorico() }, [profile?.church_id, tab, histFilter, histPage, histDateFrom, histDateTo])
 
   async function loadBase() {
@@ -339,8 +371,132 @@ export default function RelatoriosPage() {
   })
   const locData = Object.entries(locMap).sort(([,a],[,b])=>b.total-a.total).map(([name,v])=>({ name: name.length>14?name.slice(0,12)+'…':name, ...v }))
 
+  // ── Patrimônio: carregamento (somente leitura) ──
+  async function loadPatrimonio() {
+    setPatrLoading(true)
+    const sb = createClient()
+    const { data: bens } = await sb.from('patrimonio')
+      .select('*,ministry:ministries(name)')
+      .eq('church_id', profile!.church_id)
+      .eq('is_active', true)
+      .order('name')
+    setPatrItems(bens || [])
+    const { data: emps } = await sb.from('patrimonio_movimentacoes')
+      .select('id,patrimonio_id,responsible_person,expected_return_date,created_at,patrimonio:patrimonio(name,status)')
+      .eq('church_id', profile!.church_id)
+      .eq('type', 'emprestimo')
+      .order('expected_return_date', { ascending: true })
+    setPatrEmprestimos((emps || []).filter((e: any) => e.patrimonio?.status === 'emprestado'))
+    setPatrLoading(false)
+  }
+
+  async function loadPatrManut() {
+    const sb = createClient()
+    const since = new Date(); since.setDate(since.getDate() - parseInt(patrManutPeriod))
+    const { data } = await sb.from('patrimonio_manutencoes')
+      .select('id,date,description,cost,patrimonio:patrimonio(name)')
+      .eq('church_id', profile!.church_id)
+      .gte('date', since.toISOString().split('T')[0])
+      .order('date', { ascending: false })
+    setPatrManut(data || [])
+  }
+
+  // ── Patrimônio: agregações derivadas ──
+  const patrResumo = {
+    total: patrItems.length,
+    aquisicao: patrItems.reduce((s, p) => s + valorAquisicaoTotal(p), 0),
+    atual: patrItems.reduce((s, p) => s + valorAtual(p), 0),
+  }
+  const patrPorCategoria = Object.values(patrItems.reduce((acc: any, p: any) => {
+    const c = p.category || 'Sem categoria'
+    if (!acc[c]) acc[c] = { categoria: c, qtd: 0, aquisicao: 0, atual: 0 }
+    acc[c].qtd++; acc[c].aquisicao += valorAquisicaoTotal(p); acc[c].atual += valorAtual(p)
+    return acc
+  }, {})).sort((a: any, b: any) => b.atual - a.atual)
+  const patrPorMinisterio = Object.values(patrItems.reduce((acc: any, p: any) => {
+    const m = p.ministry?.name || 'Sem ministério'
+    if (!acc[m]) acc[m] = { ministerio: m, qtd: 0, atual: 0 }
+    acc[m].qtd++; acc[m].atual += valorAtual(p)
+    return acc
+  }, {})).sort((a: any, b: any) => b.atual - a.atual)
+  const patrPorStatus = PATR_STATUS.map(s => {
+    const list = patrItems.filter((p: any) => p.status === s.id)
+    return { ...s, qtd: list.length, atual: list.reduce((a, p) => a + valorAtual(p), 0) }
+  })
+  const patrTop = [...patrItems].sort((a, b) => valorAtual(b) - valorAtual(a)).slice(0, 10)
+  const patrCustoManut = patrManut.reduce((s, m: any) => s + (m.cost || 0), 0)
+  const patrPendencias = {
+    nf:         patrItems.filter((p: any) => !p.nfe_key && !p.nfe_file_url),
+    ministerio: patrItems.filter((p: any) => !p.ministry_id),
+    valor:      patrItems.filter((p: any) => p.acquisition_value == null),
+    local:      patrItems.filter((p: any) => !p.physical_location),
+  }
+
+  async function exportPatrimonioExcel() {
+    const { utils, writeFile } = await import('xlsx')
+    const wb = utils.book_new()
+    const addSheet = (name: string, rows: any[]) => {
+      const ws = utils.json_to_sheet(rows.length ? rows : [{}])
+      ws['!cols'] = Object.keys(rows[0] || {}).map(k => ({ wch: Math.max(k.length, 14) }))
+      utils.book_append_sheet(wb, ws, name)
+    }
+    addSheet('Resumo', [
+      { Indicador: 'Total de bens', Valor: patrResumo.total },
+      { Indicador: 'Valor de aquisição', Valor: fmtBRL(patrResumo.aquisicao) },
+      { Indicador: 'Valor atual', Valor: fmtBRL(patrResumo.atual) },
+      { Indicador: 'Depreciação acumulada', Valor: fmtBRL(patrResumo.aquisicao - patrResumo.atual) },
+    ])
+    addSheet('Por categoria', patrPorCategoria.map((c: any) => ({ Categoria: c.categoria, 'Qtd bens': c.qtd, 'Valor aquisição': fmtBRL(c.aquisicao), 'Valor atual': fmtBRL(c.atual) })))
+    addSheet('Por ministério', patrPorMinisterio.map((m: any) => ({ Ministério: m.ministerio, 'Qtd bens': m.qtd, 'Valor atual': fmtBRL(m.atual) })))
+    addSheet('Por status', patrPorStatus.map((s: any) => ({ Status: s.label, Qtd: s.qtd, 'Valor atual': fmtBRL(s.atual) })))
+    addSheet('Pendências', [
+      { Pendência: 'Sem nota fiscal', Qtd: patrPendencias.nf.length },
+      { Pendência: 'Sem ministério', Qtd: patrPendencias.ministerio.length },
+      { Pendência: 'Sem valor de aquisição', Qtd: patrPendencias.valor.length },
+      { Pendência: 'Sem localização física', Qtd: patrPendencias.local.length },
+    ])
+    writeFile(wb, 'patrimonio-' + new Date().toISOString().split('T')[0] + '.xlsx')
+  }
+
+  async function exportPatrimonioPDF() {
+    const { default: jsPDF } = await import('jspdf')
+    const { default: autoTable } = await import('jspdf-autotable')
+    const doc = new jsPDF({ orientation: 'landscape', format: 'a4' })
+    const church = profile?.church?.name || 'Poiema'
+    const today = new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })
+    doc.setFillColor(17, 17, 19); doc.rect(0, 0, 297, 30, 'F')
+    doc.setTextColor(250, 250, 250); doc.setFontSize(16); doc.setFont('helvetica', 'bold')
+    doc.text('Poiema · Relatório de Patrimônio', 14, 12)
+    doc.setFontSize(10); doc.setFont('helvetica', 'normal'); doc.setTextColor(161, 161, 170)
+    doc.text(church + ' · Gerado em ' + today, 14, 20)
+    doc.text('Bens: ' + patrResumo.total + '  ·  Aquisição: ' + fmtBRL(patrResumo.aquisicao) + '  ·  Atual: ' + fmtBRL(patrResumo.atual) + '  ·  Depreciação: ' + fmtBRL(patrResumo.aquisicao - patrResumo.atual), 14, 26)
+    let y = 36
+    const section = (title: string, head: string[], body: any[][]) => {
+      doc.setFontSize(11); doc.setTextColor(30, 30, 34); doc.setFont('helvetica', 'bold')
+      doc.text(title, 14, y)
+      autoTable(doc, {
+        head: [head], body, startY: y + 2,
+        styles: { fontSize: 8, cellPadding: 3 },
+        headStyles: { fillColor: [99, 102, 241], textColor: [255, 255, 255], fontStyle: 'bold' },
+        alternateRowStyles: { fillColor: [248, 248, 250] },
+      })
+      y = (doc as any).lastAutoTable.finalY + 10
+    }
+    section('Bens por categoria', ['Categoria', 'Qtd', 'Valor aquisição', 'Valor atual'], patrPorCategoria.map((c: any) => [c.categoria, c.qtd, fmtBRL(c.aquisicao), fmtBRL(c.atual)]))
+    section('Bens por ministério', ['Ministério', 'Qtd', 'Valor atual'], patrPorMinisterio.map((m: any) => [m.ministerio, m.qtd, fmtBRL(m.atual)]))
+    section('Bens por status', ['Status', 'Qtd', 'Valor atual'], patrPorStatus.map((s: any) => [s.label, s.qtd, fmtBRL(s.atual)]))
+    section('Pendências de gestão', ['Pendência', 'Qtd'], [
+      ['Sem nota fiscal', patrPendencias.nf.length],
+      ['Sem ministério', patrPendencias.ministerio.length],
+      ['Sem valor de aquisição', patrPendencias.valor.length],
+      ['Sem localização física', patrPendencias.local.length],
+    ])
+    doc.save('patrimonio-' + new Date().toISOString().split('T')[0] + '.pdf')
+  }
+
   // ── exportações ────────────────────────────────────────────────
   async function exportExcel() {
+    if (tab === 'patrimonio') { await exportPatrimonioExcel(); return }
     const { utils, writeFile } = await import('xlsx')
     let rows: any[] = []; let sheet = ''
 
@@ -406,6 +562,7 @@ export default function RelatoriosPage() {
   }
 
   async function exportPDF() {
+    if (tab === 'patrimonio') { await exportPatrimonioPDF(); return }
     const { default: jsPDF } = await import('jspdf')
     const { default: autoTable } = await import('jspdf-autotable')
     const doc = new jsPDF({ orientation:'landscape', format:'a4' })
@@ -467,7 +624,7 @@ export default function RelatoriosPage() {
   }
 
   const L = { display:'block' as const, fontSize:'11px', color:'var(--text-3)', marginBottom:'5px' }
-  const count = tab==='inventario'?filteredProds.length:tab==='criticos'?critical.length:tab==='depositos'?Object.keys(locMap).length:filteredMovs.length
+  const count = tab==='patrimonio'?patrItems.length:tab==='inventario'?filteredProds.length:tab==='criticos'?critical.length:tab==='depositos'?Object.keys(locMap).length:filteredMovs.length
 
 
   function SortTh({ label, col, style = {} }: { label: string; col: string; style?: any }) {
@@ -1025,6 +1182,237 @@ export default function RelatoriosPage() {
                 </button>
               </div>
             </div>
+          )}
+          {/* ── TAB: PATRIMÔNIO ── */}
+          {tab==='patrimonio' && (
+            patrLoading ? (
+              <div style={{ textAlign:'center', padding:'40px', color:'var(--text-3)' }}>Carregando...</div>
+            ) : patrItems.length === 0 ? (
+              <div style={{ textAlign:'center', padding:'40px', color:'var(--text-3)' }}>
+                <div style={{ fontSize:'32px', marginBottom:'12px' }}>🏛️</div>
+                <div>Nenhum bem cadastrado no patrimônio.</div>
+              </div>
+            ) : (
+            <div style={{ display:'flex', flexDirection:'column', gap:'24px' }}>
+
+              {/* 1. Resumo geral */}
+              <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(180px, 1fr))', gap:'12px' }}>
+                {[
+                  { l:'Total de bens', v: String(patrResumo.total), c:'var(--brand)' },
+                  { l:'Valor de aquisição', v: fmtBRL(patrResumo.aquisicao), c:'var(--ok)' },
+                  { l:'Valor atual (depreciado)', v: fmtBRL(patrResumo.atual), c:'var(--low)' },
+                  { l:'Depreciação acumulada', v: fmtBRL(patrResumo.aquisicao - patrResumo.atual), c:'var(--empty)' },
+                ].map(card => (
+                  <div key={card.l} style={{ background:'var(--bg-card)', border:'1px solid var(--border)', borderRadius:'var(--radius)', padding:'16px', borderTop:'2px solid '+card.c }}>
+                    <div style={{ fontSize:'10px', color:'var(--text-3)', textTransform:'uppercase', letterSpacing:'0.06em', fontWeight:'600' }}>{card.l}</div>
+                    <div style={{ fontSize:'20px', fontWeight:'700', color:card.c, fontFamily:'var(--font-mono)', marginTop:'6px' }}>{card.v}</div>
+                  </div>
+                ))}
+              </div>
+
+              {/* 2. Bens por categoria */}
+              <div style={{ background:'var(--bg-card)', border:'1px solid var(--border)', borderRadius:'var(--radius)', overflow:'hidden' }}>
+                <div style={{ padding:'12px 16px', borderBottom:'1px solid var(--border)', fontSize:'13px', fontWeight:'500', color:'var(--text-1)' }}>Bens por categoria</div>
+                <div style={{ overflowX:'auto' }}>
+                  <table style={{ width:'100%', borderCollapse:'collapse' }}>
+                    <thead><tr style={{ background:'var(--bg-3)' }}>
+                      {['Categoria','Qtd','Valor aquisição','Valor atual'].map((h,i) => <th key={h} style={{ padding:'10px 14px', textAlign:i>0?'right':'left', fontSize:'11px', color:'var(--text-3)', fontWeight:'500', textTransform:'uppercase', letterSpacing:'0.04em', whiteSpace:'nowrap' }}>{h}</th>)}
+                    </tr></thead>
+                    <tbody>
+                      {patrPorCategoria.map((c:any) => (
+                        <tr key={c.categoria} style={{ borderTop:'1px solid var(--border)' }}>
+                          <td style={{ padding:'10px 14px', fontSize:'13px', color:'var(--text-1)' }}>{c.categoria}</td>
+                          <td style={{ padding:'10px 14px', fontSize:'13px', color:'var(--text-2)', textAlign:'right', fontFamily:'var(--font-mono)' }}>{c.qtd}</td>
+                          <td style={{ padding:'10px 14px', fontSize:'13px', color:'var(--ok)', textAlign:'right', fontFamily:'var(--font-mono)' }}>{fmtBRL(c.aquisicao)}</td>
+                          <td style={{ padding:'10px 14px', fontSize:'13px', color:'var(--low)', textAlign:'right', fontFamily:'var(--font-mono)', fontWeight:'600' }}>{fmtBRL(c.atual)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* 3. Bens por ministério */}
+              <div style={{ background:'var(--bg-card)', border:'1px solid var(--border)', borderRadius:'var(--radius)', overflow:'hidden' }}>
+                <div style={{ padding:'12px 16px', borderBottom:'1px solid var(--border)', fontSize:'13px', fontWeight:'500', color:'var(--text-1)' }}>Bens por ministério</div>
+                <div style={{ overflowX:'auto' }}>
+                  <table style={{ width:'100%', borderCollapse:'collapse' }}>
+                    <thead><tr style={{ background:'var(--bg-3)' }}>
+                      {['Ministério','Qtd','Valor atual'].map((h,i) => <th key={h} style={{ padding:'10px 14px', textAlign:i>0?'right':'left', fontSize:'11px', color:'var(--text-3)', fontWeight:'500', textTransform:'uppercase', letterSpacing:'0.04em', whiteSpace:'nowrap' }}>{h}</th>)}
+                    </tr></thead>
+                    <tbody>
+                      {patrPorMinisterio.map((m:any) => (
+                        <tr key={m.ministerio} style={{ borderTop:'1px solid var(--border)' }}>
+                          <td style={{ padding:'10px 14px', fontSize:'13px', color:'var(--text-1)' }}>{m.ministerio}</td>
+                          <td style={{ padding:'10px 14px', fontSize:'13px', color:'var(--text-2)', textAlign:'right', fontFamily:'var(--font-mono)' }}>{m.qtd}</td>
+                          <td style={{ padding:'10px 14px', fontSize:'13px', color:'var(--low)', textAlign:'right', fontFamily:'var(--font-mono)', fontWeight:'600' }}>{fmtBRL(m.atual)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* 4. Bens por status */}
+              <div style={{ background:'var(--bg-card)', border:'1px solid var(--border)', borderRadius:'var(--radius)', overflow:'hidden' }}>
+                <div style={{ padding:'12px 16px', borderBottom:'1px solid var(--border)', fontSize:'13px', fontWeight:'500', color:'var(--text-1)' }}>Bens por status</div>
+                <div style={{ overflowX:'auto' }}>
+                  <table style={{ width:'100%', borderCollapse:'collapse' }}>
+                    <thead><tr style={{ background:'var(--bg-3)' }}>
+                      {['Status','Qtd','Valor atual'].map((h,i) => <th key={h} style={{ padding:'10px 14px', textAlign:i>0?'right':'left', fontSize:'11px', color:'var(--text-3)', fontWeight:'500', textTransform:'uppercase', letterSpacing:'0.04em', whiteSpace:'nowrap' }}>{h}</th>)}
+                    </tr></thead>
+                    <tbody>
+                      {patrPorStatus.map((s:any) => (
+                        <tr key={s.id} style={{ borderTop:'1px solid var(--border)' }}>
+                          <td style={{ padding:'10px 14px' }}><span style={{ fontSize:'11px', fontWeight:'500', padding:'3px 10px', borderRadius:'99px', background:s.bg, color:s.color }}>{s.label}</span></td>
+                          <td style={{ padding:'10px 14px', fontSize:'13px', color:'var(--text-2)', textAlign:'right', fontFamily:'var(--font-mono)' }}>{s.qtd}</td>
+                          <td style={{ padding:'10px 14px', fontSize:'13px', color:'var(--low)', textAlign:'right', fontFamily:'var(--font-mono)', fontWeight:'600' }}>{fmtBRL(s.atual)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* 5. Empréstimos ativos / devoluções pendentes */}
+              {(() => {
+                const hoje = new Date(); hoje.setHours(0,0,0,0)
+                return (
+                  <div style={{ background:'var(--bg-card)', border:'1px solid var(--border)', borderRadius:'var(--radius)', overflow:'hidden' }}>
+                    <div style={{ padding:'12px 16px', borderBottom:'1px solid var(--border)', fontSize:'13px', fontWeight:'500', color:'var(--text-1)' }}>Empréstimos ativos / devoluções pendentes — {patrEmprestimos.length}</div>
+                    {patrEmprestimos.length === 0 ? (
+                      <div style={{ padding:'20px', textAlign:'center', color:'var(--text-3)', fontSize:'13px' }}>Nenhum empréstimo ativo.</div>
+                    ) : (
+                      <div style={{ overflowX:'auto' }}>
+                        <table style={{ width:'100%', borderCollapse:'collapse' }}>
+                          <thead><tr style={{ background:'var(--bg-3)' }}>
+                            {['Bem','Responsável','Empréstimo','Devolução prevista','Situação'].map(h => <th key={h} style={{ padding:'10px 14px', textAlign:'left', fontSize:'11px', color:'var(--text-3)', fontWeight:'500', textTransform:'uppercase', letterSpacing:'0.04em', whiteSpace:'nowrap' }}>{h}</th>)}
+                          </tr></thead>
+                          <tbody>
+                            {patrEmprestimos.map((e:any) => {
+                              const venc = e.expected_return_date && new Date(e.expected_return_date) < hoje
+                              return (
+                                <tr key={e.id} style={{ borderTop:'1px solid var(--border)' }}>
+                                  <td style={{ padding:'10px 14px', fontSize:'13px', color:'var(--text-1)' }}>{e.patrimonio?.name || '—'}</td>
+                                  <td style={{ padding:'10px 14px', fontSize:'13px', color:'var(--text-2)' }}>{e.responsible_person || '—'}</td>
+                                  <td style={{ padding:'10px 14px', fontSize:'12px', color:'var(--text-3)', fontFamily:'var(--font-mono)' }}>{new Date(e.created_at).toLocaleDateString('pt-BR')}</td>
+                                  <td style={{ padding:'10px 14px', fontSize:'12px', color: venc?'var(--empty)':'var(--text-3)', fontFamily:'var(--font-mono)' }}>{e.expected_return_date ? new Date(e.expected_return_date+'T12:00:00').toLocaleDateString('pt-BR') : '—'}</td>
+                                  <td style={{ padding:'10px 14px' }}>{venc
+                                    ? <span style={{ fontSize:'11px', fontWeight:'600', padding:'3px 10px', borderRadius:'99px', background:'var(--empty-dim)', color:'var(--empty)' }}>Vencido</span>
+                                    : <span style={{ fontSize:'11px', fontWeight:'500', padding:'3px 10px', borderRadius:'99px', background:'var(--ok-dim)', color:'var(--ok)' }}>No prazo</span>}</td>
+                                </tr>
+                              )
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                )
+              })()}
+
+              {/* 6. Top 10 bens de maior valor */}
+              <div style={{ background:'var(--bg-card)', border:'1px solid var(--border)', borderRadius:'var(--radius)', overflow:'hidden' }}>
+                <div style={{ padding:'12px 16px', borderBottom:'1px solid var(--border)', fontSize:'13px', fontWeight:'500', color:'var(--text-1)' }}>Top 10 bens de maior valor atual</div>
+                <div style={{ overflowX:'auto' }}>
+                  <table style={{ width:'100%', borderCollapse:'collapse' }}>
+                    <thead><tr style={{ background:'var(--bg-3)' }}>
+                      {['#','Bem','Categoria','Ministério','Valor atual'].map((h,i) => <th key={h} style={{ padding:'10px 14px', textAlign:i===4?'right':'left', fontSize:'11px', color:'var(--text-3)', fontWeight:'500', textTransform:'uppercase', letterSpacing:'0.04em', whiteSpace:'nowrap' }}>{h}</th>)}
+                    </tr></thead>
+                    <tbody>
+                      {patrTop.map((p:any,i:number) => (
+                        <tr key={p.id} style={{ borderTop:'1px solid var(--border)' }}>
+                          <td style={{ padding:'10px 14px', fontSize:'12px', color:'var(--text-3)', fontFamily:'var(--font-mono)' }}>{i+1}</td>
+                          <td style={{ padding:'10px 14px', fontSize:'13px', color:'var(--text-1)' }}>{p.name}{p.quantity>1 && <span style={{ fontSize:'11px', color:'var(--text-3)' }}> ×{p.quantity}</span>}</td>
+                          <td style={{ padding:'10px 14px', fontSize:'12px', color:'var(--text-2)' }}>{p.category || '—'}</td>
+                          <td style={{ padding:'10px 14px', fontSize:'12px', color:'var(--text-2)' }}>{p.ministry?.name || '—'}</td>
+                          <td style={{ padding:'10px 14px', fontSize:'13px', color:'var(--low)', textAlign:'right', fontFamily:'var(--font-mono)', fontWeight:'600' }}>{fmtBRL(valorAtual(p))}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* 7. Manutenções e custos */}
+              <div style={{ background:'var(--bg-card)', border:'1px solid var(--border)', borderRadius:'var(--radius)', overflow:'hidden' }}>
+                <div style={{ padding:'12px 16px', borderBottom:'1px solid var(--border)', display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:'8px' }}>
+                  <span style={{ fontSize:'13px', fontWeight:'500', color:'var(--text-1)' }}>Manutenções e custos</span>
+                  <div style={{ display:'flex', gap:'6px', alignItems:'center' }}>
+                    {[{v:'30',l:'30 dias'},{v:'90',l:'90 dias'},{v:'365',l:'12 meses'}].map(o => (
+                      <button key={o.v} onClick={() => setPatrManutPeriod(o.v)} style={{ padding:'5px 12px', borderRadius:'99px', border:'1px solid', fontSize:'12px', cursor:'pointer', background: patrManutPeriod===o.v?'var(--brand)':'transparent', color: patrManutPeriod===o.v?'#fff':'var(--text-3)', borderColor: patrManutPeriod===o.v?'var(--brand)':'var(--border)' }}>{o.l}</button>
+                    ))}
+                  </div>
+                </div>
+                {patrManut.length === 0 ? (
+                  <div style={{ padding:'20px', textAlign:'center', color:'var(--text-3)', fontSize:'13px' }}>Nenhuma manutenção registrada no período.</div>
+                ) : (
+                  <>
+                    <div style={{ overflowX:'auto' }}>
+                      <table style={{ width:'100%', borderCollapse:'collapse' }}>
+                        <thead><tr style={{ background:'var(--bg-3)' }}>
+                          {['Bem','Data','Descrição','Custo'].map((h,i) => <th key={h} style={{ padding:'10px 14px', textAlign:i===3?'right':'left', fontSize:'11px', color:'var(--text-3)', fontWeight:'500', textTransform:'uppercase', letterSpacing:'0.04em', whiteSpace:'nowrap' }}>{h}</th>)}
+                        </tr></thead>
+                        <tbody>
+                          {patrManut.map((m:any) => (
+                            <tr key={m.id} style={{ borderTop:'1px solid var(--border)' }}>
+                              <td style={{ padding:'10px 14px', fontSize:'13px', color:'var(--text-1)' }}>{m.patrimonio?.name || '—'}</td>
+                              <td style={{ padding:'10px 14px', fontSize:'12px', color:'var(--text-3)', fontFamily:'var(--font-mono)' }}>{new Date(m.date+'T12:00:00').toLocaleDateString('pt-BR')}</td>
+                              <td style={{ padding:'10px 14px', fontSize:'12px', color:'var(--text-2)' }}>{m.description}</td>
+                              <td style={{ padding:'10px 14px', fontSize:'13px', color:'var(--empty)', textAlign:'right', fontFamily:'var(--font-mono)' }}>{m.cost != null ? fmtBRL(m.cost) : '—'}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    <div style={{ padding:'12px 16px', borderTop:'1px solid var(--border)', display:'flex', justifyContent:'space-between', fontSize:'13px' }}>
+                      <span style={{ color:'var(--text-3)' }}>Total de custos no período</span>
+                      <span style={{ fontWeight:'700', color:'var(--empty)', fontFamily:'var(--font-mono)' }}>{fmtBRL(patrCustoManut)}</span>
+                    </div>
+                  </>
+                )}
+              </div>
+
+              {/* 8. Pendências de gestão */}
+              <div style={{ background:'var(--bg-card)', border:'1px solid var(--border)', borderRadius:'var(--radius)', overflow:'hidden' }}>
+                <div style={{ padding:'12px 16px', borderBottom:'1px solid var(--border)', fontSize:'13px', fontWeight:'500', color:'var(--text-1)' }}>Pendências de gestão — bens que precisam de atenção</div>
+                <div style={{ display:'flex', gap:'6px', padding:'12px 16px', flexWrap:'wrap', borderBottom:'1px solid var(--border)' }}>
+                  {[
+                    {k:'nf', l:'Sem nota fiscal', n:patrPendencias.nf.length},
+                    {k:'ministerio', l:'Sem ministério', n:patrPendencias.ministerio.length},
+                    {k:'valor', l:'Sem valor', n:patrPendencias.valor.length},
+                    {k:'local', l:'Sem localização', n:patrPendencias.local.length},
+                  ].map(o => (
+                    <button key={o.k} onClick={() => setPatrPend(o.k as any)} style={{ padding:'6px 12px', borderRadius:'99px', border:'1px solid', fontSize:'12px', cursor:'pointer', background: patrPend===o.k?'var(--brand)':'transparent', color: patrPend===o.k?'#fff':'var(--text-2)', borderColor: patrPend===o.k?'var(--brand)':'var(--border)' }}>{o.l} ({o.n})</button>
+                  ))}
+                </div>
+                {(() => {
+                  const list: any[] = patrPendencias[patrPend]
+                  if (list.length === 0) return <div style={{ padding:'20px', textAlign:'center', color:'var(--ok)', fontSize:'13px' }}>Nenhum bem nesta pendência. ✓</div>
+                  return (
+                    <div style={{ overflowX:'auto' }}>
+                      <table style={{ width:'100%', borderCollapse:'collapse' }}>
+                        <thead><tr style={{ background:'var(--bg-3)' }}>
+                          {['Bem','Categoria','Ministério','Valor atual'].map((h,i) => <th key={h} style={{ padding:'10px 14px', textAlign:i===3?'right':'left', fontSize:'11px', color:'var(--text-3)', fontWeight:'500', textTransform:'uppercase', letterSpacing:'0.04em', whiteSpace:'nowrap' }}>{h}</th>)}
+                        </tr></thead>
+                        <tbody>
+                          {list.map((p:any) => (
+                            <tr key={p.id} style={{ borderTop:'1px solid var(--border)' }}>
+                              <td style={{ padding:'10px 14px', fontSize:'13px', color:'var(--text-1)' }}>{p.name}</td>
+                              <td style={{ padding:'10px 14px', fontSize:'12px', color:'var(--text-2)' }}>{p.category || '—'}</td>
+                              <td style={{ padding:'10px 14px', fontSize:'12px', color:'var(--text-2)' }}>{p.ministry?.name || '—'}</td>
+                              <td style={{ padding:'10px 14px', fontSize:'13px', color:'var(--low)', textAlign:'right', fontFamily:'var(--font-mono)' }}>{p.acquisition_value != null ? fmtBRL(valorAtual(p)) : '—'}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )
+                })()}
+              </div>
+
+            </div>
+            )
           )}
         </>
       )}
