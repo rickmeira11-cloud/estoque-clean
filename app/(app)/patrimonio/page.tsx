@@ -437,6 +437,12 @@ export default function PatrimonioPage() {
           <p style={{ fontSize: '13px', color: 'var(--text-3)', marginTop: '4px' }}>Gestão de bens imobilizados</p>
         </div>
         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+          {isAdmin && (
+            <label style={{ padding: '8px 14px', borderRadius: 'var(--radius-sm)', background: 'var(--bg-3)', border: '1px solid var(--border)', color: 'var(--text-1)', cursor: 'pointer', fontSize: '13px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+              📥 Importar planilha
+              <input type="file" accept=".csv" onChange={handleImportFile} style={{ display: 'none' }}/>
+            </label>
+          )}
           {items.length > 0 && (
             <>
               <button onClick={exportDepreciacao} style={{ padding: '8px 14px', borderRadius: 'var(--radius-sm)', background: '#1a6e3c', color: '#fff', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: '500' }}>
