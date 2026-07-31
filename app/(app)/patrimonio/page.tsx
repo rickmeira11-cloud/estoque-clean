@@ -106,6 +106,7 @@ export default function PatrimonioPage() {
   const [search,     setSearch]     = useState('')
   const [filterStatus, setFilterStatus] = useState('all')
   const [detail,     setDetail]     = useState<Patrimonio | null>(null)
+  const [returnToDetailId, setReturnToDetailId] = useState<string | null>(null)
   const [emprestimos, setEmprestimos] = useState<any[]>([])
   const [importPreview, setImportPreview] = useState<any[] | null>(null)
   const [importing, setImporting] = useState(false)
@@ -144,6 +145,7 @@ export default function PatrimonioPage() {
     }
 
     setLoading(false)
+    return (pats as Patrimonio[]) || []
   }
 
   function openNew() {
@@ -432,7 +434,7 @@ export default function PatrimonioPage() {
   if (loading) return <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-3)' }}>Carregando...</div>
 
   // Se há um item em detalhe, mostrar a ficha
-  if (detail) return <PatrimonioDetalhe item={detail} ministries={ministries} onBack={() => { setDetail(null); loadBase() }} onEdit={(p) => { setDetail(null); openEdit(p) }} isAdmin={isAdmin} profile={profile}/>
+  if (detail) return <PatrimonioDetalhe item={detail} ministries={ministries} onBack={() => { setDetail(null); loadBase() }} onEdit={(p) => { setReturnToDetailId(p.id); setDetail(null); openEdit(p) }} isAdmin={isAdmin} profile={profile}/>
 
   return (
     <div>
@@ -686,7 +688,7 @@ export default function PatrimonioPage() {
           </div>
           {formError && <div style={{ marginBottom: '12px', color: 'var(--empty)', fontSize: '13px' }}>{formError}</div>}
           <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-            <button onClick={() => { setShowModal(false); setEditItem(null) }} style={{ padding: '8px 16px', borderRadius: 'var(--radius-sm)', background: 'transparent', border: '1px solid var(--border)', color: 'var(--text-2)', cursor: 'pointer', fontSize: '13px' }}>Cancelar</button>
+            <button onClick={() => { setShowModal(false); setEditItem(null); if (returnToDetailId) { const r = items.find(x => x.id === returnToDetailId); if (r) setDetail(r); setReturnToDetailId(null) } }} style={{ padding: '8px 16px', borderRadius: 'var(--radius-sm)', background: 'transparent', border: '1px solid var(--border)', color: 'var(--text-2)', cursor: 'pointer', fontSize: '13px' }}>Cancelar</button>
             <button onClick={handleSave} disabled={saving} style={{ padding: '8px 18px', borderRadius: 'var(--radius-sm)', background: 'var(--brand)', color: '#fff', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: '500' }}>{saving ? 'Salvando...' : editItem ? 'Atualizar' : 'Cadastrar'}</button>
           </div>
         </div>
