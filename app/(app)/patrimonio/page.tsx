@@ -218,7 +218,12 @@ export default function PatrimonioPage() {
 
     setShowModal(false); setForm(blank); setEditItem(null)
     setTimeout(() => setSuccess(''), 3000)
-    await loadBase()
+    const items2 = await loadBase()
+    if (returnToDetailId) {
+      const reopened = (items2 || []).find((x: Patrimonio) => x.id === returnToDetailId)
+      if (reopened) setDetail(reopened)
+      setReturnToDetailId(null)
+    }
     setSaving(false)
   }
 
