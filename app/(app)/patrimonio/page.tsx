@@ -85,6 +85,12 @@ function valorAquisicaoTotal(p: Patrimonio): number {
   return (p.acquisition_value || 0) * (p.quantity || 1)
 }
 
+// Tipos fixos do bem (campo category) — gerenciado só manualmente pelo dropdown
+const PATRIMONIO_TIPOS = [
+  'Áudio', 'Vídeo', 'Iluminação', 'Informática', 'Climatização',
+  'Instrumento Musical', 'Mobiliário', 'Eletrodoméstico', 'Estrutura', 'Outros',
+]
+
 const blank = {
   name: '', description: '', category: '', serial_number: '', barcode: '',
   acquisition_date: '', acquisition_value: '', useful_life_years: '5', depreciation_rate: '20',
@@ -834,7 +840,13 @@ export default function PatrimonioPage() {
               <label style={L}>Nome *</label>
               <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="Ex: Projetor Epson, Mesa de Som..."/>
             </div>
-            <div><label style={L}>Categoria</label><input value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))} placeholder="Áudio, Vídeo, Mobiliário..."/></div>
+            <div>
+              <label style={L}>Categoria (tipo do bem)</label>
+              <select value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))}>
+                <option value="">Selecione...</option>
+                {PATRIMONIO_TIPOS.map(t => <option key={t} value={t}>{t}</option>)}
+              </select>
+            </div>
             <div><label style={L}>Nº de série</label><input value={form.serial_number} onChange={e => setForm(f => ({ ...f, serial_number: e.target.value }))}/></div>
             <div><label style={L}>Código de barras</label><input value={form.barcode} onChange={e => setForm(f => ({ ...f, barcode: e.target.value }))}/></div>
             <div><label style={L}>Data de aquisição</label><input type="date" value={form.acquisition_date} onChange={e => setForm(f => ({ ...f, acquisition_date: e.target.value }))}/></div>
@@ -843,7 +855,7 @@ export default function PatrimonioPage() {
             <div><label style={L}>Quantidade</label><input type="number" min="1" value={form.quantity} onChange={e => setForm(f => ({ ...f, quantity: e.target.value }))}/></div>
             <div><label style={L}>Depreciação anual (%)</label><input type="number" step="0.1" value={form.depreciation_rate} onChange={e => setForm(f => ({ ...f, depreciation_rate: e.target.value }))}/></div>
             <div>
-              <label style={L}>Depósito</label>
+              <label style={L}>Localização</label>
               <select value={form.location_id} onChange={e => setForm(f => ({ ...f, location_id: e.target.value }))}>
                 <option value="">Selecione...</option>
                 {locations.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
