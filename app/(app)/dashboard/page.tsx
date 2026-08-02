@@ -518,10 +518,10 @@ export default function DashboardPage() {
       <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderLeft: '3px solid var(--brand)', borderRadius: 'var(--radius)', padding: '20px', marginBottom: '14px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: eventos.length > 0 ? '14px' : '0' }}>
           <span style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-1)', display: 'flex', alignItems: 'center', gap: '8px' }}>📅 Próximos eventos <span style={{ fontSize: '11px', color: 'var(--text-3)', fontWeight: '400' }}>· 7 dias</span></span>
-          <Link href="/admin/eventos" style={{ fontSize: '12px', color: 'var(--brand-light)', textDecoration: 'none', fontWeight: '500' }}>Ver agenda →</Link>
+          <a href="https://calendariopoiema.vercel.app/" target="_blank" rel="noopener noreferrer" style={{ fontSize: '12px', color: 'var(--brand-light)', textDecoration: 'none', fontWeight: '500' }}>Ver agenda →</a>
         </div>
         {eventos.length === 0 ? (
-          <div style={{ fontSize: '13px', color: 'var(--text-3)', padding: '4px 0' }}>Nenhum evento nos próximos 7 dias. <Link href="/admin/eventos" style={{ color: 'var(--brand-light)', textDecoration: 'none' }}>Agendar um evento →</Link></div>
+          <div style={{ fontSize: '13px', color: 'var(--text-3)', padding: '4px 0' }}>Nenhum evento nos próximos 7 dias. <a href="https://calendariopoiema.vercel.app/" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--brand-light)', textDecoration: 'none' }}>Agendar um evento →</a></div>
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '10px' }}>
             {eventos.map(ev => {
