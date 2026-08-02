@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useProfile } from '@/hooks/useProfile'
-import { mapRowPlanilha } from '@/lib/patrimonio-planilha'
+import { mapRowPlanilha, normalizeMinisterio, resolveMinistryId } from '@/lib/patrimonio-planilha'
 
 type Patrimonio = {
   id: string
@@ -71,7 +71,8 @@ function fmtBRL(v: number | null | undefined): string {
 function valorAtualUnitario(p: Patrimonio): number {
   if (!p.acquisition_value || !p.acquisition_date) return p.acquisition_value || 0
   const anos = (Date.now() - new Date(p.acquisition_date).getTime()) / (1000 * 60 * 60 * 24 * 365.25)
-  const valor = p.acquisition_value * Math.pow(1 - p.depreciation_rate / 100, anos)
+  const taxa = Math.min(100, Math.max(0, p.depreciation_rate || 0)) // clamp 0–100 evita base negativa/NaN
+  const valor = p.acquisition_value * Math.pow(1 - taxa / 100, anos)
   return Math.max(valor, p.acquisition_value * 0.1) // valor residual mínimo de 10%
 }
 
@@ -234,11 +235,12 @@ export default function PatrimonioPage() {
       const { error } = await sb.from('patrimonio').update(payload).eq('id', editItem.id)
       if (error) { setFormError(error.message); setSaving(false); return }
       setSuccess('Bem atualizado!')
-      try { await sb.from('audit_log').insert({ church_id: profile!.church_id, action: 'update_patrimonio', entity: 'patrimonio', description: 'Editou ' + payload.name }) } catch (_) {}
+      try { await sb.from('audit_log').insert({ church_id: profile!.church_id, user_id: profile!.id, action: 'update_patrimonio', entity: 'patrimonio', description: 'Editou ' + payload.name }) } catch (_) {}
     } else {
       const { error } = await sb.from('patrimonio').insert(payload)
       if (error) { setFormError(error.message); setSaving(false); return }
       setSuccess('Bem cadastrado!')
+      try { await sb.from('audit_log').insert({ church_id: profile!.church_id, user_id: profile!.id, action: 'create_patrimonio', entity: 'patrimonio', description: 'Cadastrou ' + payload.name }) } catch (_) {}
     }
 
     setShowModal(false); setForm(blank); setEditItem(null)
@@ -250,14 +252,6 @@ export default function PatrimonioPage() {
       setReturnToDetailId(null)
     }
     setSaving(false)
-  }
-
-  async function handleDelete(p: Patrimonio) {
-    if (!confirm(`Excluir "${p.name}" do patrimônio?`)) return
-    await createClient().from('patrimonio').update({ is_active: false }).eq('id', p.id)
-    setSuccess('Bem removido!')
-    setTimeout(() => setSuccess(''), 3000)
-    await loadBase()
   }
 
   async function handleImportFile(e: React.ChangeEvent<HTMLInputElement>) {
@@ -307,7 +301,11 @@ export default function PatrimonioPage() {
     const sb = createClient()
     let criados = 0, atualizados = 0
 
+    // Cache de ministérios existentes (normalizado -> id) — mesma lógica do sync (resolveMinistryId)
+    const minCache = new Map<string, string>(ministries.map(m => [normalizeMinisterio(m.name), m.id]))
+
     for (const row of importPreview.filter((r: any) => r.selected)) {
+      const ministry_id = await resolveMinistryId(sb, profile!.church_id, row.ministerio || '', minCache)
       const payload = {
         church_id:         profile!.church_id,
         external_id:       row.external_id,
@@ -322,6 +320,7 @@ export default function PatrimonioPage() {
         depreciation_rate: row.depreciation_rate,
         nfe_key:           row.nfe_key || null,
         supplier:          row.supplier || null,
+        ministry_id:       ministry_id,
       }
 
       if (row.action === 'atualizar') {
@@ -1014,7 +1013,7 @@ function PatrimonioDetalhe({ item, ministries, onBack, onEdit, isAdmin, profile 
     if (!confirm('Excluir "' + item.name + '" do patrimônio?')) return
     const sb = createClient()
     await sb.from('patrimonio').update({ is_active: false }).eq('id', item.id)
-    try { await sb.from('audit_log').insert({ church_id: profile.church_id, action: 'deactivate_patrimonio', entity: 'patrimonio', description: 'Inativou ' + item.name + ' do patrimônio' }) } catch (_) {}
+    try { await sb.from('audit_log').insert({ church_id: profile.church_id, user_id: profile.id, action: 'deactivate_patrimonio', entity: 'patrimonio', description: 'Inativou ' + item.name + ' do patrimônio' }) } catch (_) {}
     onBack()
   }
 
@@ -1042,6 +1041,7 @@ function PatrimonioDetalhe({ item, ministries, onBack, onEdit, isAdmin, profile 
       next_maintenance_date: mForm.next_maintenance_date || null,
       created_by: profile.id,
     })
+    try { await sb.from('audit_log').insert({ church_id: profile.church_id, user_id: profile.id, action: 'manutencao_patrimonio', entity: 'patrimonio', description: 'Registrou manutenção em ' + item.name }) } catch (_) {}
     setShowManut(false); setMForm({ date: '', description: '', cost: '', performed_by: '', next_maintenance_date: '' })
     await load(); setSaving(false)
   }
@@ -1057,6 +1057,7 @@ function PatrimonioDetalhe({ item, ministries, onBack, onEdit, isAdmin, profile 
       notes: eForm.notes || null, created_by: profile.id,
     })
     await sb.from('patrimonio').update({ status: 'emprestado' }).eq('id', item.id)
+    try { await sb.from('audit_log').insert({ church_id: profile.church_id, user_id: profile.id, action: 'emprestimo_patrimonio', entity: 'patrimonio', description: 'Emprestou ' + item.name + ' para ' + eForm.responsible_person }) } catch (_) {}
     setShowEmprestimo(false); setEForm({ responsible_person: '', expected_return_date: '', notes: '' })
     await load(); setSaving(false)
   }
@@ -1068,6 +1069,7 @@ function PatrimonioDetalhe({ item, ministries, onBack, onEdit, isAdmin, profile 
       actual_return_date: new Date().toISOString().split('T')[0], created_by: profile.id,
     })
     await sb.from('patrimonio').update({ status: 'ativo' }).eq('id', item.id)
+    try { await sb.from('audit_log').insert({ church_id: profile.church_id, user_id: profile.id, action: 'devolucao_patrimonio', entity: 'patrimonio', description: 'Registrou devolução de ' + item.name }) } catch (_) {}
     await load()
   }
 

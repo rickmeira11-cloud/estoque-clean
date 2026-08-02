@@ -220,7 +220,7 @@ export default function MovimentacoesPage() {
       const typeLabel = type === "in" ? "Entrada" : type === "out" ? "Sa\u00edda" : "Transfer\u00eancia"
       const locName = locations.find((l:any) => l.id === locationId)?.name || ""
       const desc = typeLabel + " de " + n + " " + selected!.name + (locName ? " \u2014 " + locName : "") + (note ? " (" + note + ")" : "")
-      await sb.from("audit_log").insert({ church_id: profile!.church_id, action: "create_movement", entity: "stock_movements", description: desc })
+      await sb.from("audit_log").insert({ church_id: profile!.church_id, user_id: profile!.id, action: "create_movement", entity: "stock_movements", description: desc })
     } catch (_) {}
     setSelected(null); setSearch('')
     await load()

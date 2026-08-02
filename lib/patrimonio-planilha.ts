@@ -32,6 +32,29 @@ export function normalizeMinisterio(s: string): string {
     .trim()
 }
 
+// Resolve o ministry_id pelo nome: casa por nome normalizado (via cache) ou cria um novo
+// ministério com o nome exato (sem duplicar por acento/caixa). O `cache` deve vir
+// pré-carregado com os ministérios existentes (normalizeMinisterio(name) -> id).
+// Reutilizado pelo sync da planilha e pela importação manual.
+export async function resolveMinistryId(
+  sb: any,
+  churchId: string,
+  nome: string,
+  cache: Map<string, string>,
+): Promise<string | null> {
+  if (!nome) return null
+  const key = normalizeMinisterio(nome)
+  if (cache.has(key)) return cache.get(key)!
+  const { data: novo, error } = await sb
+    .from('ministries')
+    .insert({ church_id: churchId, name: nome })
+    .select('id')
+    .single()
+  if (error || !novo) return null
+  cache.set(key, novo.id)
+  return novo.id
+}
+
 // Ler uma coluna tentando variações de nome de cabeçalho.
 export function getCol(row: Record<string, any>, keys: string[]): string {
   for (const k of keys) {

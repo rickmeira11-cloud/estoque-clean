@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import { mapRowPlanilha, normalizeMinisterio } from '@/lib/patrimonio-planilha'
+import { mapRowPlanilha, normalizeMinisterio, resolveMinistryId } from '@/lib/patrimonio-planilha'
 
 const CHURCH_ID = '8db14705-9da8-4844-8b01-a73845297831'
 const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSIVLMBw4H-EDIBNUqjLppbAIFZxrFfDoIbxfpULz2kKd46Z6JUx4ew-nxUjn---R21kR-l9k42OBIs/pub?gid=0&single=true&output=csv'
@@ -60,21 +60,6 @@ export async function POST() {
     const minByNorm = new Map<string, string>(
       (mins || []).map((m: any) => [normalizeMinisterio(m.name), m.id])
     )
-
-    // Resolver ministério pela regra: casa por nome normalizado ou cria novo (nome exato da planilha).
-    async function resolveMinistry(nome: string): Promise<string | null> {
-      if (!nome) return null
-      const key = normalizeMinisterio(nome)
-      if (minByNorm.has(key)) return minByNorm.get(key)!
-      const { data: novo, error } = await sb
-        .from('ministries')
-        .insert({ church_id: CHURCH_ID, name: nome })
-        .select('id')
-        .single()
-      if (error || !novo) return null
-      minByNorm.set(key, novo.id)
-      return novo.id
-    }
 
     // 3. Propostas pendentes existentes (dedupe por external_id + change_type)
     const { data: pendentes } = await sb
@@ -148,7 +133,7 @@ export async function POST() {
       if (!m.external_id || !m.name) continue
       seen.add(m.external_id)
 
-      const ministry_id = await resolveMinistry(m.ministerio)
+      const ministry_id = await resolveMinistryId(sb, CHURCH_ID, m.ministerio, minByNorm)
       const proposed = {
         external_id:       m.external_id,
         name:              m.name,

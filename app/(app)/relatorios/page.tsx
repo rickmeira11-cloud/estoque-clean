@@ -39,7 +39,8 @@ function fmtBRL(v: number | null | undefined): string {
 function valorAtualUnitario(p: any): number {
   if (!p.acquisition_value || !p.acquisition_date) return p.acquisition_value || 0
   const anos = (Date.now() - new Date(p.acquisition_date).getTime()) / (1000 * 60 * 60 * 24 * 365.25)
-  const valor = p.acquisition_value * Math.pow(1 - p.depreciation_rate / 100, anos)
+  const taxa = Math.min(100, Math.max(0, p.depreciation_rate || 0)) // clamp 0–100 evita base negativa/NaN
+  const valor = p.acquisition_value * Math.pow(1 - taxa / 100, anos)
   return Math.max(valor, p.acquisition_value * 0.1)
 }
 function valorAtual(p: any): number { return valorAtualUnitario(p) * (p.quantity || 1) }
@@ -242,7 +243,7 @@ export default function RelatoriosPage() {
     const sb = createClient()
     const pageSize = 20
     let q = sb.from('audit_log')
-      .select('id,action,entity,description,created_at,user_id', { count: 'exact' })
+      .select('id,action,entity,description,created_at,user_id,user:profiles(name,email)', { count: 'exact' })
       .eq('church_id', profile!.church_id)
       .gte('created_at', auditDateFrom)
       .lte('created_at', auditDateTo + 'T23:59:59.999Z')
