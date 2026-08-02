@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useProfile } from '@/hooks/useProfile'
 import { mapRowPlanilha, normalizeMinisterio, resolveMinistryId } from '@/lib/patrimonio-planilha'
+import { valorAtual, valorAtualUnitario, valorAquisicaoTotal } from '@/lib/patrimonio-calc'
 
 type Patrimonio = {
   id: string
@@ -67,24 +68,8 @@ function fmtBRL(v: number | null | undefined): string {
   return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
 }
 
-// Calcular valor depreciado
-function valorAtualUnitario(p: Patrimonio): number {
-  if (!p.acquisition_value || !p.acquisition_date) return p.acquisition_value || 0
-  const anos = (Date.now() - new Date(p.acquisition_date).getTime()) / (1000 * 60 * 60 * 24 * 365.25)
-  const taxa = Math.min(100, Math.max(0, p.depreciation_rate || 0)) // clamp 0–100 evita base negativa/NaN
-  const valor = p.acquisition_value * Math.pow(1 - taxa / 100, anos)
-  return Math.max(valor, p.acquisition_value * 0.1) // valor residual mínimo de 10%
-}
-
-// Valor total atual = unitario depreciado × quantidade
-function valorAtual(p: Patrimonio): number {
-  return valorAtualUnitario(p) * (p.quantity || 1)
-}
-
-// Valor total de aquisicao = unitario × quantidade
-function valorAquisicaoTotal(p: Patrimonio): number {
-  return (p.acquisition_value || 0) * (p.quantity || 1)
-}
+// Depreciação (linear por vida útil) vive em lib/patrimonio-calc.ts — importado acima,
+// compartilhado com o relatório para não divergir.
 
 // Tipos fixos do bem (campo category) — gerenciado só manualmente pelo dropdown
 const PATRIMONIO_TIPOS = [
@@ -1185,7 +1170,7 @@ function PatrimonioDetalhe({ item, ministries, onBack, onEdit, isAdmin, profile 
           <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '14px' }}>
             <div style={{ fontSize: '10px', color: 'var(--text-3)', textTransform: 'uppercase', fontWeight: '600' }}>Valor atual</div>
             <div style={{ fontSize: '18px', fontWeight: '700', color: 'var(--low)', fontFamily: 'var(--font-mono)', marginTop: '4px' }}>{fmtBRL(vAtual)}</div>
-            <div style={{ fontSize: '10px', color: 'var(--text-3)', marginTop: '2px' }}>{qtd > 1 ? `${fmtBRL(vUnitarioAtual)}/un · ` : ''}{anos.toFixed(1)} anos · {item.depreciation_rate}%/ano</div>
+            <div style={{ fontSize: '10px', color: 'var(--text-3)', marginTop: '2px' }}>{qtd > 1 ? `${fmtBRL(vUnitarioAtual)}/un · ` : ''}{item.useful_life_years || 5} anos de vida útil · {anos.toFixed(1)} decorridos</div>
           </div>
           <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '14px' }}>
             <div style={{ fontSize: '10px', color: 'var(--text-3)', textTransform: 'uppercase', fontWeight: '600' }}>Depreciação acumulada</div>

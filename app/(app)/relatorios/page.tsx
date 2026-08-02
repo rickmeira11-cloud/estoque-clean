@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useProfile } from '@/hooks/useProfile'
+import { valorAtual, valorAquisicaoTotal } from '@/lib/patrimonio-calc'
 import {
   BarChart, Bar, LineChart, Line, XAxis, YAxis,
   CartesianGrid, Tooltip, ResponsiveContainer, Cell
@@ -35,16 +36,7 @@ function fmtBRL(v: number | null | undefined): string {
   if (v == null || isNaN(v)) return 'R$ 0,00'
   return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
 }
-// Valor depreciado unitário (depreciação exponencial, piso de 10%)
-function valorAtualUnitario(p: any): number {
-  if (!p.acquisition_value || !p.acquisition_date) return p.acquisition_value || 0
-  const anos = (Date.now() - new Date(p.acquisition_date).getTime()) / (1000 * 60 * 60 * 24 * 365.25)
-  const taxa = Math.min(100, Math.max(0, p.depreciation_rate || 0)) // clamp 0–100 evita base negativa/NaN
-  const valor = p.acquisition_value * Math.pow(1 - taxa / 100, anos)
-  return Math.max(valor, p.acquisition_value * 0.1)
-}
-function valorAtual(p: any): number { return valorAtualUnitario(p) * (p.quantity || 1) }
-function valorAquisicaoTotal(p: any): number { return (p.acquisition_value || 0) * (p.quantity || 1) }
+// Depreciação (linear por vida útil) importada de lib/patrimonio-calc.ts — mesma fonte da tela.
 
 const PATR_STATUS: { id: string; label: string; color: string; bg: string }[] = [
   { id:'ativo',         label:'Ativo',         color:'var(--ok)',    bg:'var(--ok-dim)' },
