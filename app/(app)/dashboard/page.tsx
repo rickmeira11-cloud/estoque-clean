@@ -87,7 +87,7 @@ const panelStyle: React.CSSProperties = {
   padding: '20px', display: 'flex', flexDirection: 'column', minHeight: '300px',
 }
 const panelHeader: React.CSSProperties = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }
-const panelTitle: React.CSSProperties = { fontSize: '13px', fontWeight: '500', color: 'var(--text-1)' }
+const panelTitle: React.CSSProperties = { fontSize: '13px', fontWeight: '600', color: 'var(--text-1)' }
 
 // Grids fluidos — reflow automático, sem largura fixa que aperta
 const gridKpis: React.CSSProperties  = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '14px' }
@@ -338,10 +338,10 @@ export default function DashboardPage() {
       {/* ═══════════ FAIXA 1 — ESTOQUE ═══════════ */}
       {/* KPIs */}
       <div style={{ ...gridKpis, marginBottom: '14px' }}>
-        <Card label="Total de itens"  value={stats.total}   color="var(--brand)"  icon="📦" href="/estoque" sub={`${stats.ok} em estoque`}/>
+        <Card label="Total de itens"  value={stats.total}   color="var(--border-md)"  icon="📦" href="/estoque" sub={`${stats.ok} em estoque`}/>
         <Card label="Estoque baixo"   value={stats.low}     color={stats.low > 0 ? 'var(--low)' : 'var(--border-md)'} icon="⚠️" href="/estoque" sub={`${stats.empty} zerado(s)`}/>
-        <Card label={`Entradas (${period === '7d' ? '7d' : period === '30d' ? '30d' : '3m'})`} value={stats.entries} color="var(--ok)"    icon="↑" sub="unidades recebidas"/>
-        <Card label={`Saídas (${period === '7d' ? '7d' : period === '30d' ? '30d' : '3m'})`}   value={stats.exits}   color="var(--empty)" icon="↓" sub="unidades retiradas"/>
+        <Card label={`Entradas (${period === '7d' ? '7d' : period === '30d' ? '30d' : '3m'})`} value={stats.entries} color="var(--border-md)" icon="↑" sub="unidades recebidas"/>
+        <Card label={`Saídas (${period === '7d' ? '7d' : period === '30d' ? '30d' : '3m'})`}   value={stats.exits}   color="var(--border-md)" icon="↓" sub="unidades retiradas"/>
       </div>
 
       {/* Barra de status */}
