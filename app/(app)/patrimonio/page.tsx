@@ -105,6 +105,7 @@ export default function PatrimonioPage() {
   const [detail,     setDetail]     = useState<Patrimonio | null>(null)
   const [returnToDetailId, setReturnToDetailId] = useState<string | null>(null)
   const [emprestimos, setEmprestimos] = useState<any[]>([])
+  const [manutAvisos, setManutAvisos] = useState<any[]>([])
   const [importPreview, setImportPreview] = useState<any[] | null>(null)
   const [importing, setImporting] = useState(false)
   const [importMsg, setImportMsg] = useState('')
@@ -155,6 +156,18 @@ export default function PatrimonioPage() {
       .eq('status', 'pendente')
       .order('created_at', { ascending: false })
     setPendingChanges(pend || [])
+
+    // Carregar manutenções (mais recente por bem) para o alerta de next_maintenance_date
+    const { data: manuts } = await sb
+      .from('patrimonio_manutencoes')
+      .select('patrimonio_id,date,next_maintenance_date,patrimonio:patrimonio(name,is_active)')
+      .eq('church_id', profile!.church_id)
+      .order('date', { ascending: false })
+    const recentePorBem = new Map<string, any>()
+    for (const m of (manuts || [])) {
+      if (!recentePorBem.has(m.patrimonio_id)) recentePorBem.set(m.patrimonio_id, m) // desc → 1ª é a mais recente
+    }
+    setManutAvisos(Array.from(recentePorBem.values()).filter((m: any) => m.next_maintenance_date && m.patrimonio?.is_active))
 
     setLoading(false)
     return (pats as Patrimonio[]) || []
@@ -657,6 +670,46 @@ export default function PatrimonioPage() {
         )
       })()}
 
+      {/* Alertas de manutenção a vencer/vencida (next_maintenance_date da manutenção mais recente) */}
+      {manutAvisos.length > 0 && (() => {
+        const hoje = new Date(); hoje.setHours(0,0,0,0)
+        const dias = (d: string) => Math.round((new Date(d).getTime() - hoje.getTime()) / (1000*60*60*24))
+        const vencidas = manutAvisos.filter(m => new Date(m.next_maintenance_date) < hoje)
+        const proximas = manutAvisos.filter(m => {
+          const diff = (new Date(m.next_maintenance_date).getTime() - hoje.getTime()) / (1000*60*60*24)
+          return diff >= 0 && diff <= 30
+        })
+        if (vencidas.length === 0 && proximas.length === 0) return null
+        return (
+          <div style={{ marginBottom: '20px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            {vencidas.length > 0 && (
+              <div style={{ padding: '12px 16px', borderRadius: 'var(--radius)', background: 'var(--empty-dim)', border: '1px solid rgba(239,68,68,0.2)' }}>
+                <div style={{ fontSize: '13px', fontWeight: '600', color: 'var(--empty)', marginBottom: '6px' }}>
+                  🔴 {vencidas.length} manutenção(ões) vencida(s)
+                </div>
+                {vencidas.map(m => (
+                  <div key={m.patrimonio_id} style={{ fontSize: '12px', color: 'var(--text-2)', marginTop: '2px' }}>
+                    <strong>{m.patrimonio?.name}</strong> · prevista {new Date(m.next_maintenance_date + 'T12:00:00').toLocaleDateString('pt-BR')} ({Math.abs(dias(m.next_maintenance_date))} dias atrás)
+                  </div>
+                ))}
+              </div>
+            )}
+            {proximas.length > 0 && (
+              <div style={{ padding: '12px 16px', borderRadius: 'var(--radius)', background: 'var(--low-dim)', border: '1px solid rgba(245,158,11,0.2)' }}>
+                <div style={{ fontSize: '13px', fontWeight: '600', color: 'var(--low)', marginBottom: '6px' }}>
+                  🟡 {proximas.length} manutenção(ões) nos próximos 30 dias
+                </div>
+                {proximas.map(m => (
+                  <div key={m.patrimonio_id} style={{ fontSize: '12px', color: 'var(--text-2)', marginTop: '2px' }}>
+                    <strong>{m.patrimonio?.name}</strong> · até {new Date(m.next_maintenance_date + 'T12:00:00').toLocaleDateString('pt-BR')} (em {dias(m.next_maintenance_date)} dias)
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )
+      })()}
+
       {/* Cards resumo */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px', marginBottom: '20px' }}>
         <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '16px', borderTop: '2px solid var(--brand)' }}>
@@ -992,6 +1045,7 @@ function PatrimonioDetalhe({ item, ministries, onBack, onEdit, isAdmin, profile 
   const [mForm, setMForm] = useState({ date: '', description: '', cost: '', performed_by: '', next_maintenance_date: '' })
   const [eForm, setEForm] = useState({ responsible_person: '', expected_return_date: '', notes: '' })
   const [saving, setSaving] = useState(false)
+  const [status, setStatus] = useState(item.status) // status local: reflete mudanças na hora (o item é prop do pai)
 
   // Excluir = inativar (nunca delete físico) + registrar no audit_log
   async function excluirBem() {
@@ -1002,7 +1056,7 @@ function PatrimonioDetalhe({ item, ministries, onBack, onEdit, isAdmin, profile 
     onBack()
   }
 
-  useEffect(() => { load() }, [item.id])
+  useEffect(() => { load(); setStatus(item.status) }, [item.id])
 
   async function load() {
     const sb = createClient()
@@ -1026,6 +1080,11 @@ function PatrimonioDetalhe({ item, ministries, onBack, onEdit, isAdmin, profile 
       next_maintenance_date: mForm.next_maintenance_date || null,
       created_by: profile.id,
     })
+    // Só entra em manutenção se estiver ativo (não interromper empréstimo/baixa)
+    if (status === 'ativo') {
+      await sb.from('patrimonio').update({ status: 'em_manutencao' }).eq('id', item.id)
+      setStatus('em_manutencao')
+    }
     try { await sb.from('audit_log').insert({ church_id: profile.church_id, user_id: profile.id, action: 'manutencao_patrimonio', entity: 'patrimonio', description: 'Registrou manutenção em ' + item.name }) } catch (_) {}
     setShowManut(false); setMForm({ date: '', description: '', cost: '', performed_by: '', next_maintenance_date: '' })
     await load(); setSaving(false)
@@ -1042,6 +1101,7 @@ function PatrimonioDetalhe({ item, ministries, onBack, onEdit, isAdmin, profile 
       notes: eForm.notes || null, created_by: profile.id,
     })
     await sb.from('patrimonio').update({ status: 'emprestado' }).eq('id', item.id)
+    setStatus('emprestado')
     try { await sb.from('audit_log').insert({ church_id: profile.church_id, user_id: profile.id, action: 'emprestimo_patrimonio', entity: 'patrimonio', description: 'Emprestou ' + item.name + ' para ' + eForm.responsible_person }) } catch (_) {}
     setShowEmprestimo(false); setEForm({ responsible_person: '', expected_return_date: '', notes: '' })
     await load(); setSaving(false)
@@ -1054,7 +1114,16 @@ function PatrimonioDetalhe({ item, ministries, onBack, onEdit, isAdmin, profile 
       actual_return_date: new Date().toISOString().split('T')[0], created_by: profile.id,
     })
     await sb.from('patrimonio').update({ status: 'ativo' }).eq('id', item.id)
+    setStatus('ativo')
     try { await sb.from('audit_log').insert({ church_id: profile.church_id, user_id: profile.id, action: 'devolucao_patrimonio', entity: 'patrimonio', description: 'Registrou devolução de ' + item.name }) } catch (_) {}
+    await load()
+  }
+
+  async function concluirManutencao() {
+    const sb = createClient()
+    await sb.from('patrimonio').update({ status: 'ativo' }).eq('id', item.id)
+    setStatus('ativo')
+    try { await sb.from('audit_log').insert({ church_id: profile.church_id, user_id: profile.id, action: 'conclusao_manutencao_patrimonio', entity: 'patrimonio', description: 'Concluiu manutenção de ' + item.name }) } catch (_) {}
     await load()
   }
 
@@ -1140,17 +1209,19 @@ function PatrimonioDetalhe({ item, ministries, onBack, onEdit, isAdmin, profile 
             {item.category && <span>📁 {item.category}</span>}
             {item.ministry?.name && <span>👥 {item.ministry.name}</span>}
             {item.physical_location && <span>📍 {item.physical_location}</span>}
-            <span style={{ padding: '0 8px', borderRadius: '99px', background: STATUS_CFG[item.status].bg, color: STATUS_CFG[item.status].color, fontWeight: '600' }}>{STATUS_CFG[item.status].label}</span>
+            <span style={{ padding: '0 8px', borderRadius: '99px', background: STATUS_CFG[status].bg, color: STATUS_CFG[status].color, fontWeight: '600' }}>{STATUS_CFG[status].label}</span>
           </div>
         </div>
         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
           {isAdmin && <button onClick={() => onEdit(item)} style={{ padding: '8px 14px', borderRadius: 'var(--radius-sm)', background: 'var(--bg-3)', border: '1px solid var(--border)', color: 'var(--text-1)', cursor: 'pointer', fontSize: '13px' }}>Editar</button>}
           {isAdmin && <button onClick={excluirBem} style={{ padding: '8px 14px', borderRadius: 'var(--radius-sm)', background: 'var(--empty-dim)', border: '1px solid var(--empty)', color: 'var(--empty)', cursor: 'pointer', fontSize: '13px' }}>Excluir</button>}
           <button onClick={() => setShowManut(true)} style={{ padding: '8px 14px', borderRadius: 'var(--radius-sm)', background: 'var(--bg-3)', border: '1px solid var(--border)', color: 'var(--text-1)', cursor: 'pointer', fontSize: '13px' }}>+ Manutenção</button>
-          {item.status === 'emprestado' ? (<>
+          {status === 'emprestado' ? (<>
             <button onClick={gerarTermo} style={{ padding: '8px 14px', borderRadius: 'var(--radius-sm)', background: 'var(--bg-3)', border: '1px solid var(--border)', color: 'var(--text-1)', cursor: 'pointer', fontSize: '13px' }}>📄 Termo</button>
             <button onClick={devolverEmprestimo} style={{ padding: '8px 14px', borderRadius: 'var(--radius-sm)', background: 'var(--ok)', color: '#fff', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: '500' }}>Registrar devolução</button>
-          </>) : (
+          </>) : status === 'em_manutencao' ? (
+            <button onClick={concluirManutencao} style={{ padding: '8px 14px', borderRadius: 'var(--radius-sm)', background: 'var(--ok)', color: '#fff', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: '500' }}>Concluir manutenção</button>
+          ) : (
             <button onClick={() => setShowEmprestimo(true)} style={{ padding: '8px 14px', borderRadius: 'var(--radius-sm)', background: 'var(--info)', color: '#fff', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: '500' }}>Emprestar</button>
           )}
         </div>
