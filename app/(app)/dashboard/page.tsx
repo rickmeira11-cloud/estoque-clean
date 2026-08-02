@@ -2,10 +2,10 @@
 import { useEffect, useState, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useProfile } from '@/hooks/useProfile'
-import { useStockAlerts } from '@/hooks/useStockAlerts'
+import { valorAtual } from '@/lib/patrimonio-calc'
 import Link from 'next/link'
 import {
-  LineChart, Line, BarChart, Bar, PieChart, Pie, Cell,
+  LineChart, Line, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from 'recharts'
 import type { Product } from '@/types'
@@ -20,6 +20,11 @@ type Movement = {
 // ── helpers ─────────────────────────────────────────────────────
 const COLORS = ['#6366f1','#22c55e','#f59e0b','#ef4444','#a78bfa','#34d399','#fb923c','#60a5fa']
 const tooltipStyle = { background:'var(--bg-2)', border:'1px solid var(--border-md)', borderRadius:'8px', fontSize:'12px', color:'var(--text-1)' }
+
+function fmtBRL(v: number | null | undefined): string {
+  if (v == null || isNaN(v)) return 'R$ 0,00'
+  return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+}
 
 function weekKey(date: Date) {
   const d = new Date(date)
@@ -46,25 +51,25 @@ function Card({ label, value, sub, color, icon, href }: {
   const inner = (
     <div style={{
       background: 'var(--bg-card)', border: '1px solid var(--border)',
-      borderRadius: 'var(--radius)', padding: '16px 20px',
+      borderRadius: 'var(--radius)', padding: '18px 20px',
       borderTop: `2px solid ${color}`,
       cursor: href ? 'pointer' : 'default',
-      transition: 'transform 0.15s',
+      transition: 'transform 0.15s', height: '100%',
     }}
       onMouseEnter={e => { if (href) (e.currentTarget as HTMLElement).style.transform = 'translateY(-1px)' }}
       onMouseLeave={e => { if (href) (e.currentTarget as HTMLElement).style.transform = 'translateY(0)' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '10px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
         <div style={{ fontSize: '10px', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: '600' }}>{label}</div>
         <div style={{ fontSize: '18px' }}>{icon}</div>
       </div>
       <div style={{ fontSize: '26px', fontWeight: '700', color: 'var(--text-1)', lineHeight: 1, fontFamily: 'var(--font-mono)' }}>{value}</div>
-      {sub && <div style={{ fontSize: '11px', color: 'var(--text-3)', marginTop: '5px' }}>{sub}</div>}
+      {sub && <div style={{ fontSize: '11px', color: 'var(--text-3)', marginTop: '6px' }}>{sub}</div>}
     </div>
   )
   return href ? <Link href={href} style={{ textDecoration: 'none' }}>{inner}</Link> : inner
 }
 
-function PeriodBtn({ v, label, active, onClick }: { v: string; label: string; active: boolean; onClick: () => void }) {
+function PeriodBtn({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
   return (
     <button onClick={onClick} style={{
       padding: '5px 12px', borderRadius: '99px', fontSize: '12px', cursor: 'pointer',
@@ -76,14 +81,28 @@ function PeriodBtn({ v, label, active, onClick }: { v: string; label: string; ac
   )
 }
 
+// Painel padrão (respiro consistente, cresce com o conteúdo)
+const panelStyle: React.CSSProperties = {
+  background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 'var(--radius)',
+  padding: '20px', display: 'flex', flexDirection: 'column', minHeight: '300px',
+}
+const panelHeader: React.CSSProperties = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }
+const panelTitle: React.CSSProperties = { fontSize: '13px', fontWeight: '500', color: 'var(--text-1)' }
+
+// Grids fluidos — reflow automático, sem largura fixa que aperta
+const gridKpis: React.CSSProperties  = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '14px' }
+const gridPanels: React.CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '14px' }
+
 // ── página ──────────────────────────────────────────────────────
 export default function DashboardPage() {
   const { profile } = useProfile()
-  const { expiryAlerts, expiryCount } = useStockAlerts()
 
   const [products,  setProducts]  = useState<Product[]>([])
   const [movements, setMovements] = useState<Movement[]>([])
-  const [locSaldo,  setLocSaldo]  = useState<{ name: string; qty: number }[]>([])
+  const [patItems,  setPatItems]  = useState<any[]>([])
+  const [emprestimos, setEmprestimos] = useState<any[]>([])
+  const [manutAvisos, setManutAvisos] = useState<any[]>([])
+  const [eventos,   setEventos]   = useState<any[]>([])
   const [loading,   setLoading]   = useState(true)
   const [period,    setPeriod]    = useState<'7d' | '30d' | '90d'>('90d')
 
@@ -96,13 +115,19 @@ export default function DashboardPage() {
     setLoading(true)
     const sb = createClient()
     const since = getCutoff('90d').toISOString()
+    const hojeStr = new Date().toISOString().split('T')[0]
+    const in7 = new Date(); in7.setDate(in7.getDate() + 7)
+    const in7Str = in7.toISOString().split('T')[0]
 
-    // Queries paralelas — sem waterfall
+    // Queries paralelas — sem waterfall (nenhum canal realtime novo)
     const [
       { data: prods },
       { data: movs },
       { data: locs },
-      { data: balData },
+      { data: pats },
+      { data: emps },
+      { data: manuts },
+      { data: evs },
     ] = await Promise.all([
       sb.from('products')
         .select('id,name,quantity,min_stock,category,unit,expiration_date,is_active')
@@ -117,9 +142,26 @@ export default function DashboardPage() {
       sb.from('locations')
         .select('id,name')
         .eq('church_id', profile!.church_id),
-      sb.from('product_location_balance')
-        .select('location_name,location_quantity')
-        .eq('church_id', profile!.church_id),
+      sb.from('patrimonio')
+        .select('id,acquisition_value,acquisition_date,useful_life_years,quantity,nfe_key,nfe_file_url,physical_location,status')
+        .eq('church_id', profile!.church_id)
+        .eq('is_active', true),
+      sb.from('patrimonio_movimentacoes')
+        .select('id,expected_return_date,patrimonio:patrimonio(name,status)')
+        .eq('church_id', profile!.church_id)
+        .eq('type', 'emprestimo')
+        .order('expected_return_date', { ascending: true }),
+      sb.from('patrimonio_manutencoes')
+        .select('patrimonio_id,date,next_maintenance_date,patrimonio:patrimonio(name,is_active)')
+        .eq('church_id', profile!.church_id)
+        .order('date', { ascending: false }),
+      sb.from('events')
+        .select('id,name,event_date')
+        .eq('church_id', profile!.church_id)
+        .eq('is_active', true)
+        .gte('event_date', hojeStr)
+        .lte('event_date', in7Str)
+        .order('event_date', { ascending: true }),
     ])
 
     if (prods) setProducts(prods as Product[])
@@ -133,24 +175,21 @@ export default function DashboardPage() {
       setMovements(withLoc as Movement[])
     }
 
-    if (balData) {
-      const agg: Record<string, number> = {}
-      balData.forEach((r: any) => {
-        if (!agg[r.location_name]) agg[r.location_name] = 0
-        agg[r.location_name] += (r.location_quantity || 0)
-      })
-      setLocSaldo(
-        Object.entries(agg)
-          .filter(([, q]) => q > 0)
-          .sort(([, a], [, b]) => b - a)
-          .map(([name, qty]) => ({ name, qty }))
-      )
-    }
+    setPatItems(pats || [])
+    setEmprestimos((emps || []).filter((e: any) => e.patrimonio?.status === 'emprestado'))
 
+    // Manutenção mais recente por bem → base do alerta de next_maintenance_date
+    const recentePorBem = new Map<string, any>()
+    for (const m of (manuts || [])) {
+      if (!recentePorBem.has(m.patrimonio_id)) recentePorBem.set(m.patrimonio_id, m)
+    }
+    setManutAvisos(Array.from(recentePorBem.values()).filter((m: any) => m.next_maintenance_date && m.patrimonio?.is_active))
+
+    setEventos(evs || [])
     setLoading(false)
   }
 
-
+  // Realtime — só estoque (inalterado, sem canais novos)
   useEffect(() => {
     if (!profile?.church_id) return
     const sb = createClient()
@@ -164,7 +203,7 @@ export default function DashboardPage() {
     return () => { sb.removeChannel(channel) }
   }, [profile?.church_id])
 
-  // ── cálculos memoizados — só recalcula quando movements ou period mudam ──
+  // ── estoque: cálculos memoizados ──
   const filtered = useMemo(() => {
     const cutoff = getCutoff(period)
     return movements.filter(m => new Date(m.created_at) >= cutoff)
@@ -183,21 +222,12 @@ export default function DashboardPage() {
       .slice(0, 8),
   }), [products, filtered])
 
-
-  // Previsao de zeramento — baseado no consumo dos ultimos 30 dias
+  // Previsão de zeramento — consumo dos últimos 30 dias
   const forecast = useMemo(() => {
     const cutoff30 = new Date(); cutoff30.setDate(cutoff30.getDate() - 30)
     const movs30 = movements.filter(m => new Date(m.created_at) >= cutoff30 && m.type === 'out')
-    
-    // Consumo por produto nos ultimos 30 dias
     const consumoMap: Record<string, number> = {}
-    movs30.forEach(m => {
-      if (!m.product?.name) return
-      const key = m.product.name
-      consumoMap[key] = (consumoMap[key] || 0) + m.quantity
-    })
-    
-    // Calcular dias para zerar por produto
+    movs30.forEach(m => { if (m.product?.name) consumoMap[m.product.name] = (consumoMap[m.product.name] || 0) + m.quantity })
     return products
       .filter(p => p.quantity > 0)
       .map(p => {
@@ -216,27 +246,24 @@ export default function DashboardPage() {
     filtered.forEach(m => {
       const key = weekKey(new Date(m.created_at))
       const d = new Date(key)
-      if (!weekMap[key]) weekMap[key] = {
-        label: d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
-        entradas: 0, saidas: 0
-      }
+      if (!weekMap[key]) weekMap[key] = { label: d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }), entradas: 0, saidas: 0 }
       if (m.type === 'in')  weekMap[key].entradas += m.quantity
       if (m.type === 'out') weekMap[key].saidas   += m.quantity
     })
     return Object.entries(weekMap).sort(([a], [b]) => a.localeCompare(b)).map(([, v]) => v)
   }, [filtered])
 
-  const barData = useMemo(() => {
+  // Top produtos — lista (nomes completos, truncados via CSS)
+  const topProdutos = useMemo(() => {
     const prodMap: Record<string, number> = {}
     filtered.forEach(m => {
       if (m.type !== 'in' && m.type !== 'out') return
       const name = m.product?.name || 'Desconhecido'
       prodMap[name] = (prodMap[name] || 0) + m.quantity
     })
-    return Object.entries(prodMap)
-      .sort(([, a], [, b]) => b - a).slice(0, 8)
-      .map(([name, total]) => ({ name: name.length > 14 ? name.slice(0, 12) + '…' : name, total }))
+    return Object.entries(prodMap).sort(([, a], [, b]) => b - a).slice(0, 8).map(([name, total]) => ({ name, total }))
   }, [filtered])
+  const maxTop = topProdutos[0]?.total || 1
 
   const pieData = useMemo(() => {
     const catMap: Record<string, number> = {}
@@ -248,22 +275,38 @@ export default function DashboardPage() {
     return Object.entries(catMap).sort(([, a], [, b]) => b - a).map(([name, value]) => ({ name, value }))
   }, [filtered])
 
-  const locMovData = useMemo(() => {
-    const map: Record<string, { entradas: number; saidas: number }> = {}
-    filtered.forEach(m => {
-      const loc = m.location?.name || 'Sem depósito'
-      if (!map[loc]) map[loc] = { entradas: 0, saidas: 0 }
-      if (m.type === 'in')  map[loc].entradas += m.quantity
-      if (m.type === 'out') map[loc].saidas   += m.quantity
-    })
-    return Object.entries(map).sort(([, a], [, b]) => (b.entradas + b.saidas) - (a.entradas + a.saidas))
-  }, [filtered])
-
-  // Últimas 6 movimentações — pegar do fim do array (ordem ASC)
   const recent = useMemo(() => movements.slice(-6).reverse(), [movements])
+
+  // ── patrimônio: derivados ──
+  const patValor = useMemo(() => patItems.reduce((s, p) => s + valorAtual(p), 0), [patItems])
+
+  const empHoje = () => { const d = new Date(); d.setHours(0,0,0,0); return d }
+  const empVencidos = useMemo(() => {
+    const hoje = empHoje()
+    return emprestimos.filter(e => e.expected_return_date && new Date(e.expected_return_date) < hoje)
+  }, [emprestimos])
+
+  const manutStats = useMemo(() => {
+    const hoje = new Date(); hoje.setHours(0,0,0,0)
+    const vencidas = manutAvisos.filter(m => new Date(m.next_maintenance_date) < hoje)
+    const proximas = manutAvisos.filter(m => {
+      const diff = (new Date(m.next_maintenance_date).getTime() - hoje.getTime()) / (1000*60*60*24)
+      return diff >= 0 && diff <= 30
+    })
+    return { vencidas: vencidas.length, proximas: proximas.length }
+  }, [manutAvisos])
+
+  const pendencias = useMemo(() => {
+    const semNF    = patItems.filter(p => !p.nfe_key && !p.nfe_file_url).length
+    const semValor = patItems.filter(p => p.acquisition_value == null).length
+    const semLocal = patItems.filter(p => !p.physical_location).length
+    const total    = patItems.filter(p => (!p.nfe_key && !p.nfe_file_url) || p.acquisition_value == null || !p.physical_location).length
+    return { semNF, semValor, semLocal, total }
+  }, [patItems])
 
   const hora = new Date().getHours()
   const firstName = profile?.name?.split(' ')[0] || ''
+  const NOMES_DIA = ['dom','seg','ter','qua','qui','sex','sáb']
 
   if (loading) return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
@@ -276,7 +319,7 @@ export default function DashboardPage() {
   return (
     <div>
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '22px', flexWrap: 'wrap', gap: '12px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '24px', flexWrap: 'wrap', gap: '12px' }}>
         <div>
           <h1 style={{ fontSize: '22px', fontWeight: '600', letterSpacing: '-0.02em' }}>
             {hora < 12 ? 'Bom dia' : hora < 18 ? 'Boa tarde' : 'Boa noite'}{firstName ? `, ${firstName}` : ''}!
@@ -286,61 +329,37 @@ export default function DashboardPage() {
           </p>
         </div>
         <div style={{ display: 'flex', gap: '6px' }} className="dashboard-period">
-          <PeriodBtn v="7d"  label="7 dias"   active={period === '7d'}  onClick={() => setPeriod('7d')}/>
-          <PeriodBtn v="30d" label="30 dias"  active={period === '30d'} onClick={() => setPeriod('30d')}/>
-          <PeriodBtn v="90d" label="3 meses"  active={period === '90d'} onClick={() => setPeriod('90d')}/>
+          <PeriodBtn label="7 dias"  active={period === '7d'}  onClick={() => setPeriod('7d')}/>
+          <PeriodBtn label="30 dias" active={period === '30d'} onClick={() => setPeriod('30d')}/>
+          <PeriodBtn label="3 meses" active={period === '90d'} onClick={() => setPeriod('90d')}/>
         </div>
       </div>
 
-      {/* Cards principais */}
-      <div className="stats-grid dashboard-stats" style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '12px', marginBottom: '14px' }}>
-        <Card label="Total de itens"  value={stats.total}   color="var(--brand)"  icon="📦" href="/estoque"       sub={`${stats.ok} em estoque`}/>
-        <Card label="Estoque baixo"   value={stats.low}     color="var(--low)"    icon="⚠️" href="/estoque"       sub={`${stats.empty} zerado(s)`}/>
+      {/* ═══════════ FAIXA 1 — ESTOQUE ═══════════ */}
+      {/* KPIs */}
+      <div style={{ ...gridKpis, marginBottom: '14px' }}>
+        <Card label="Total de itens"  value={stats.total}   color="var(--brand)"  icon="📦" href="/estoque" sub={`${stats.ok} em estoque`}/>
+        <Card label="Estoque baixo"   value={stats.low}     color={stats.low > 0 ? 'var(--low)' : 'var(--border-md)'} icon="⚠️" href="/estoque" sub={`${stats.empty} zerado(s)`}/>
         <Card label={`Entradas (${period === '7d' ? '7d' : period === '30d' ? '30d' : '3m'})`} value={stats.entries} color="var(--ok)"    icon="↑" sub="unidades recebidas"/>
         <Card label={`Saídas (${period === '7d' ? '7d' : period === '30d' ? '30d' : '3m'})`}   value={stats.exits}   color="var(--empty)" icon="↓" sub="unidades retiradas"/>
       </div>
 
       {/* Barra de status */}
       {stats.total > 0 && (
-        <div style={{ display: 'flex', height: '4px', borderRadius: '99px', overflow: 'hidden', gap: '2px', marginBottom: '20px' }}>
+        <div style={{ display: 'flex', height: '4px', borderRadius: '99px', overflow: 'hidden', gap: '2px', marginBottom: '24px' }}>
           <div style={{ flex: stats.ok    || 0.01, background: 'var(--ok)',    transition: 'flex 0.6s' }}/>
           <div style={{ flex: stats.low   || 0.01, background: 'var(--low)',   transition: 'flex 0.6s' }}/>
           <div style={{ flex: stats.empty || 0.01, background: 'var(--empty)', transition: 'flex 0.6s' }}/>
         </div>
       )}
 
-      {/* Grid 4 cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '14px', marginBottom: '14px' }} className="bottom-grid dashboard-grid">
-
-        {/* Saldo por depósito — via view */}
-        <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '18px', display: 'flex', flexDirection: 'column', height: '320px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
-            <span style={{ fontSize: '13px', fontWeight: '500', color: 'var(--text-1)' }}>Saldo por depósito</span>
-            <Link href="/estoque" style={{ fontSize: '11px', color: 'var(--brand-light)', textDecoration: 'none' }}>Ver estoque →</Link>
-          </div>
-          {locSaldo.length === 0 ? (
-            <div style={{ fontSize: '12px', color: 'var(--text-3)', textAlign: 'center', padding: '20px 0' }}>Nenhum saldo registrado</div>
-          ) : (
-            <div style={{ flex: 1, overflowY: 'auto', minHeight: 0, display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              {locSaldo.map(l => (
-                <div key={l.name} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 10px', borderRadius: 'var(--radius-sm)', background: 'var(--bg-3)', border: '1px solid var(--border)' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <div style={{ width: '24px', height: '24px', borderRadius: '6px', background: 'var(--brand-dim)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="var(--brand-light)" strokeWidth="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-                    </div>
-                    <span style={{ fontSize: '12px', fontWeight: '500', color: 'var(--text-1)' }}>{l.name}</span>
-                  </div>
-                  <span style={{ fontSize: '16px', fontWeight: '700', color: 'var(--ok)', fontFamily: 'var(--font-mono)' }}>{l.qty}</span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+      {/* Painéis de estoque (3) */}
+      <div style={{ ...gridPanels, marginBottom: '14px' }}>
 
         {/* Atenção necessária */}
-        <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '18px', display: 'flex', flexDirection: 'column', height: '320px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
-            <span style={{ fontSize: '13px', fontWeight: '500', color: 'var(--text-1)' }}>Atenção necessária</span>
+        <div style={panelStyle}>
+          <div style={panelHeader}>
+            <span style={panelTitle}>Atenção necessária</span>
             {stats.critical.length > 0 && <span style={{ fontSize: '11px', background: 'var(--empty-dim)', color: 'var(--empty)', padding: '2px 9px', borderRadius: '99px', fontWeight: '500' }}>{stats.critical.length}</span>}
           </div>
           {stats.critical.length === 0 ? (
@@ -349,11 +368,11 @@ export default function DashboardPage() {
             <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
               {stats.critical.map(p => (
                 <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 10px', borderRadius: 'var(--radius-sm)', marginBottom: '6px', background: p.quantity === 0 ? 'var(--empty-dim)' : 'var(--low-dim)', border: `1px solid ${p.quantity === 0 ? 'rgba(239,68,68,0.12)' : 'rgba(245,158,11,0.12)'}` }}>
-                  <div>
-                    <div style={{ fontSize: '12px', fontWeight: '500', color: 'var(--text-1)' }}>{p.name}</div>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontSize: '12px', fontWeight: '500', color: 'var(--text-1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</div>
                     <div style={{ fontSize: '10px', color: 'var(--text-3)' }}>{p.category || '—'}</div>
                   </div>
-                  <div style={{ textAlign: 'right' }}>
+                  <div style={{ textAlign: 'right', flexShrink: 0, marginLeft: '8px' }}>
                     <div style={{ fontSize: '16px', fontWeight: '700', color: p.quantity === 0 ? 'var(--empty)' : 'var(--low)', fontFamily: 'var(--font-mono)' }}>{p.quantity}</div>
                     <div style={{ fontSize: '9px', color: 'var(--text-3)' }}>mín {p.min_stock}</div>
                   </div>
@@ -363,10 +382,10 @@ export default function DashboardPage() {
           )}
         </div>
 
-                {/* Previsao de zeramento */}
-        <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '18px', display: 'flex', flexDirection: 'column', height: '320px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
-            <span style={{ fontSize: '13px', fontWeight: '500', color: 'var(--text-1)' }}>Previsão de zeramento</span>
+        {/* Previsão de zeramento */}
+        <div style={panelStyle}>
+          <div style={panelHeader}>
+            <span style={panelTitle}>Previsão de zeramento</span>
             {forecast.length > 0 && <span style={{ fontSize: '11px', background: 'var(--low-dim)', color: 'var(--low)', padding: '2px 9px', borderRadius: '99px', fontWeight: '500' }}>{forecast.length}</span>}
           </div>
           {forecast.length === 0 ? (
@@ -379,14 +398,10 @@ export default function DashboardPage() {
                   border: `1px solid ${(p.diasParaZerar||99) <= 7 ? 'rgba(239,68,68,0.12)' : 'rgba(245,158,11,0.12)'}` }}>
                   <div style={{ minWidth: 0 }}>
                     <div style={{ fontSize: '12px', fontWeight: '500', color: 'var(--text-1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</div>
-                    <div style={{ fontSize: '10px', color: 'var(--text-3)', marginTop: '1px' }}>
-                      {p.mediaDiaria} {p.unit||'un'}/dia · estoque: {p.quantity}
-                    </div>
+                    <div style={{ fontSize: '10px', color: 'var(--text-3)', marginTop: '1px' }}>{p.mediaDiaria} {p.unit||'un'}/dia · estoque: {p.quantity}</div>
                   </div>
                   <div style={{ textAlign: 'right', flexShrink: 0, marginLeft: '8px' }}>
-                    <div style={{ fontSize: '16px', fontWeight: '700', color: (p.diasParaZerar||99) <= 7 ? 'var(--empty)' : 'var(--low)', fontFamily: 'var(--font-mono)' }}>
-                      {p.diasParaZerar}d
-                    </div>
+                    <div style={{ fontSize: '16px', fontWeight: '700', color: (p.diasParaZerar||99) <= 7 ? 'var(--empty)' : 'var(--low)', fontFamily: 'var(--font-mono)' }}>{p.diasParaZerar}d</div>
                     <div style={{ fontSize: '9px', color: 'var(--text-3)' }}>para zerar</div>
                   </div>
                 </div>
@@ -395,10 +410,10 @@ export default function DashboardPage() {
           )}
         </div>
 
-{/* Últimas movimentações */}
-        <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '18px', display: 'flex', flexDirection: 'column', height: '320px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
-            <span style={{ fontSize: '13px', fontWeight: '500', color: 'var(--text-1)' }}>Últimas movimentações</span>
+        {/* Últimas movimentações */}
+        <div style={panelStyle}>
+          <div style={panelHeader}>
+            <span style={panelTitle}>Últimas movimentações</span>
             <Link href="/movimentacoes" style={{ fontSize: '11px', color: 'var(--brand-light)', textDecoration: 'none' }}>+ Nova →</Link>
           </div>
           {recent.length === 0 ? (
@@ -427,156 +442,138 @@ export default function DashboardPage() {
             </div>
           )}
         </div>
+      </div>
 
-
-{/* Validade próxima */}
-        <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '18px', display: 'flex', flexDirection: 'column', height: '320px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
-            <span style={{ fontSize: '13px', fontWeight: '500', color: 'var(--text-1)' }}>Validade próxima</span>
-            {expiryCount > 0 && <span style={{ fontSize: '11px', background: 'var(--low-dim)', color: 'var(--low)', padding: '2px 9px', borderRadius: '99px', fontWeight: '500' }}>{expiryCount}</span>}
+      {/* Gráfico de linha (pesado — oculto no mobile via .dashboard-chart) */}
+      {lineData.length > 0 && (
+        <div className="dashboard-chart" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '20px', marginBottom: '14px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+            <span style={panelTitle}>Entradas vs Saídas — por semana</span>
+            <div style={{ display: 'flex', gap: '16px' }}>
+              <span style={{ fontSize: '11px', color: 'var(--ok)', display: 'flex', alignItems: 'center', gap: '4px' }}><span style={{ width: '12px', height: '2px', background: 'var(--ok)', display: 'inline-block', borderRadius: '1px' }}/>Entradas</span>
+              <span style={{ fontSize: '11px', color: 'var(--empty)', display: 'flex', alignItems: 'center', gap: '4px' }}><span style={{ width: '12px', height: '2px', background: 'var(--empty)', display: 'inline-block', borderRadius: '1px' }}/>Saídas</span>
+            </div>
           </div>
-          {expiryAlerts.length === 0 ? (
-            <div style={{ fontSize: '13px', color: 'var(--text-3)', textAlign: 'center', padding: '20px 0' }}>Tudo em dia ✓</div>
+          <ResponsiveContainer width="100%" height={260}>
+            <LineChart data={lineData} margin={{ top: 4, right: 16, left: 0, bottom: 4 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false}/>
+              <XAxis dataKey="label" tick={{ fontSize: 11, fill: '#52525b' }} axisLine={false} tickLine={false} interval="preserveStartEnd" padding={{ left: 8, right: 8 }}/>
+              <YAxis tick={{ fontSize: 11, fill: '#52525b' }} axisLine={false} tickLine={false} width={32}/>
+              <Tooltip contentStyle={tooltipStyle} cursor={{ stroke: 'rgba(255,255,255,0.08)', strokeWidth: 1 }}/>
+              <Line type="monotone" dataKey="entradas" name="Entradas" stroke="var(--ok)"    strokeWidth={2} dot={false} activeDot={{ r: 5, strokeWidth: 0 }}/>
+              <Line type="monotone" dataKey="saidas"   name="Saídas"   stroke="var(--empty)" strokeWidth={2} dot={false} activeDot={{ r: 5, strokeWidth: 0 }}/>
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      )}
+
+      {/* Top produtos (LISTA, sempre visível) + Pizza (oculta no mobile) */}
+      <div style={{ ...gridPanels, marginBottom: '28px' }}>
+        <div style={{ ...panelStyle, minHeight: 'auto' }}>
+          <div style={panelHeader}><span style={panelTitle}>Top produtos movimentados</span></div>
+          {topProdutos.length === 0 ? (
+            <div style={{ fontSize: '13px', color: 'var(--text-3)', textAlign: 'center', padding: '20px 0' }}>Sem movimentações no período</div>
           ) : (
-            <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
-              {expiryAlerts.map(p => (
-                <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 10px', borderRadius: 'var(--radius-sm)', marginBottom: '6px', background: (p.daysUntilExpiry || 0) < 0 ? 'var(--empty-dim)' : 'var(--low-dim)', border: `1px solid ${(p.daysUntilExpiry || 0) < 0 ? 'rgba(239,68,68,0.12)' : 'rgba(245,158,11,0.12)'}` }}>
-                  <div style={{ minWidth: 0 }}>
-                    <div style={{ fontSize: '12px', fontWeight: '500', color: 'var(--text-1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</div>
-                    <div style={{ fontSize: '10px', color: 'var(--text-3)', marginTop: '1px' }}>{p.category || '—'}</div>
-                  </div>
-                  <div style={{ textAlign: 'right', flexShrink: 0, marginLeft: '8px' }}>
-                    <div style={{ fontSize: '13px', fontWeight: '700', color: (p.daysUntilExpiry || 0) < 0 ? 'var(--empty)' : 'var(--low)' }}>
-                      {(p.daysUntilExpiry || 0) < 0 ? 'VENCIDO' : `${p.daysUntilExpiry}d`}
-                    </div>
-                    <div style={{ fontSize: '9px', color: 'var(--text-3)' }}>
-                      {p.expiration_date ? new Date(p.expiration_date + 'T12:00:00').toLocaleDateString('pt-BR') : ''}
+            <div>
+              {topProdutos.map((p, i) => (
+                <div key={p.name} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '9px 0', borderBottom: i < topProdutos.length - 1 ? '1px solid var(--border)' : 'none' }}>
+                  <span style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text-3)', fontFamily: 'var(--font-mono)', width: '18px', flexShrink: 0, textAlign: 'right' }}>{i + 1}</span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: '13px', color: 'var(--text-1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</div>
+                    <div style={{ height: '4px', borderRadius: '99px', background: 'var(--bg-3)', marginTop: '5px', overflow: 'hidden' }}>
+                      <div style={{ height: '100%', width: (p.total / maxTop * 100) + '%', background: 'var(--brand)', borderRadius: '99px' }}/>
                     </div>
                   </div>
+                  <span style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-1)', fontFamily: 'var(--font-mono)', flexShrink: 0 }}>{p.total}</span>
                 </div>
               ))}
             </div>
           )}
         </div>
 
-              </div>
-
-      {/* Gráficos — linha + barras + pizza */}
-      <div className="dashboard-chart">
-      {(lineData.length > 0 || barData.length > 0 || pieData.length > 0) && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginBottom: '14px' }}>
-
-          {/* Linha — entradas vs saídas por semana */}
-          {lineData.length > 0 && (
-            <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '20px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                <span style={{ fontSize: '13px', fontWeight: '500', color: 'var(--text-1)' }}>Entradas vs Saídas — por semana</span>
-                <div style={{ display: 'flex', gap: '16px' }}>
-                  <span style={{ fontSize: '11px', color: 'var(--ok)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    <span style={{ width: '12px', height: '2px', background: 'var(--ok)', display: 'inline-block', borderRadius: '1px' }}/>
-                    Entradas
-                  </span>
-                  <span style={{ fontSize: '11px', color: 'var(--empty)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    <span style={{ width: '12px', height: '2px', background: 'var(--empty)', display: 'inline-block', borderRadius: '1px' }}/>
-                    Saídas
-                  </span>
-                </div>
-              </div>
-              <ResponsiveContainer width="100%" height={260}>
-                <LineChart data={lineData} margin={{ top: 4, right: 16, left: 0, bottom: 4 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false}/>
-                  <XAxis
-                    dataKey="label"
-                    tick={{ fontSize: 11, fill: '#52525b' }}
-                    axisLine={false}
-                    tickLine={false}
-                    interval="preserveStartEnd"
-                    padding={{ left: 8, right: 8 }}
-                  />
-                  <YAxis
-                    tick={{ fontSize: 11, fill: '#52525b' }}
-                    axisLine={false}
-                    tickLine={false}
-                    width={32}
-                  />
-                  <Tooltip
-                    contentStyle={tooltipStyle}
-                    cursor={{ stroke: 'rgba(255,255,255,0.08)', strokeWidth: 1 }}
-                  />
-                  <Line type="monotone" dataKey="entradas" name="Entradas" stroke="var(--ok)"    strokeWidth={2} dot={false} activeDot={{ r: 5, strokeWidth: 0 }}/>
-                  <Line type="monotone" dataKey="saidas"   name="Saídas"   stroke="var(--empty)" strokeWidth={2} dot={false} activeDot={{ r: 5, strokeWidth: 0 }}/>
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-          )}
-
-          {/* Barras + Pizza lado a lado */}
-          <div style={{ display: 'grid', gridTemplateColumns: barData.length > 0 && pieData.length > 0 ? '3fr 2fr' : '1fr', gap: '14px' }} className="bottom-grid">
-
-            {/* Barras — top produtos */}
-            {barData.length > 0 && (
-              <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '20px' }}>
-                <div style={{ fontSize: '13px', fontWeight: '500', color: 'var(--text-1)', marginBottom: '16px' }}>Top produtos movimentados</div>
-                <ResponsiveContainer width="100%" height={Math.max(200, barData.length * 36)}>
-                  <BarChart data={barData} layout="vertical" margin={{ top: 0, right: 16, left: 0, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={true} horizontal={false}/>
-                    <XAxis
-                      type="number"
-                      tick={{ fontSize: 10, fill: '#52525b' }}
-                      axisLine={false}
-                      tickLine={false}
-                    />
-                    <YAxis
-                      type="category"
-                      dataKey="name"
-                      tick={{ fontSize: 11, fill: '#a1a1aa' }}
-                      axisLine={false}
-                      tickLine={false}
-                      width={130}
-                    />
-                    <Tooltip contentStyle={tooltipStyle}/>
-                    <Bar dataKey="total" name="Movimentações" fill="var(--brand)" radius={[0, 6, 6, 0]} maxBarSize={22}/>
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            )}
-
-            {/* Pizza — distribuição por categoria */}
-            {pieData.length > 0 && (
-              <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '20px' }}>
-                <div style={{ fontSize: '13px', fontWeight: '500', color: 'var(--text-1)', marginBottom: '16px' }}>Por categoria</div>
-                <ResponsiveContainer width="100%" height={Math.max(200, barData.length * 36)}>
-                  <PieChart>
-                    <Pie
-                      data={pieData}
-                      cx="50%"
-                      cy="45%"
-                      outerRadius={80}
-                      innerRadius={40}
-                      dataKey="value"
-                      paddingAngle={2}
-                    >
-                      {pieData.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]}/>)}
-                    </Pie>
-                    <Tooltip
-                      contentStyle={tooltipStyle}
-                      formatter={(value: any, name: any) => [`${value} un`, name]}
-                    />
-                    <Legend
-                      iconType="circle"
-                      iconSize={8}
-                      wrapperStyle={{ fontSize: '11px', paddingTop: '8px' }}
-                      formatter={(value, entry: any) => (
-                        `${value} (${((entry.payload.value / pieData.reduce((s,d) => s+d.value,0))*100).toFixed(0)}%)`
-                      )}
-                    />
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
-            )}
+        {pieData.length > 0 && (
+          <div className="dashboard-chart" style={{ ...panelStyle, minHeight: 'auto' }}>
+            <div style={panelHeader}><span style={panelTitle}>Por categoria</span></div>
+            <ResponsiveContainer width="100%" height={260}>
+              <PieChart>
+                <Pie data={pieData} cx="50%" cy="45%" outerRadius={80} innerRadius={40} dataKey="value" paddingAngle={2}>
+                  {pieData.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]}/>)}
+                </Pie>
+                <Tooltip contentStyle={tooltipStyle} formatter={(value: any, name: any) => [`${value} un`, name]}/>
+                <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: '11px', paddingTop: '8px' }}
+                  formatter={(value, entry: any) => `${value} (${((entry.payload.value / pieData.reduce((s, d) => s + d.value, 0)) * 100).toFixed(0)}%)`}/>
+              </PieChart>
+            </ResponsiveContainer>
           </div>
+        )}
+      </div>
+
+      {/* ═══════════ FAIXA 2 — PATRIMÔNIO & EVENTOS ═══════════ */}
+      <div style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+        Patrimônio &amp; Eventos
+        <span style={{ flex: 1, height: '1px', background: 'var(--border)' }}/>
+      </div>
+
+      {/* Próximos eventos — no topo, largo e convidativo */}
+      <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderLeft: '3px solid var(--brand)', borderRadius: 'var(--radius)', padding: '20px', marginBottom: '14px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: eventos.length > 0 ? '14px' : '0' }}>
+          <span style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-1)', display: 'flex', alignItems: 'center', gap: '8px' }}>📅 Próximos eventos <span style={{ fontSize: '11px', color: 'var(--text-3)', fontWeight: '400' }}>· 7 dias</span></span>
+          <Link href="/admin/eventos" style={{ fontSize: '12px', color: 'var(--brand-light)', textDecoration: 'none', fontWeight: '500' }}>Ver agenda →</Link>
         </div>
-      )}
+        {eventos.length === 0 ? (
+          <div style={{ fontSize: '13px', color: 'var(--text-3)', padding: '4px 0' }}>Nenhum evento nos próximos 7 dias. <Link href="/admin/eventos" style={{ color: 'var(--brand-light)', textDecoration: 'none' }}>Agendar um evento →</Link></div>
+        ) : (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '10px' }}>
+            {eventos.map(ev => {
+              const d = new Date(ev.event_date + 'T12:00:00')
+              return (
+                <div key={ev.id} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 12px', borderRadius: 'var(--radius-sm)', background: 'var(--bg-3)', border: '1px solid var(--border)' }}>
+                  <div style={{ textAlign: 'center', flexShrink: 0, minWidth: '38px' }}>
+                    <div style={{ fontSize: '18px', fontWeight: '700', color: 'var(--brand-light)', fontFamily: 'var(--font-mono)', lineHeight: 1 }}>{d.getDate()}</div>
+                    <div style={{ fontSize: '10px', color: 'var(--text-3)', textTransform: 'uppercase' }}>{NOMES_DIA[d.getDay()]}</div>
+                  </div>
+                  <div style={{ fontSize: '13px', fontWeight: '500', color: 'var(--text-1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ev.name}</div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* KPIs de patrimônio */}
+      <div style={{ ...gridKpis, marginBottom: '8px' }}>
+        {/* Valor do patrimônio — informativo, neutro */}
+        <Card label="Valor do patrimônio" value={fmtBRL(patValor)} color="var(--border-md)" icon="🏛️" href="/patrimonio" sub={`${patItems.length} bens ativos`}/>
+
+        {/* Devoluções pendentes — neutro quando 0, vermelho só com vencido */}
+        <Card
+          label="Devoluções pendentes"
+          value={emprestimos.length}
+          color={empVencidos.length > 0 ? 'var(--empty)' : 'var(--border-md)'}
+          icon="📤"
+          href="/patrimonio"
+          sub={empVencidos.length > 0 ? `🔴 ${empVencidos.length} vencida(s)` : emprestimos.length === 0 ? 'nenhum empréstimo ativo' : 'no prazo'}
+        />
+
+        {/* Manutenções a vencer/vencidas */}
+        <Card
+          label="Manutenções"
+          value={manutStats.vencidas + manutStats.proximas}
+          color={manutStats.vencidas > 0 ? 'var(--empty)' : manutStats.proximas > 0 ? 'var(--low)' : 'var(--border-md)'}
+          icon="🔧"
+          href="/patrimonio"
+          sub={(manutStats.vencidas > 0 || manutStats.proximas > 0) ? `🔴 ${manutStats.vencidas} vencida(s) · 🟡 ${manutStats.proximas} a vencer` : 'nenhuma pendente'}
+        />
+
+        {/* Bens a regularizar — checklist de migração */}
+        <Card
+          label="Bens a regularizar"
+          value={pendencias.total}
+          color="var(--border-md)"
+          icon="📋"
+          href="/relatorios"
+          sub={`${pendencias.semNF} s/ NF · ${pendencias.semValor} s/ valor · ${pendencias.semLocal} s/ local`}
+        />
       </div>
     </div>
   )
