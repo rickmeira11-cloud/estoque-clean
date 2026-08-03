@@ -155,7 +155,7 @@ export default function MinisteriosAdminPage() {
           <p style={{ fontSize: '13px', color: 'var(--text-3)', marginTop: '4px' }}>Gerencie ministérios e seus membros</p>
         </div>
         <div style={{ display: 'flex', gap: '10px' }}>
-          <a href="/ministerios" target="_blank" style={{ padding: '9px 16px', background: 'transparent', border: '1px solid var(--border)', borderRadius: '8px', fontSize: '13px', color: 'var(--text-2)', cursor: 'pointer', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <a href="https://calendariopoiema.vercel.app/" target="_blank" rel="noopener noreferrer" style={{ padding: '9px 16px', background: 'transparent', border: '1px solid var(--border)', borderRadius: '8px', fontSize: '13px', color: 'var(--text-2)', cursor: 'pointer', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '6px' }}>
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3"/></svg>
             Ver mural público
           </a>

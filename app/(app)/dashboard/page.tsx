@@ -446,15 +446,16 @@ export default function DashboardPage() {
 
       {/* Gráfico de linha (pesado — oculto no mobile via .dashboard-chart) */}
       {lineData.length > 0 && (
-        <div className="dashboard-chart" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '20px', marginBottom: '14px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+        <div className="dashboard-chart" style={{ ...panelStyle, marginBottom: '14px' }}>
+          <div style={panelHeader}>
             <span style={panelTitle}>Entradas vs Saídas — por semana</span>
             <div style={{ display: 'flex', gap: '16px' }}>
               <span style={{ fontSize: '11px', color: 'var(--ok)', display: 'flex', alignItems: 'center', gap: '4px' }}><span style={{ width: '12px', height: '2px', background: 'var(--ok)', display: 'inline-block', borderRadius: '1px' }}/>Entradas</span>
               <span style={{ fontSize: '11px', color: 'var(--empty)', display: 'flex', alignItems: 'center', gap: '4px' }}><span style={{ width: '12px', height: '2px', background: 'var(--empty)', display: 'inline-block', borderRadius: '1px' }}/>Saídas</span>
             </div>
           </div>
-          <ResponsiveContainer width="100%" height={260}>
+          <div style={{ flex: 1, minHeight: 220 }}>
+          <ResponsiveContainer width="100%" height="100%">
             <LineChart data={lineData} margin={{ top: 4, right: 16, left: 0, bottom: 4 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false}/>
               <XAxis dataKey="label" tick={{ fontSize: 11, fill: '#52525b' }} axisLine={false} tickLine={false} interval="preserveStartEnd" padding={{ left: 8, right: 8 }}/>
@@ -464,6 +465,7 @@ export default function DashboardPage() {
               <Line type="monotone" dataKey="saidas"   name="Saídas"   stroke="var(--empty)" strokeWidth={2} dot={false} activeDot={{ r: 5, strokeWidth: 0 }}/>
             </LineChart>
           </ResponsiveContainer>
+          </div>
         </div>
       )}
 
