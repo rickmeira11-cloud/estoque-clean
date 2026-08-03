@@ -454,7 +454,7 @@ export default function DashboardPage() {
               <span style={{ fontSize: '11px', color: 'var(--empty)', display: 'flex', alignItems: 'center', gap: '4px' }}><span style={{ width: '12px', height: '2px', background: 'var(--empty)', display: 'inline-block', borderRadius: '1px' }}/>Saídas</span>
             </div>
           </div>
-          <div style={{ flex: 1, minHeight: 220 }}>
+          <div style={{ height: 280, flexShrink: 0 }}>
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={lineData} margin={{ top: 4, right: 16, left: 0, bottom: 4 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false}/>
