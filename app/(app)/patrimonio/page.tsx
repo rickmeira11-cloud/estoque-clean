@@ -872,6 +872,7 @@ export default function PatrimonioPage() {
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 500, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
         <div style={{ background: 'var(--bg-card)', border: '1px solid var(--brand)', borderRadius: 'var(--radius)', padding: '24px', maxWidth: '760px', width: '100%', maxHeight: '90vh', overflowY: 'auto' }}>
           <h3 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '18px' }}>{editItem ? 'Editar bem' : 'Novo bem'}</h3>
+          {/* Campos essenciais */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '14px', marginBottom: '14px' }}>
             <div style={{ gridColumn: '1 / -1' }}>
               <label style={L}>Nome *</label>
@@ -884,35 +885,13 @@ export default function PatrimonioPage() {
                 {PATRIMONIO_TIPOS.map(t => <option key={t} value={t}>{t}</option>)}
               </select>
             </div>
-            <div><label style={L}>Nº de série</label><input value={form.serial_number} onChange={e => setForm(f => ({ ...f, serial_number: e.target.value }))}/></div>
-            <div><label style={L}>Código de barras</label><input value={form.barcode} onChange={e => setForm(f => ({ ...f, barcode: e.target.value }))}/></div>
-            <div><label style={L}>Data de aquisição</label><input type="date" value={form.acquisition_date} onChange={e => setForm(f => ({ ...f, acquisition_date: e.target.value }))}/></div>
-            <div><label style={L}>Valor de aquisição (R$)</label><input type="number" step="0.01" value={form.acquisition_value} onChange={e => setForm(f => ({ ...f, acquisition_value: e.target.value }))}/></div>
-            <div><label style={L}>Vida útil (anos)</label><input type="number" value={form.useful_life_years} onChange={e => setForm(f => ({ ...f, useful_life_years: e.target.value }))}/></div>
             <div><label style={L}>Quantidade</label><input type="number" min="1" value={form.quantity} onChange={e => setForm(f => ({ ...f, quantity: e.target.value }))}/></div>
-            <div><label style={L}>Depreciação anual (%)</label><input type="number" step="0.1" value={form.depreciation_rate} onChange={e => setForm(f => ({ ...f, depreciation_rate: e.target.value }))}/></div>
             <div>
               <label style={L}>Localização</label>
               <select value={form.location_id} onChange={e => setForm(f => ({ ...f, location_id: e.target.value }))}>
                 <option value="">Selecione...</option>
                 {locations.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
               </select>
-            </div>
-            <div><label style={L}>Localização física</label><input value={form.physical_location} onChange={e => setForm(f => ({ ...f, physical_location: e.target.value }))} placeholder="Ex: Sala de som, Auditório..."/></div>
-            <div><label style={L}>Fornecedor</label><input value={form.supplier} onChange={e => setForm(f => ({ ...f, supplier: e.target.value }))} placeholder="Onde foi adquirido"/></div>
-            <div><label style={L}>Chave da NF-e</label><input value={form.nfe_key} onChange={e => setForm(f => ({ ...f, nfe_key: e.target.value.replace(/\D/g, '').slice(0,44) }))} placeholder="44 dígitos" style={{ fontFamily:'var(--font-mono)', fontSize:'12px' }}/></div>
-            <div style={{ gridColumn: '1 / -1' }}>
-              <label style={L}>Foto / arquivo da nota fiscal</label>
-              <div style={{ display:'flex', gap:'8px', alignItems:'center', flexWrap:'wrap' }}>
-                <input type="file" accept="image/*,.pdf,.xml" onChange={handleUploadNfe} style={{ fontSize:'12px' }}/>
-                {uploading && <span style={{ fontSize:'12px', color:'var(--text-3)' }}>Enviando...</span>}
-                {form.nfe_file_url && (
-                  <>
-                    <a href={form.nfe_file_url} target="_blank" rel="noopener noreferrer" style={{ fontSize:'12px', color:'var(--brand-light)' }}>✓ Ver arquivo</a>
-                    <button type="button" onClick={() => setForm(f => ({ ...f, nfe_file_url: '' }))} style={{ fontSize:'12px', color:'var(--empty)', background:'none', border:'1px solid rgba(239,68,68,0.3)', borderRadius:'6px', padding:'3px 10px', cursor:'pointer' }}>Remover arquivo</button>
-                  </>
-                )}
-              </div>
             </div>
             <div>
               <label style={L}>Ministério responsável</label>
@@ -921,8 +900,38 @@ export default function PatrimonioPage() {
                 {ministries.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
               </select>
             </div>
-            <div style={{ gridColumn: '1 / -1' }}><label style={L}>Observações</label><input value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}/></div>
           </div>
+          {/* Campos avançados — colapsável */}
+          <details open={!!(editItem && (form.serial_number || form.barcode || form.acquisition_date || form.acquisition_value || form.physical_location || form.supplier || form.nfe_key || form.nfe_file_url || form.notes))} style={{ marginBottom: '14px' }}>
+            <summary style={{ fontSize: '13px', fontWeight: '500', color: 'var(--text-2)', cursor: 'pointer', userSelect: 'none', padding: '8px 10px', borderRadius: 'var(--radius-sm)', background: 'var(--bg-3)', border: '1px solid var(--border)', listStyle: 'none', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span style={{ fontSize: '10px' }}>▶</span> Mais detalhes
+            </summary>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '14px', marginTop: '12px' }}>
+              <div><label style={L}>Nº de série</label><input value={form.serial_number} onChange={e => setForm(f => ({ ...f, serial_number: e.target.value }))}/></div>
+              <div><label style={L}>Código de barras</label><input value={form.barcode} onChange={e => setForm(f => ({ ...f, barcode: e.target.value }))}/></div>
+              <div><label style={L}>Data de aquisição</label><input type="date" value={form.acquisition_date} onChange={e => setForm(f => ({ ...f, acquisition_date: e.target.value }))}/></div>
+              <div><label style={L}>Valor de aquisição (R$)</label><input type="number" step="0.01" value={form.acquisition_value} onChange={e => setForm(f => ({ ...f, acquisition_value: e.target.value }))}/></div>
+              <div><label style={L}>Vida útil (anos)</label><input type="number" value={form.useful_life_years} onChange={e => setForm(f => ({ ...f, useful_life_years: e.target.value }))}/></div>
+              <div><label style={L}>Depreciação anual (%)</label><input type="number" step="0.1" value={form.depreciation_rate} onChange={e => setForm(f => ({ ...f, depreciation_rate: e.target.value }))}/></div>
+              <div><label style={L}>Localização física</label><input value={form.physical_location} onChange={e => setForm(f => ({ ...f, physical_location: e.target.value }))} placeholder="Ex: Sala de som, Auditório..."/></div>
+              <div><label style={L}>Fornecedor</label><input value={form.supplier} onChange={e => setForm(f => ({ ...f, supplier: e.target.value }))} placeholder="Onde foi adquirido"/></div>
+              <div><label style={L}>Chave da NF-e</label><input value={form.nfe_key} onChange={e => setForm(f => ({ ...f, nfe_key: e.target.value.replace(/\D/g, '').slice(0,44) }))} placeholder="44 dígitos" style={{ fontFamily:'var(--font-mono)', fontSize:'12px' }}/></div>
+              <div style={{ gridColumn: '1 / -1' }}>
+                <label style={L}>Foto / arquivo da nota fiscal</label>
+                <div style={{ display:'flex', gap:'8px', alignItems:'center', flexWrap:'wrap' }}>
+                  <input type="file" accept="image/*,.pdf,.xml" onChange={handleUploadNfe} style={{ fontSize:'12px' }}/>
+                  {uploading && <span style={{ fontSize:'12px', color:'var(--text-3)' }}>Enviando...</span>}
+                  {form.nfe_file_url && (
+                    <>
+                      <a href={form.nfe_file_url} target="_blank" rel="noopener noreferrer" style={{ fontSize:'12px', color:'var(--brand-light)' }}>✓ Ver arquivo</a>
+                      <button type="button" onClick={() => setForm(f => ({ ...f, nfe_file_url: '' }))} style={{ fontSize:'12px', color:'var(--empty)', background:'none', border:'1px solid rgba(239,68,68,0.3)', borderRadius:'6px', padding:'3px 10px', cursor:'pointer' }}>Remover arquivo</button>
+                    </>
+                  )}
+                </div>
+              </div>
+              <div style={{ gridColumn: '1 / -1' }}><label style={L}>Observações</label><input value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}/></div>
+            </div>
+          </details>
           {formError && <div style={{ marginBottom: '12px', color: 'var(--empty)', fontSize: '13px' }}>{formError}</div>}
           <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
             <button onClick={() => { setShowModal(false); setEditItem(null); if (returnToDetailId) { const r = items.find(x => x.id === returnToDetailId); if (r) setDetail(r); setReturnToDetailId(null) } }} style={{ padding: '8px 16px', borderRadius: 'var(--radius-sm)', background: 'transparent', border: '1px solid var(--border)', color: 'var(--text-2)', cursor: 'pointer', fontSize: '13px' }}>Cancelar</button>

@@ -414,66 +414,59 @@ export default function MovimentacoesPage() {
                 </div>
               )}
 
-              {/* Ministerio — apenas para saidas */}
-              {type === 'out' && ministries.length > 0 && (
-                <div>
-                  <label style={L}>Ministério <span style={{ fontWeight: '400' }}>(opcional)</span></label>
-                  <select value={ministryId} onChange={e => setMinistryId(e.target.value)}>
-                    <option value="">Nenhum / Uso geral</option>
-                    {ministries.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
-                  </select>
-                </div>
-              )}
+              {/* Mais opções — colapsável */}
+              <details open={!!(ministryId || eventId || supplier || unitCost || note)} style={{ marginBottom: '16px' }}>
+                <summary style={{ fontSize: '13px', fontWeight: '500', color: 'var(--text-2)', cursor: 'pointer', userSelect: 'none', padding: '8px 10px', borderRadius: 'var(--radius-sm)', background: 'var(--bg-3)', border: '1px solid var(--border)', listStyle: 'none', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span style={{ fontSize: '10px' }}>▶</span> Mais opções
+                </summary>
+                <div style={{ marginTop: '12px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  {/* Ministério — apenas para saídas */}
+                  {type === 'out' && ministries.length > 0 && (
+                    <div>
+                      <label style={L}>Ministério <span style={{ fontWeight: '400' }}>(opcional)</span></label>
+                      <select value={ministryId} onChange={e => setMinistryId(e.target.value)}>
+                        <option value="">Nenhum / Uso geral</option>
+                        {ministries.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+                      </select>
+                    </div>
+                  )}
 
-              {/* Evento — apenas para saidas */}
-              {type === 'out' && events.length > 0 && (
-                <div>
-                  <label style={L}>Evento <span style={{ fontWeight:'400' }}>(opcional)</span></label>
-                  <select value={eventId} onChange={e => setEventId(e.target.value)}>
-                    <option value="">Nenhum / Uso geral</option>
-                    {events.map(e => (
-                      <option key={e.id} value={e.id}>
-                        {e.name}{e.event_date ? ' · ' + new Date(e.event_date + 'T12:00:00').toLocaleDateString('pt-BR', {day:'2-digit',month:'2-digit'}) : ''}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
+                  {/* Evento — apenas para saídas */}
+                  {type === 'out' && events.length > 0 && (
+                    <div>
+                      <label style={L}>Evento <span style={{ fontWeight:'400' }}>(opcional)</span></label>
+                      <select value={eventId} onChange={e => setEventId(e.target.value)}>
+                        <option value="">Nenhum / Uso geral</option>
+                        {events.map(e => (
+                          <option key={e.id} value={e.id}>
+                            {e.name}{e.event_date ? ' · ' + new Date(e.event_date + 'T12:00:00').toLocaleDateString('pt-BR', {day:'2-digit',month:'2-digit'}) : ''}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
 
-              {/* Evento — apenas para saidas */}
-              {type === 'out' && events.length > 0 && (
-                <div>
-                  <label style={L}>Evento <span style={{ fontWeight:'400' }}>(opcional)</span></label>
-                  <select value={eventId} onChange={e => setEventId(e.target.value)}>
-                    <option value="">Nenhum / Uso geral</option>
-                    {events.map(e => (
-                      <option key={e.id} value={e.id}>
-                        {e.name}{e.event_date ? ' · ' + new Date(e.event_date + 'T12:00:00').toLocaleDateString('pt-BR', {day:'2-digit',month:'2-digit'}) : ''}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
+                  {/* Fornecedor e Valor — apenas para entradas */}
+                  {type === 'in' && (
+                    <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'12px' }}>
+                      <div>
+                        <label style={L}>Fornecedor <span style={{ fontWeight:'400' }}>(opcional)</span></label>
+                        <input value={supplier} onChange={e => setSupplier(e.target.value)} placeholder="Ex: Atacadão, Dona Maria..."/>
+                      </div>
+                      <div>
+                        <label style={L}>Valor unitário <span style={{ fontWeight:'400' }}>(opcional)</span></label>
+                        <input type="number" min="0" step="0.01" value={unitCost} onChange={e => setUnitCost(e.target.value)} placeholder="Ex: 4.50"/>
+                      </div>
+                    </div>
+                  )}
 
-              {/* Fornecedor e Valor — apenas para entradas */}
-              {type === 'in' && (
-                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'12px' }}>
+                  {/* Observação */}
                   <div>
-                    <label style={L}>Fornecedor <span style={{ fontWeight:'400' }}>(opcional)</span></label>
-                    <input value={supplier} onChange={e => setSupplier(e.target.value)} placeholder="Ex: Atacadão, Dona Maria..."/>
-                  </div>
-                  <div>
-                    <label style={L}>Valor unitário <span style={{ fontWeight:'400' }}>(opcional)</span></label>
-                    <input type="number" min="0" step="0.01" value={unitCost} onChange={e => setUnitCost(e.target.value)} placeholder="Ex: 4.50"/>
+                    <label style={L}>Observação <span style={{ fontWeight: '400' }}>(opcional)</span></label>
+                    <input value={note} onChange={e => setNote(e.target.value)} placeholder="Ex: Doação recebida, consumido no evento..."/>
                   </div>
                 </div>
-              )}
-
-              {/* Observação */}
-              <div style={{ marginBottom: '16px' }}>
-                <label style={L}>Observação <span style={{ fontWeight: '400' }}>(opcional)</span></label>
-                <input value={note} onChange={e => setNote(e.target.value)} placeholder="Ex: Doação recebida, consumido no evento..."/>
-              </div>
+              </details>
 
               {error && (
                 <div style={{ marginBottom: '12px', padding: '8px 12px', borderRadius: '8px', background: 'var(--empty-dim)', fontSize: '13px', color: 'var(--empty)' }}>{error}</div>
