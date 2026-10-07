@@ -3,10 +3,10 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useProfile } from '@/hooks/useProfile'
 import { valorAtual, valorAquisicaoTotal } from '@/lib/patrimonio-calc'
-import {
-  BarChart, Bar, LineChart, Line, XAxis, YAxis,
-  CartesianGrid, Tooltip, ResponsiveContainer, Cell
-} from 'recharts'
+import dynamic from 'next/dynamic'
+const RelatoriosLineChart    = dynamic(() => import('@/components/charts/RelatoriosLineChart'),    { ssr: false })
+const RelatoriosBarChart     = dynamic(() => import('@/components/charts/RelatoriosBarChart'),     { ssr: false })
+const RelatoriosDepositsChart = dynamic(() => import('@/components/charts/RelatoriosDepositsChart'), { ssr: false })
 
 type ReportTab = 'inventario' | 'movimentacoes' | 'criticos' | 'consumo' | 'depositos' | 'auditoria' | 'ministerios' | 'precos' | 'eventos' | 'patrimonio'
 
@@ -24,7 +24,7 @@ const TABS: { id: ReportTab; label: string; icon: string }[] = [
 ]
 
 const COLORS = ['#6366f1','#22c55e','#f59e0b','#ef4444','#a78bfa','#34d399','#fb923c','#60a5fa']
-const tooltipStyle = { background:'var(--bg-2)', border:'1px solid var(--border-md)', borderRadius:'8px', fontSize:'12px', color:'var(--text-1)' }
+
 
 function Icon({ d, size=15 }: { d:string; size?:number }) {
   return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d={d}/></svg>
@@ -248,38 +248,13 @@ export default function RelatoriosPage() {
   }
 
   async function loadBalances() {
-    const sb = createClient()
-    const [{ data: movs }, { data: locs }] = await Promise.all([
-      sb.from('stock_movements')
-        .select('type,quantity,location_id,product_id,product:products(name,category,unit,quantity)')
-        .eq('church_id', profile!.church_id)
-        .not('location_id', 'is', null),
-      sb.from('locations')
-        .select('id,name')
-        .eq('church_id', profile!.church_id)
-        .eq('is_active', true)
-    ])
-    if (!movs || !locs) return
-    const map: Record<string, any> = {}
-    movs.forEach((m: any) => {
-      const key = m.product_id + '|' + m.location_id
-      if (!map[key]) {
-        const loc = locs.find((l: any) => l.id === m.location_id)
-        map[key] = {
-          product_name: m.product?.name || '—',
-          category: m.product?.category || '—',
-          unit: m.product?.unit || 'un',
-          total_quantity: m.product?.quantity || 0,
-          location_name: loc?.name || '—',
-          location_quantity: 0,
-        }
-      }
-      if (m.type === 'in')  map[key].location_quantity += m.quantity
-      if (m.type === 'out') map[key].location_quantity -= m.quantity
-    })
-    let result = Object.values(map)
-      .filter((b: any) => b.location_quantity > 0)
-      .sort((a: any, b: any) => a.location_name.localeCompare(b.location_name) || a.product_name.localeCompare(b.product_name))
+    const { data } = await createClient()
+      .from('product_location_balance')
+      .select('product_id,product_name,category,unit,total_quantity,location_id,location_name,location_quantity')
+      .eq('church_id', profile!.church_id)
+    if (!data) return
+    let result = (data as any[])
+      .sort((a, b) => a.location_name.localeCompare(b.location_name) || a.product_name.localeCompare(b.product_name))
     if (filterCat !== 'all') result = result.filter((b: any) => b.category === filterCat)
     if (filterLoc !== 'all') result = result.filter((b: any) => b.location_name === filterLoc)
     setBalances(result)
@@ -287,15 +262,17 @@ export default function RelatoriosPage() {
 
   async function loadMovements() {
     setLoading(true)
-    const { data } = await createClient()
-      .from('stock_movements')
-      .select('id,type,quantity,created_at,note,location_id,product:products(name,category)')
-      .eq('church_id', profile!.church_id)
-      .gte('created_at', dateFrom)
-      .lte('created_at', dateTo + 'T23:59:59')
-      .order('created_at', { ascending: false })
+    const sb = createClient()
+    const [{ data }, { data: locs }] = await Promise.all([
+      sb.from('stock_movements')
+        .select('id,type,quantity,created_at,note,location_id,product:products(name,category)')
+        .eq('church_id', profile!.church_id)
+        .gte('created_at', dateFrom)
+        .lte('created_at', dateTo + 'T23:59:59')
+        .order('created_at', { ascending: false }),
+      sb.from('locations').select('id,name').eq('church_id', profile!.church_id),
+    ])
     if (data) {
-      const { data: locs } = await createClient().from('locations').select('id,name').eq('church_id', profile!.church_id)
       const withLoc = data.map((m: any) => ({
         ...m,
         location: locs?.find((l: any) => l.id === m.location_id) || null
@@ -839,33 +816,22 @@ export default function RelatoriosPage() {
               {lineData.length > 0 && (
                 <div style={{ background:'var(--bg-card)', border:'1px solid var(--border)', borderRadius:'var(--radius)', padding:'18px' }}>
                   <div style={{ fontSize:'13px', fontWeight:'500', color:'var(--text-1)', marginBottom:'16px' }}>Entradas vs Saídas por dia</div>
-                  <ResponsiveContainer width="100%" height={220}>
-                    <LineChart data={lineData}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)"/>
-                      <XAxis dataKey="label" tick={{ fontSize:10, fill:'#71717a' }} axisLine={false} tickLine={false}/>
-                      <YAxis tick={{ fontSize:10, fill:'#71717a' }} axisLine={false} tickLine={false}/>
-                      <Tooltip contentStyle={tooltipStyle}/>
-                      <Line type="monotone" dataKey="entradas" name="Entradas" stroke="var(--ok)"    strokeWidth={2} dot={false}/>
-                      <Line type="monotone" dataKey="saidas"   name="Saídas"   stroke="var(--empty)" strokeWidth={2} dot={false}/>
-                    </LineChart>
-                  </ResponsiveContainer>
+                  <div style={{ height: 220 }}>
+                    <RelatoriosLineChart data={lineData}/>
+                  </div>
                 </div>
               )}
               {/* Ranking */}
               {rankingData.length > 0 && (
                 <div style={{ background:'var(--bg-card)', border:'1px solid var(--border)', borderRadius:'var(--radius)', padding:'18px' }}>
                   <div style={{ fontSize:'13px', fontWeight:'500', color:'var(--text-1)', marginBottom:'16px' }}>Ranking — produtos mais movimentados</div>
-                  <ResponsiveContainer width="100%" height={280}>
-                    <BarChart data={rankingData} layout="vertical">
-                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" horizontal={false}/>
-                      <XAxis type="number" tick={{ fontSize:10, fill:'#71717a' }} axisLine={false} tickLine={false}/>
-                      <YAxis type="category" dataKey="name" tick={{ fontSize:10, fill:'#a1a1aa' }} axisLine={false} tickLine={false} width={100}/>
-                      <Tooltip contentStyle={tooltipStyle}/>
-                      <Bar dataKey="total" name="Total" radius={[0,4,4,0]}>
-                        {rankingData.map((_,i)=><Cell key={i} fill={COLORS[i%COLORS.length]}/>)}
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
+                  <div style={{ height: 280 }}>
+                    <RelatoriosBarChart
+                      data={rankingData.map((r: any, i: number) => ({ ...r, value: r.total, fill: COLORS[i % COLORS.length] }))}
+                      layout="vertical"
+                      barSize={20}
+                    />
+                  </div>
                   {/* Tabela ranking */}
                   <div style={{ marginTop:'14px', overflowX:'auto' }}>
                     <table style={{ width:'100%', borderCollapse:'collapse' }}>
@@ -898,16 +864,9 @@ export default function RelatoriosPage() {
               {locData.length > 0 && (
                 <div style={{ background:'var(--bg-card)', border:'1px solid var(--border)', borderRadius:'var(--radius)', padding:'18px' }}>
                   <div style={{ fontSize:'13px', fontWeight:'500', color:'var(--text-1)', marginBottom:'16px' }}>Movimentações por depósito</div>
-                  <ResponsiveContainer width="100%" height={240}>
-                    <BarChart data={locData}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)"/>
-                      <XAxis dataKey="name" tick={{ fontSize:10, fill:'#71717a' }} axisLine={false} tickLine={false}/>
-                      <YAxis tick={{ fontSize:10, fill:'#71717a' }} axisLine={false} tickLine={false}/>
-                      <Tooltip contentStyle={tooltipStyle}/>
-                      <Bar dataKey="entradas" name="Entradas" fill="var(--ok)"    radius={[4,4,0,0]}/>
-                      <Bar dataKey="saidas"   name="Saídas"   fill="var(--empty)" radius={[4,4,0,0]}/>
-                    </BarChart>
-                  </ResponsiveContainer>
+                  <div style={{ height: 240 }}>
+                    <RelatoriosDepositsChart data={locData}/>
+                  </div>
                 </div>
               )}
               <div style={{ background:'var(--bg-card)', border:'1px solid var(--border)', borderRadius:'var(--radius)', overflow:'hidden' }}>

@@ -49,29 +49,15 @@ export default function MovimentacoesPage() {
       .eq('is_active', true)
       .order('name')
       .then(({ data }) => { if (data) setLocations(data) })
-    // Carregar saldo por produto/deposito
+    // Carregar saldo por produto/deposito via view
     createClient()
-      .from('stock_movements')
-      .select('product_id,location_id,destination_location_id,type,quantity')
+      .from('product_location_balance')
+      .select('product_id,location_id,location_quantity')
       .eq('church_id', profile.church_id)
-      .not('location_id', 'is', null)
       .then(({ data }) => {
         if (!data) return
         const bal: Record<string,number> = {}
-        data.forEach((r: any) => {
-          const key = r.product_id + '|' + r.location_id
-          if (!bal[key]) bal[key] = 0
-          if (r.type === 'in')  bal[key] += r.quantity
-          if (r.type === 'out') bal[key] -= r.quantity
-          if (r.type === 'transfer') {
-            bal[key] -= r.quantity
-            if (r.destination_location_id) {
-              const destKey = r.product_id + '|' + r.destination_location_id
-              if (!bal[destKey]) bal[destKey] = 0
-              bal[destKey] += r.quantity
-            }
-          }
-        })
+        data.forEach((r: any) => { bal[r.product_id + '|' + r.location_id] = r.location_quantity })
         setLocBalance(bal)
       })
   }, [profile?.church_id])

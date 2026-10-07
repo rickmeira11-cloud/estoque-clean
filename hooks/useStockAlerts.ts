@@ -35,12 +35,17 @@ export function useStockAlerts() {
     const channelName = 'stock-alerts-' + profile!.church_id
     sb.removeChannel(sb.channel(channelName))
     const channel = sb.channel(channelName)
+    let debounceTimer: ReturnType<typeof setTimeout> | null = null
     channel.on('postgres_changes',
       { event: 'INSERT', schema: 'public', table: 'stock_movements', filter: 'church_id=eq.' + profile!.church_id },
-      () => load()
+      () => {
+        if (debounceTimer) clearTimeout(debounceTimer)
+        debounceTimer = setTimeout(() => load(), 1000)
+      }
     ).subscribe()
 
     return () => {
+      if (debounceTimer) clearTimeout(debounceTimer)
       clearInterval(interval)
       window.removeEventListener('focus', onFocus)
       sb.removeChannel(channel)

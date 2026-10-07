@@ -4,10 +4,9 @@ import { createClient } from '@/lib/supabase/client'
 import { useProfile } from '@/hooks/useProfile'
 import { valorAtual } from '@/lib/patrimonio-calc'
 import Link from 'next/link'
-import {
-  LineChart, Line, PieChart, Pie, Cell,
-  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
-} from 'recharts'
+import dynamic from 'next/dynamic'
+const DashboardLineChart = dynamic(() => import('@/components/charts/DashboardLineChart'), { ssr: false })
+const DashboardPieChart  = dynamic(() => import('@/components/charts/DashboardPieChart'),  { ssr: false })
 import type { Product } from '@/types'
 
 // ── tipos ───────────────────────────────────────────────────────
@@ -196,11 +195,18 @@ export default function DashboardPage() {
     const channelName = 'dashboard-' + profile.church_id
     sb.removeChannel(sb.channel(channelName))
     const channel = sb.channel(channelName)
+    let debounceTimer: ReturnType<typeof setTimeout> | null = null
     channel.on('postgres_changes',
       { event: 'INSERT', schema: 'public', table: 'stock_movements', filter: 'church_id=eq.' + profile.church_id },
-      () => loadAll()
+      () => {
+        if (debounceTimer) clearTimeout(debounceTimer)
+        debounceTimer = setTimeout(() => loadAll(), 1000)
+      }
     ).subscribe()
-    return () => { sb.removeChannel(channel) }
+    return () => {
+      if (debounceTimer) clearTimeout(debounceTimer)
+      sb.removeChannel(channel)
+    }
   }, [profile?.church_id])
 
   // ── estoque: cálculos memoizados ──
@@ -455,16 +461,7 @@ export default function DashboardPage() {
             </div>
           </div>
           <div style={{ height: 280, flexShrink: 0 }}>
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={lineData} margin={{ top: 4, right: 16, left: 0, bottom: 4 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false}/>
-              <XAxis dataKey="label" tick={{ fontSize: 11, fill: '#52525b' }} axisLine={false} tickLine={false} interval="preserveStartEnd" padding={{ left: 8, right: 8 }}/>
-              <YAxis tick={{ fontSize: 11, fill: '#52525b' }} axisLine={false} tickLine={false} width={32}/>
-              <Tooltip contentStyle={tooltipStyle} cursor={{ stroke: 'rgba(255,255,255,0.08)', strokeWidth: 1 }}/>
-              <Line type="monotone" dataKey="entradas" name="Entradas" stroke="var(--ok)"    strokeWidth={2} dot={false} activeDot={{ r: 5, strokeWidth: 0 }}/>
-              <Line type="monotone" dataKey="saidas"   name="Saídas"   stroke="var(--empty)" strokeWidth={2} dot={false} activeDot={{ r: 5, strokeWidth: 0 }}/>
-            </LineChart>
-          </ResponsiveContainer>
+            <DashboardLineChart data={lineData}/>
           </div>
         </div>
       )}
@@ -496,16 +493,9 @@ export default function DashboardPage() {
         {pieData.length > 0 && (
           <div className="dashboard-chart" style={{ ...panelStyle, minHeight: 'auto' }}>
             <div style={panelHeader}><span style={panelTitle}>Por categoria</span></div>
-            <ResponsiveContainer width="100%" height={260}>
-              <PieChart>
-                <Pie data={pieData} cx="50%" cy="45%" outerRadius={80} innerRadius={40} dataKey="value" paddingAngle={2}>
-                  {pieData.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]}/>)}
-                </Pie>
-                <Tooltip contentStyle={tooltipStyle} formatter={(value: any, name: any) => [`${value} un`, name]}/>
-                <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: '11px', paddingTop: '8px' }}
-                  formatter={(value, entry: any) => `${value} (${((entry.payload.value / pieData.reduce((s, d) => s + d.value, 0)) * 100).toFixed(0)}%)`}/>
-              </PieChart>
-            </ResponsiveContainer>
+            <div style={{ height: 260 }}>
+              <DashboardPieChart data={pieData} colors={COLORS}/>
+            </div>
           </div>
         )}
       </div>

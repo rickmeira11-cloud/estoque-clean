@@ -73,7 +73,7 @@ export async function POST(request: Request) {
 
     lines.push('')
     lines.push('_Total: ' + baixo.length + ' item(s) baixo, ' + vencendo.length + ' vencendo_')
-    lines.push('_Acesse: gestoquepoiemav1.vercel.app_')
+    lines.push('_Acesse: gestoquepoiema.vercel.app_')
 
     const msg = lines.join('\n')
 
@@ -88,7 +88,7 @@ export async function POST(request: Request) {
 
     // Disparar push notifications
     try {
-      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://gestoquepoiemav1.vercel.app'
+      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://gestoquepoiema.vercel.app'
       
       if (baixo.length > 0) {
         const zerados = baixo.filter(p => p.quantity === 0)
