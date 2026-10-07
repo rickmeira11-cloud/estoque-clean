@@ -596,6 +596,11 @@ export default function RelatoriosPage() {
   const L = { display:'block' as const, fontSize:'11px', color:'var(--text-3)', marginBottom:'5px' }
   const count = tab==='patrimonio'?patrItems.length:tab==='inventario'?filteredProds.length:tab==='criticos'?critical.length:tab==='depositos'?Object.keys(locMap).length:filteredMovs.length
 
+  // Padrão visual Dashboard
+  const panelStyle: React.CSSProperties = { background:'var(--bg-card)', border:'1px solid var(--border)', borderRadius:'var(--radius)', padding:'20px', display:'flex', flexDirection:'column' }
+  const panelHeader: React.CSSProperties = { display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'14px' }
+  const panelTitle: React.CSSProperties = { fontSize:'13px', fontWeight:'600', color:'var(--text-1)' }
+
 
   function SortTh({ label, col, style = {} }: { label: string; col: string; style?: any }) {
     const active = sortCol === col
@@ -633,7 +638,7 @@ export default function RelatoriosPage() {
 
       {/* Filtros */}
       <div style={{ background:'var(--bg-card)', border:'1px solid var(--border)', borderRadius:'var(--radius)', padding:'16px', marginBottom:'16px' }}>
-        <div className='report-filters' style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr 1fr auto', gap:'10px', alignItems:'flex-end', flexWrap:'wrap' }}>
+        <div className='report-filters' style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(160px, 1fr))', gap:'10px', alignItems:'flex-end' }}>
           {(tab==='movimentacoes'||tab==='consumo'||tab==='depositos') && (
             <>
               <div><label style={L}>De</label><input type="date" value={dateFrom} onChange={e=>setDateFrom(e.target.value)}/></div>
@@ -685,9 +690,9 @@ export default function RelatoriosPage() {
         <>
           {/* ── TAB: INVENTÁRIO ── */}
           {tab==='inventario' && (
-            <div style={{ background:'var(--bg-card)', border:'1px solid var(--border)', borderRadius:'var(--radius)', overflow:'hidden' }}>
-              <div style={{ padding:'12px 16px', borderBottom:'1px solid var(--border)', fontSize:'13px', fontWeight:'500', color:'var(--text-1)' }}>
-                Inventário completo — {filteredProds.length} produto(s)
+            <div style={{ ...panelStyle, padding:0, overflow:'hidden' }}>
+              <div style={{ ...panelHeader, padding:'16px 20px', borderBottom:'1px solid var(--border)', marginBottom:0 }}>
+                <span style={panelTitle}>Inventário completo — {filteredProds.length} produto(s)</span>
               </div>
               <div style={{ overflowX:'auto' }}>
                 <table style={{ width:'100%', borderCollapse:'collapse' }}>
@@ -714,7 +719,7 @@ export default function RelatoriosPage() {
                           <td style={{ padding:'10px 14px', fontSize:'12px', color:'var(--text-3)' }}>{p.unit||'un'}</td>
                           <td style={{ padding:'10px 14px', fontSize:'12px', color:'var(--text-3)' }}>{p.type==='perishable'?'Perecível':'Não perecível'}</td>
                           <td style={{ padding:'10px 14px', fontSize:'12px', color:'var(--text-2)', fontFamily:'var(--font-mono)' }}>{p.last_purchase_value?`R$ ${Number(p.last_purchase_value).toFixed(2)}`:'—'}</td>
-                          <td style={{ padding:'10px 14px', fontSize:'12px', fontWeight:'600', color:'var(--ok)', fontFamily:'var(--font-mono)' }}>{p.last_purchase_value ? `R$ ${(getQty(p.id) * Number(p.last_purchase_value)).toFixed(2)}` : '—'}</td>
+                          <td style={{ padding:'10px 14px', fontSize:'12px', fontWeight:'600', color:'var(--text-2)', fontFamily:'var(--font-mono)' }}>{p.last_purchase_value ? `R$ ${(getQty(p.id) * Number(p.last_purchase_value)).toFixed(2)}` : '—'}</td>
                         </tr>
                       )
                     })}
@@ -726,9 +731,9 @@ export default function RelatoriosPage() {
 
           {/* ── TAB: MOVIMENTAÇÕES ── */}
           {tab==='movimentacoes' && (
-            <div style={{ background:'var(--bg-card)', border:'1px solid var(--border)', borderRadius:'var(--radius)', overflow:'hidden' }}>
-              <div style={{ padding:'12px 16px', borderBottom:'1px solid var(--border)', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-                <span style={{ fontSize:'13px', fontWeight:'500', color:'var(--text-1)' }}>Movimentações — {filteredMovs.length} registro(s)</span>
+            <div style={{ ...panelStyle, padding:0, overflow:'hidden' }}>
+              <div style={{ ...panelHeader, padding:'16px 20px', borderBottom:'1px solid var(--border)', marginBottom:0 }}>
+                <span style={panelTitle}>Movimentações — {filteredMovs.length} registro(s)</span>
                 <div style={{ display:'flex', gap:'16px', fontSize:'12px' }}>
                   <span style={{ color:'var(--ok)' }}>↑ {filteredMovs.filter(m=>m.type==='in').reduce((a:number,m:any)=>a+m.quantity,0)} entradas</span>
                   <span style={{ color:'var(--empty)' }}>↓ {filteredMovs.filter(m=>m.type==='out').reduce((a:number,m:any)=>a+m.quantity,0)} saídas</span>
@@ -768,9 +773,9 @@ export default function RelatoriosPage() {
 
           {/* ── TAB: CRÍTICOS ── */}
           {tab==='criticos' && (
-            <div style={{ background:'var(--bg-card)', border:'1px solid var(--border)', borderRadius:'var(--radius)', overflow:'hidden' }}>
-              <div style={{ padding:'12px 16px', borderBottom:'1px solid var(--border)', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-                <span style={{ fontSize:'13px', fontWeight:'500', color:'var(--text-1)' }}>Itens críticos — {critical.length} produto(s)</span>
+            <div style={{ ...panelStyle, padding:0, overflow:'hidden' }}>
+              <div style={{ ...panelHeader, padding:'16px 20px', borderBottom:'1px solid var(--border)', marginBottom:0 }}>
+                <span style={panelTitle}>Itens críticos — {critical.length} produto(s)</span>
                 <span style={{ fontSize:'12px', color:'var(--empty)' }}>{critical.filter((p:any)=>getQty(p.id)===0).length} zerado(s)</span>
               </div>
               {critical.length === 0 ? (
@@ -815,7 +820,7 @@ export default function RelatoriosPage() {
               {/* Gráfico de linha */}
               {lineData.length > 0 && (
                 <div style={{ background:'var(--bg-card)', border:'1px solid var(--border)', borderRadius:'var(--radius)', padding:'18px' }}>
-                  <div style={{ fontSize:'13px', fontWeight:'500', color:'var(--text-1)', marginBottom:'16px' }}>Entradas vs Saídas por dia</div>
+                  <div style={{ ...panelTitle, marginBottom:'16px' }}>Entradas vs Saídas por dia</div>
                   <div style={{ height: 220 }}>
                     <RelatoriosLineChart data={lineData}/>
                   </div>
@@ -824,7 +829,7 @@ export default function RelatoriosPage() {
               {/* Ranking */}
               {rankingData.length > 0 && (
                 <div style={{ background:'var(--bg-card)', border:'1px solid var(--border)', borderRadius:'var(--radius)', padding:'18px' }}>
-                  <div style={{ fontSize:'13px', fontWeight:'500', color:'var(--text-1)', marginBottom:'16px' }}>Ranking — produtos mais movimentados</div>
+                  <div style={{ ...panelTitle, marginBottom:'16px' }}>Ranking — produtos mais movimentados</div>
                   <div style={{ height: 280 }}>
                     <RelatoriosBarChart
                       data={rankingData.map((r: any, i: number) => ({ ...r, value: r.total, fill: COLORS[i % COLORS.length] }))}
@@ -863,15 +868,15 @@ export default function RelatoriosPage() {
             <div style={{ display:'flex', flexDirection:'column', gap:'14px' }}>
               {locData.length > 0 && (
                 <div style={{ background:'var(--bg-card)', border:'1px solid var(--border)', borderRadius:'var(--radius)', padding:'18px' }}>
-                  <div style={{ fontSize:'13px', fontWeight:'500', color:'var(--text-1)', marginBottom:'16px' }}>Movimentações por depósito</div>
+                  <div style={{ ...panelTitle, marginBottom:'16px' }}>Movimentações por depósito</div>
                   <div style={{ height: 240 }}>
                     <RelatoriosDepositsChart data={locData}/>
                   </div>
                 </div>
               )}
-              <div style={{ background:'var(--bg-card)', border:'1px solid var(--border)', borderRadius:'var(--radius)', overflow:'hidden' }}>
-                <div style={{ padding:'12px 16px', borderBottom:'1px solid var(--border)', fontSize:'13px', fontWeight:'500', color:'var(--text-1)' }}>
-                  Resumo por depósito
+              <div style={{ ...panelStyle, padding:0, overflow:'hidden' }}>
+                <div style={{ ...panelHeader, padding:'16px 20px', borderBottom:'1px solid var(--border)', marginBottom:0 }}>
+                  <span style={panelTitle}>Resumo por depósito</span>
                 </div>
                 {Object.keys(locMap).length === 0 ? (
                   <div style={{ padding:'40px', textAlign:'center', fontSize:'13px', color:'var(--text-3)' }}>Nenhuma movimentação com depósito no período</div>
@@ -1039,7 +1044,7 @@ export default function RelatoriosPage() {
                   <div style={{ fontSize:'12px', color:'var(--text-3)', marginTop:'6px' }}>Informe o valor unitário ao registrar entradas.</div>
                 </div>
               ) : (
-                <div style={{ background:'var(--bg-card)', border:'1px solid var(--border)', borderRadius:'var(--radius)', overflow:'hidden' }}>
+                <div style={{ ...panelStyle, padding:0, overflow:'hidden' }}>
                   <table style={{ width:'100%', borderCollapse:'collapse' }}>
                     <thead>
                       <tr style={{ borderBottom:'1px solid var(--border)', background:'var(--bg-3)' }}>
@@ -1163,8 +1168,8 @@ export default function RelatoriosPage() {
               </div>
 
               {/* 2. Bens por categoria */}
-              <div style={{ background:'var(--bg-card)', border:'1px solid var(--border)', borderRadius:'var(--radius)', overflow:'hidden' }}>
-                <div style={{ padding:'12px 16px', borderBottom:'1px solid var(--border)', fontSize:'13px', fontWeight:'500', color:'var(--text-1)' }}>Bens por categoria</div>
+              <div style={{ ...panelStyle, padding:0, overflow:'hidden' }}>
+                <div style={{ ...panelHeader, padding:'16px 20px', borderBottom:'1px solid var(--border)', marginBottom:0 }}><span style={panelTitle}>Bens por categoria</span></div>
                 <div style={{ overflowX:'auto' }}>
                   <table style={{ width:'100%', borderCollapse:'collapse' }}>
                     <thead><tr style={{ background:'var(--bg-3)' }}>
@@ -1185,8 +1190,8 @@ export default function RelatoriosPage() {
               </div>
 
               {/* 3. Bens por ministério */}
-              <div style={{ background:'var(--bg-card)', border:'1px solid var(--border)', borderRadius:'var(--radius)', overflow:'hidden' }}>
-                <div style={{ padding:'12px 16px', borderBottom:'1px solid var(--border)', fontSize:'13px', fontWeight:'500', color:'var(--text-1)' }}>Bens por ministério</div>
+              <div style={{ ...panelStyle, padding:0, overflow:'hidden' }}>
+                <div style={{ ...panelHeader, padding:'16px 20px', borderBottom:'1px solid var(--border)', marginBottom:0 }}><span style={panelTitle}>Bens por ministério</span></div>
                 <div style={{ overflowX:'auto' }}>
                   <table style={{ width:'100%', borderCollapse:'collapse' }}>
                     <thead><tr style={{ background:'var(--bg-3)' }}>
@@ -1206,8 +1211,8 @@ export default function RelatoriosPage() {
               </div>
 
               {/* 4. Bens por status */}
-              <div style={{ background:'var(--bg-card)', border:'1px solid var(--border)', borderRadius:'var(--radius)', overflow:'hidden' }}>
-                <div style={{ padding:'12px 16px', borderBottom:'1px solid var(--border)', fontSize:'13px', fontWeight:'500', color:'var(--text-1)' }}>Bens por status</div>
+              <div style={{ ...panelStyle, padding:0, overflow:'hidden' }}>
+                <div style={{ ...panelHeader, padding:'16px 20px', borderBottom:'1px solid var(--border)', marginBottom:0 }}><span style={panelTitle}>Bens por status</span></div>
                 <div style={{ overflowX:'auto' }}>
                   <table style={{ width:'100%', borderCollapse:'collapse' }}>
                     <thead><tr style={{ background:'var(--bg-3)' }}>
@@ -1230,8 +1235,8 @@ export default function RelatoriosPage() {
               {(() => {
                 const hoje = new Date(); hoje.setHours(0,0,0,0)
                 return (
-                  <div style={{ background:'var(--bg-card)', border:'1px solid var(--border)', borderRadius:'var(--radius)', overflow:'hidden' }}>
-                    <div style={{ padding:'12px 16px', borderBottom:'1px solid var(--border)', fontSize:'13px', fontWeight:'500', color:'var(--text-1)' }}>Empréstimos ativos / devoluções pendentes — {patrEmprestimos.length}</div>
+                  <div style={{ ...panelStyle, padding:0, overflow:'hidden' }}>
+                    <div style={{ ...panelHeader, padding:'16px 20px', borderBottom:'1px solid var(--border)', marginBottom:0 }}><span style={panelTitle}>Empréstimos ativos / devoluções pendentes — {patrEmprestimos.length}</span></div>
                     {patrEmprestimos.length === 0 ? (
                       <div style={{ padding:'20px', textAlign:'center', color:'var(--text-3)', fontSize:'13px' }}>Nenhum empréstimo ativo.</div>
                     ) : (
@@ -1264,8 +1269,8 @@ export default function RelatoriosPage() {
               })()}
 
               {/* 6. Top 10 bens de maior valor */}
-              <div style={{ background:'var(--bg-card)', border:'1px solid var(--border)', borderRadius:'var(--radius)', overflow:'hidden' }}>
-                <div style={{ padding:'12px 16px', borderBottom:'1px solid var(--border)', fontSize:'13px', fontWeight:'500', color:'var(--text-1)' }}>Top 10 bens de maior valor atual</div>
+              <div style={{ ...panelStyle, padding:0, overflow:'hidden' }}>
+                <div style={{ ...panelHeader, padding:'16px 20px', borderBottom:'1px solid var(--border)', marginBottom:0 }}><span style={panelTitle}>Top 10 bens de maior valor atual</span></div>
                 <div style={{ overflowX:'auto' }}>
                   <table style={{ width:'100%', borderCollapse:'collapse' }}>
                     <thead><tr style={{ background:'var(--bg-3)' }}>
@@ -1287,9 +1292,9 @@ export default function RelatoriosPage() {
               </div>
 
               {/* 7. Manutenções e custos */}
-              <div style={{ background:'var(--bg-card)', border:'1px solid var(--border)', borderRadius:'var(--radius)', overflow:'hidden' }}>
-                <div style={{ padding:'12px 16px', borderBottom:'1px solid var(--border)', display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:'8px' }}>
-                  <span style={{ fontSize:'13px', fontWeight:'500', color:'var(--text-1)' }}>Manutenções e custos</span>
+              <div style={{ ...panelStyle, padding:0, overflow:'hidden' }}>
+                <div style={{ ...panelHeader, padding:'16px 20px', borderBottom:'1px solid var(--border)', marginBottom:0, flexWrap:'wrap', gap:'8px' }}>
+                  <span style={panelTitle}>Manutenções e custos</span>
                   <div style={{ display:'flex', gap:'6px', alignItems:'center' }}>
                     {[{v:'30',l:'30 dias'},{v:'90',l:'90 dias'},{v:'365',l:'12 meses'}].map(o => (
                       <button key={o.v} onClick={() => setPatrManutPeriod(o.v)} style={{ padding:'5px 12px', borderRadius:'99px', border:'1px solid', fontSize:'12px', cursor:'pointer', background: patrManutPeriod===o.v?'var(--brand)':'transparent', color: patrManutPeriod===o.v?'#fff':'var(--text-3)', borderColor: patrManutPeriod===o.v?'var(--brand)':'var(--border)' }}>{o.l}</button>
@@ -1326,8 +1331,8 @@ export default function RelatoriosPage() {
               </div>
 
               {/* 8. Pendências de gestão */}
-              <div style={{ background:'var(--bg-card)', border:'1px solid var(--border)', borderRadius:'var(--radius)', overflow:'hidden' }}>
-                <div style={{ padding:'12px 16px', borderBottom:'1px solid var(--border)', fontSize:'13px', fontWeight:'500', color:'var(--text-1)' }}>Pendências de gestão — bens que precisam de atenção</div>
+              <div style={{ ...panelStyle, padding:0, overflow:'hidden' }}>
+                <div style={{ ...panelHeader, padding:'16px 20px', borderBottom:'1px solid var(--border)', marginBottom:0 }}><span style={panelTitle}>Pendências de gestão — bens que precisam de atenção</span></div>
                 <div style={{ display:'flex', gap:'6px', padding:'12px 16px', flexWrap:'wrap', borderBottom:'1px solid var(--border)' }}>
                   {[
                     {k:'nf', l:'Sem nota fiscal', n:patrPendencias.nf.length},

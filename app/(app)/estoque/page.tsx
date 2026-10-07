@@ -164,16 +164,14 @@ export default function EstoquePage() {
         <div><h1 style={{fontSize:'22px',fontWeight:'600'}}>Estoque</h1><p style={{fontSize:'13px',color:'var(--text-3)',marginTop:'4px'}}>{products.length} {products.length===1?'item':'itens'} cadastrados</p></div>
         <div style={{display:'flex',gap:'10px'}}><button onClick={gerarListaCompras} style={{padding:'9px 16px',background:'transparent',border:'1px solid var(--border)',borderRadius:'8px',fontSize:'13px',color:'var(--text-2)',cursor:'pointer',display:'flex',alignItems:'center',gap:'6px'}}>🛒 Lista de compras</button>{canEdit&&<button onClick={openNew} style={{padding:'9px 18px',background:'var(--brand)',color:'#fff',border:'none',borderRadius:'8px',fontSize:'13px',fontWeight:'500',cursor:'pointer'}}>+ Novo produto</button>}</div>
       </div>
-      <div className='estoque-filters' style={{display:'flex',gap:'10px',marginBottom:'16px',flexWrap:'wrap'}}>
-        <input placeholder="Buscar..." value={search} onChange={e=>setSearch(e.target.value)} style={{flex:1,minWidth:'180px'}}/>
-        <div style={{display:'flex',flexDirection:'column',gap:'8px',flex:1,minWidth:0}}><div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'10px'}}>
-          <select value={filterStatus} onChange={e=>setFilterStatus(e.target.value)}><option value="all">Todos os status</option><option value="ok">OK</option><option value="low">Baixo</option><option value="empty">Zerado</option></select>
-          <select value={filterCat} onChange={e=>setFilterCat(e.target.value)}><option value="all">Todas as categorias</option>{categories.map(c=><option key={c} value={c}>{c}</option>)}</select>
-          </div>
-        </div>
+      <div className='estoque-filters' style={{display:'grid',gridTemplateColumns:'repeat(auto-fit, minmax(160px, 1fr))',gap:'10px',marginBottom:'16px'}}>
+        <input placeholder="Buscar..." value={search} onChange={e=>setSearch(e.target.value)} style={{minWidth:'160px'}}/>
+        <select value={filterStatus} onChange={e=>setFilterStatus(e.target.value)}><option value="all">Todos os status</option><option value="ok">OK</option><option value="low">Baixo</option><option value="empty">Zerado</option></select>
+        <select value={filterCat} onChange={e=>setFilterCat(e.target.value)}><option value="all">Todas as categorias</option>{categories.map(c=><option key={c} value={c}>{c}</option>)}</select>
+        <select value={filterLoc} onChange={e=>setFilterLoc(e.target.value)}><option value="all">Todos os depósitos</option>{locations.map((l:any)=><option key={l.id} value={l.name}>{l.name}</option>)}</select>
       </div>
       {loading?(<div style={{display:'flex',flexDirection:'column',gap:'8px'}}>{[1,2,3,4,5].map(i=><div key={i} className="skeleton" style={{height:'52px',borderRadius:'8px'}}/>)}</div>):(
-        <div style={{background:'var(--bg-card)',border:'1px solid var(--border)',borderRadius:'12px',overflow:'hidden'}}>
+        <div style={{background:'var(--bg-card)',border:'1px solid var(--border)',borderRadius:'var(--radius)',overflow:'hidden'}}>
           <table className='estoque-table' style={{width:'100%',borderCollapse:'collapse'}}>
             <thead><tr style={{borderBottom:'1px solid var(--border)'}}>{[
   {label:'Produto',    col:'name'},
@@ -196,7 +194,7 @@ export default function EstoquePage() {
                 return (<tr key={p.id} style={{borderBottom:'1px solid var(--border)'}} onMouseEnter={e=>(e.currentTarget.style.background='rgba(255,255,255,0.02)')} onMouseLeave={e=>(e.currentTarget.style.background='transparent')}>
                   <td style={{padding:'12px 14px'}}><div style={{fontSize:'13px',fontWeight:'500'}}>{p.name}</div>{p.notes&&<div style={{fontSize:'11px',color:'var(--text-3)',marginTop:'2px'}}>{p.notes}</div>}</td>
                   <td style={{padding:'12px 14px',fontSize:'12px',color:'var(--text-2)'}}>{p.category||'—'}</td>
-                  <td style={{padding:'12px 14px',fontSize:'18px',fontWeight:'700',color}}>{displayQty}{locId&&<span style={{fontSize:'10px',color:'var(--text-3)',display:'block',lineHeight:1}}>dep</span>}</td>
+                  <td style={{padding:'12px 14px',fontSize:'18px',fontWeight:'700',color:'var(--text-1)',fontFamily:'var(--font-mono)'}}>{displayQty}{locId&&<span style={{fontSize:'10px',color:'var(--text-3)',display:'block',lineHeight:1}}>dep</span>}</td>
                   <td style={{padding:'12px 14px',fontSize:'12px',color:'var(--text-3)'}}>{p.min_stock}</td>
                   <td style={{padding:'8px 14px'}}>{ (() => { const locs=Object.entries(locBalance).filter(([k,v])=>k.startsWith(p.id+'|')&&v>0); if(locs.length===0)return <span style={{color:'var(--text-3)'}}>—</span>; return locs.map(([k,v])=>{ const locId=k.split('|')[1]; const locName=locations.find(l=>l.id===locId)?.name||'?'; return <div key={k} style={{display:'flex',gap:'6px',alignItems:'center',marginBottom:'2px'}}><span style={{fontSize:'12px',fontWeight:'600',color:'var(--brand-light)',fontFamily:'var(--font-mono)'}}>{v}</span><span style={{fontSize:'11px',color:'var(--text-2)',background:'var(--bg-3)',padding:'1px 7px',borderRadius:'99px'}}>{locName}</span></div> }) })() }</td>
                   <td style={{padding:'12px 14px'}}><span style={{fontSize:'11px',fontWeight:'500',padding:'3px 10px',borderRadius:'99px',background:bg,color}}>{label}</span></td>
