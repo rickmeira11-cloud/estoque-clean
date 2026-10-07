@@ -7,7 +7,12 @@ export async function GET() {
   return Response.json({ ok: true, message: 'Gestoque WhatsApp API ativa. Use POST para enviar alertas.' })
 }
 
-export async function POST() {
+export async function POST(request: Request) {
+  const auth = request.headers.get('Authorization')
+  if (!process.env.CRON_SECRET || auth !== 'Bearer ' + process.env.CRON_SECRET) {
+    return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+  }
+
   try {
     const sb = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
