@@ -35,6 +35,8 @@ export function normalizeMinisterio(s: string): string {
 // Resolve o ministry_id pelo nome: casa por nome normalizado (via cache) ou cria um novo
 // ministério com o nome exato (sem duplicar por acento/caixa). O `cache` deve vir
 // pré-carregado com os ministérios existentes (normalizeMinisterio(name) -> id).
+// Se o insert falhar por unique constraint (banco tem UNIQUE INDEX em church_id + LOWER(TRIM(name))),
+// faz SELECT para recuperar o id existente em vez de retornar null.
 // Reutilizado pelo sync da planilha e pela importação manual.
 export async function resolveMinistryId(
   sb: any,
@@ -50,9 +52,28 @@ export async function resolveMinistryId(
     .insert({ church_id: churchId, name: nome })
     .select('id')
     .single()
-  if (error || !novo) return null
-  cache.set(key, novo.id)
-  return novo.id
+  if (!error && novo) {
+    cache.set(key, novo.id)
+    return novo.id
+  }
+  // Unique constraint violation (code 23505): ministério já existe com nome equivalente.
+  // Recupera o id existente para não perder o vínculo do bem patrimonial.
+  const isUniqueViolation = error?.code === '23505'
+  if (isUniqueViolation) {
+    const { data: existing } = await sb
+      .from('ministries')
+      .select('id')
+      .eq('church_id', churchId)
+      .ilike('name', nome.trim())
+      .limit(1)
+      .single()
+    if (existing) {
+      cache.set(key, existing.id)
+      return existing.id
+    }
+  }
+  console.error('[resolveMinistryId] erro ao criar ministério:', error?.message, '| nome:', nome)
+  return null
 }
 
 // Ler uma coluna tentando variações de nome de cabeçalho.
