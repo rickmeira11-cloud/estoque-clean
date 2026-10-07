@@ -50,10 +50,6 @@ export default function RelatoriosPage() {
   const [tab,        setTab]        = useState<ReportTab>('inventario')
   const [categories,  setCategories]  = useState<string[]>([])
   const [locBalanceView, setLocBalanceView] = useState<any[]>([])
-  const [histRows,    setHistRows]    = useState<any[]>([])
-  const [histPage,    setHistPage]    = useState(0)
-  const [histFilter,  setHistFilter]  = useState('all')
-  const [histLoading, setHistLoading] = useState(false)
   const [auditRows,    setAuditRows]    = useState<any[]>([])
   const [minRows,      setMinRows]      = useState<any[]>([])
   const [precosRows,   setPrecosRows]   = useState<any[]>([])
@@ -69,8 +65,6 @@ export default function RelatoriosPage() {
   const [auditUser,    setAuditUser]    = useState('all')
   const [auditDateFrom,setAuditDateFrom] = useState(() => { const d = new Date(); d.setDate(d.getDate()-30); return d.toISOString().split('T')[0] })
   const [auditDateTo,  setAuditDateTo]  = useState(() => new Date().toISOString().split('T')[0])
-  const [histDateFrom, setHistDateFrom] = useState(() => { const d = new Date(); d.setDate(d.getDate()-30); return d.toISOString().split('T')[0] })
-  const [histDateTo,   setHistDateTo]   = useState(() => new Date().toISOString().split('T')[0])
   const [dateFrom,   setDateFrom]   = useState(() => { const d=new Date(); d.setMonth(d.getMonth()-3); return d.toISOString().split('T')[0] })
   const [dateTo,     setDateTo]     = useState(() => new Date().toISOString().split('T')[0])
   const [filterLoc,  setFilterLoc]  = useState('all')
@@ -99,7 +93,6 @@ export default function RelatoriosPage() {
   useEffect(() => { if (profile?.church_id && tab === 'eventos') loadEventos() }, [profile?.church_id, tab, eventosPeriod])
   useEffect(() => { if (profile?.church_id && tab === 'patrimonio') loadPatrimonio() }, [profile?.church_id, tab])
   useEffect(() => { if (profile?.church_id && tab === 'patrimonio') loadPatrManut() }, [profile?.church_id, tab, patrManutPeriod])
-  useEffect(() => { if (profile?.church_id && tab === 'historico') loadHistorico() }, [profile?.church_id, tab, histFilter, histPage, histDateFrom, histDateTo])
 
   async function loadBase() {
     const sb = createClient()
@@ -142,22 +135,6 @@ export default function RelatoriosPage() {
     })
   }
 
-  async function loadHistorico() {
-    setHistLoading(true)
-    const sb = createClient()
-    const pageSize = 20
-    let q = sb.from('stock_movements')
-      .select('id,type,quantity,created_at,note,location_id,product:products(name,category),location:locations(name)', { count: 'exact' })
-      .eq('church_id', profile!.church_id)
-      .gte('created_at', histDateFrom)
-      .lte('created_at', histDateTo + 'T23:59:59.999Z')
-      .order('created_at', { ascending: false })
-      .range(histPage * pageSize, (histPage + 1) * pageSize - 1)
-    if (histFilter !== 'all') q = q.eq('type', histFilter)
-    const { data, count } = await q
-    if (data) setHistRows(data)
-    setHistLoading(false)
-  }
 
   async function loadEventos() {
     setEventosLoading(true)
@@ -636,35 +613,35 @@ export default function RelatoriosPage() {
         ))}
       </div>
 
-      {/* Filtros */}
-      <div style={{ background:'var(--bg-card)', border:'1px solid var(--border)', borderRadius:'var(--radius)', padding:'16px', marginBottom:'16px' }}>
-        <div className='report-filters' style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(160px, 1fr))', gap:'10px', alignItems:'flex-end' }}>
-          {(tab==='movimentacoes'||tab==='consumo'||tab==='depositos') && (
-            <>
-              <div><label style={L}>De</label><input type="date" value={dateFrom} onChange={e=>setDateFrom(e.target.value)}/></div>
-              <div><label style={L}>Até</label><input type="date" value={dateTo} onChange={e=>setDateTo(e.target.value)}/></div>
-            </>
-          )}
-          <div><label style={L}>Categoria</label>
-            <select value={filterCat} onChange={e=>setFilterCat(e.target.value)}>
-              <option value="all">Todas as categorias</option>
-              {categories.map(c=><option key={c} value={c}>{c}</option>)}
-            </select>
-          </div>
-          {(tab==='movimentacoes'||tab==='depositos'||tab==='inventario'||tab==='criticos') && (
+      {/* Filtros — só aparece nas abas que têm filtros externos */}
+      {(tab==='inventario'||tab==='movimentacoes'||tab==='criticos'||tab==='consumo'||tab==='depositos') && (
+        <div style={{ background:'var(--bg-card)', border:'1px solid var(--border)', borderRadius:'var(--radius)', padding:'16px', marginBottom:'16px' }}>
+          <div className='report-filters' style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(160px, 1fr))', gap:'10px', alignItems:'flex-end' }}>
+            {(tab==='movimentacoes'||tab==='consumo'||tab==='depositos') && (
+              <>
+                <div><label style={L}>De</label><input type="date" value={dateFrom} onChange={e=>setDateFrom(e.target.value)}/></div>
+                <div><label style={L}>Até</label><input type="date" value={dateTo} onChange={e=>setDateTo(e.target.value)}/></div>
+              </>
+            )}
+            <div><label style={L}>Categoria</label>
+              <select value={filterCat} onChange={e=>setFilterCat(e.target.value)}>
+                <option value="all">Todas as categorias</option>
+                {categories.map(c=><option key={c} value={c}>{c}</option>)}
+              </select>
+            </div>
             <div><label style={L}>Depósito</label>
               <select value={filterLoc} onChange={e=>setFilterLoc(e.target.value)}>
                 <option value="all">Todos os depósitos</option>
                 {locations.map(l=><option key={l.id} value={l.name}>{l.name}</option>)}
               </select>
             </div>
-          )}
-          <div style={{ display:'flex', flexDirection:'column', justifyContent:'flex-end' }}>
-            <label style={L}>&nbsp;</label>
-            <div style={{ fontSize:'12px', color:'var(--text-3)', padding:'10px 0' }}>{count} registro(s)</div>
+            <div style={{ display:'flex', flexDirection:'column', justifyContent:'flex-end' }}>
+              <label style={L}>&nbsp;</label>
+              <div style={{ fontSize:'12px', color:'var(--text-3)', padding:'10px 0' }}>{count} registro(s)</div>
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Botões exportar */}
       <div style={{ display:'flex', gap:'10px', marginBottom:'20px' }}>
