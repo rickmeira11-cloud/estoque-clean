@@ -31,19 +31,35 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(loginUrl)
   }
 
+  // Lê custom claims do JWT (zero queries ao banco)
+  // Requer Auth Hook registrado: Authentication → Hooks → Customize Access Token
+  const session = await supabase.auth.getSession()
+  const accessToken = session.data.session?.access_token
+  let claims: Record<string, unknown> = {}
+  if (accessToken) {
+    try {
+      claims = JSON.parse(atob(accessToken.split('.')[1]))
+    } catch {}
+  }
+
+  const isActive = (claims.is_active as boolean) ?? false
+  const churchId = (claims.church_id as string | null) ?? null
+  const userRole = (claims.user_role as string) ?? 'viewer'
+
+  // Usuário autenticado mas ainda não aprovado pelo admin
+  // /aguardando-aprovacao e /login estão fora do matcher — sem risco de loop
+  if (!isActive || !churchId) {
+    const url = request.nextUrl.clone()
+    url.pathname = '/aguardando-aprovacao'
+    return NextResponse.redirect(url)
+  }
+
   // /admin/* exige role admin ou super_admin
   if (pathname.startsWith('/admin')) {
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', user.id)
-      .single()
-
-    const role = profile?.role ?? ''
-    if (role !== 'admin' && role !== 'super_admin') {
-      const accessUrl = request.nextUrl.clone()
-      accessUrl.pathname = '/sem-acesso'
-      return NextResponse.redirect(accessUrl)
+    if (userRole !== 'admin' && userRole !== 'super_admin') {
+      const url = request.nextUrl.clone()
+      url.pathname = '/sem-acesso'
+      return NextResponse.redirect(url)
     }
   }
 

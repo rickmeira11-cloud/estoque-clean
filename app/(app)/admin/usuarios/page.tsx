@@ -19,10 +19,50 @@ export default function UsuariosPage() {
   const [saving,       setSaving]       = useState(false)
   const [error,        setError]        = useState(null)
   const [senhaGerada,  setSenhaGerada]  = useState('')
+  const [pendentes,    setPendentes]    = useState([])
+  const [approvingId,  setApprovingId]  = useState(null)
+  const [approveForm,  setApproveForm]  = useState({ church_id: '', role: 'operator' })
   const formRef  = useRef(null)
   const firstRef = useRef(null)
 
-  useEffect(() => { if (profile?.church_id) loadAll() }, [profile?.church_id])
+  useEffect(() => { if (profile?.church_id) { loadAll(); loadPendentes() } }, [profile?.church_id])
+
+  async function loadPendentes() {
+    const { data } = await createClient()
+      .from('profiles')
+      .select('id, name, email, created_at')
+      .is('church_id', null)
+      .eq('is_active', false)
+      .order('created_at', { ascending: false })
+    if (data) setPendentes(data)
+  }
+
+  async function handleApprove(userId) {
+    if (!approveForm.church_id) return
+    const sb = createClient()
+    await sb.from('profiles').update({
+      church_id: approveForm.church_id,
+      role: approveForm.role,
+      is_active: true,
+    }).eq('id', userId)
+    await sb.from('user_churches').upsert({
+      user_id: userId,
+      church_id: approveForm.church_id,
+      role: approveForm.role,
+      is_active: true,
+    }, { onConflict: 'user_id,church_id' })
+    setApprovingId(null)
+    setApproveForm({ church_id: '', role: 'operator' })
+    await loadPendentes()
+    await loadAll()
+  }
+
+  async function handleReject(userId) {
+    if (!confirm('Rejeitar este cadastro? O usuário será excluído permanentemente.')) return
+    await createClient().auth.admin.deleteUser(userId).catch(() => null)
+    await createClient().from('profiles').delete().eq('id', userId)
+    await loadPendentes()
+  }
 
   async function loadAll() {
     setLoading(true)
@@ -128,6 +168,60 @@ export default function UsuariosPage() {
         <div><h1 style={{ fontSize:'22px', fontWeight:'600' }}>Usuarios</h1><p style={{ fontSize:'13px', color:'var(--text-3)', marginTop:'4px' }}>Gerencie acessos e vinculos com igrejas</p></div>
         <button onClick={openNew} style={{ padding:'9px 18px', background:'var(--brand)', color:'#fff', border:'none', borderRadius:'8px', fontSize:'13px', fontWeight:'500', cursor:'pointer', flexShrink:0 }}>+ Novo usuario</button>
       </div>
+
+      {/* Seção: Pendentes de aprovação */}
+      {pendentes.length > 0 && (
+        <div style={{ marginBottom: '24px', padding: '16px 20px', borderRadius: '12px', background: 'rgba(245,158,11,0.06)', border: '1px solid rgba(245,158,11,0.25)' }}>
+          <div style={{ fontSize: '13px', fontWeight: '600', color: '#f59e0b', marginBottom: '14px' }}>
+            ⏳ {pendentes.length} cadastro{pendentes.length > 1 ? 's' : ''} aguardando aprovação
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            {pendentes.map(u => (
+              <div key={u.id} style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '10px', overflow: 'hidden' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 16px' }}>
+                  <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: 'rgba(245,158,11,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '15px', fontWeight: '700', color: '#f59e0b', flexShrink: 0 }}>
+                    {(u.name || u.email || '?').charAt(0).toUpperCase()}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-1)' }}>{u.name || '(sem nome)'}</div>
+                    <div style={{ fontSize: '11px', color: 'var(--text-3)', marginTop: '1px' }}>{u.email}</div>
+                  </div>
+                  {approvingId !== u.id && (
+                    <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
+                      <button onClick={() => { setApprovingId(u.id); setApproveForm({ church_id: churches[0]?.id || '', role: 'operator' }) }} style={{ padding: '5px 12px', borderRadius: '6px', background: 'var(--ok-dim)', border: '1px solid var(--ok)', color: 'var(--ok)', cursor: 'pointer', fontSize: '12px', fontWeight: '500' }}>Aprovar</button>
+                      <button onClick={() => handleReject(u.id)} style={{ padding: '5px 10px', borderRadius: '6px', background: 'transparent', border: '1px solid rgba(239,68,68,0.3)', color: 'var(--empty)', cursor: 'pointer', fontSize: '12px' }}>Rejeitar</button>
+                    </div>
+                  )}
+                </div>
+                {approvingId === u.id && (
+                  <div style={{ padding: '12px 16px', borderTop: '1px solid var(--border)', background: 'var(--bg-3)', display: 'flex', gap: '10px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
+                    <div style={{ flex: 1, minWidth: '160px' }}>
+                      <label style={{ display: 'block', fontSize: '11px', color: 'var(--text-3)', marginBottom: '4px' }}>Igreja</label>
+                      <select value={approveForm.church_id} onChange={e => setApproveForm(f => ({ ...f, church_id: e.target.value }))}>
+                        <option value="">Selecione...</option>
+                        {churches.map(c => <option key={c.id} value={c.id}>{c.name}{c.city ? ' - ' + c.city : ''}</option>)}
+                      </select>
+                    </div>
+                    <div style={{ minWidth: '130px' }}>
+                      <label style={{ display: 'block', fontSize: '11px', color: 'var(--text-3)', marginBottom: '4px' }}>Papel</label>
+                      <select value={approveForm.role} onChange={e => setApproveForm(f => ({ ...f, role: e.target.value }))}>
+                        {Object.entries(ROLES).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                      </select>
+                    </div>
+                    <div style={{ display: 'flex', gap: '6px' }}>
+                      <button onClick={() => handleApprove(u.id)} disabled={!approveForm.church_id} style={{ padding: '8px 16px', borderRadius: '6px', background: approveForm.church_id ? 'var(--brand)' : 'var(--bg-3)', color: approveForm.church_id ? '#fff' : 'var(--text-3)', border: 'none', cursor: approveForm.church_id ? 'pointer' : 'not-allowed', fontSize: '13px', fontWeight: '500' }}>Confirmar</button>
+                      <button onClick={() => setApprovingId(null)} style={{ padding: '8px 12px', borderRadius: '6px', background: 'transparent', border: '1px solid var(--border)', color: 'var(--text-2)', cursor: 'pointer', fontSize: '13px' }}>Cancelar</button>
+                    </div>
+                    <div style={{ width: '100%', fontSize: '11px', color: 'var(--text-3)', marginTop: '4px' }}>
+                      O usuário precisará fazer login novamente após a aprovação para que as permissões sejam atualizadas.
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {senhaGerada && (
         <div style={{ marginBottom:'16px', padding:'16px 20px', borderRadius:'12px', background:'rgba(99,102,241,0.08)', border:'1px solid rgba(99,102,241,0.3)' }}>
