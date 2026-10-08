@@ -30,6 +30,7 @@ type AdminTableProps<T extends { id: string }> = {
   onDelete?: (item: T) => Promise<string | null>
   onToggle?: (item: T) => Promise<void>
   renderItem: (item: T, actions: Actions, isAdmin: boolean) => ReactNode
+  listContainerStyle?: React.CSSProperties
 }
 
 const L: React.CSSProperties = {
@@ -46,7 +47,7 @@ export default function AdminTable<T extends { id: string }>({
   title, subtitle, emptyIcon, emptyText, newLabel = '+ Novo',
   isAdmin, loading, items,
   fields, initialForm, formTitle, onEditInit, onSave,
-  onDelete, onToggle, renderItem,
+  onDelete, onToggle, renderItem, listContainerStyle,
 }: AdminTableProps<T>) {
   const [showForm, setShowForm] = useState(false)
   const [editId,   setEditId]   = useState<string | null>(null)
@@ -157,7 +158,7 @@ export default function AdminTable<T extends { id: string }>({
           <div>{emptyText ?? 'Nenhum item cadastrado ainda.'}</div>
         </div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', ...listContainerStyle }}>
           {items.map(item => (
             <div key={item.id}>
               {renderItem(
