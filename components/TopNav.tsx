@@ -75,17 +75,22 @@ export function TopNav() {
   const [userOpen,     setUserOpen]     = useState(false)
   const [alertOpen,    setAlertOpen]    = useState(false)
   const [cadastroOpen, setCadastroOpen] = useState(false)
-  const menuRef     = useRef<HTMLDivElement>(null)
-  const userRef     = useRef<HTMLDivElement>(null)
-  const alertRef    = useRef<HTMLDivElement>(null)
-  const cadastroRef = useRef<HTMLDivElement>(null)
+  const menuRef          = useRef<HTMLDivElement>(null)
+  const userRef          = useRef<HTMLDivElement>(null)
+  const alertRef         = useRef<HTMLDivElement>(null)
+  const mobileAlertRef   = useRef<HTMLDivElement>(null)
+  const cadastroRef      = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
-      if (menuRef.current      && !menuRef.current.contains(e.target as Node))      setMenuOpen(false)
-      if (userRef.current      && !userRef.current.contains(e.target as Node))      setUserOpen(false)
-      if (alertRef.current     && !alertRef.current.contains(e.target as Node))     setAlertOpen(false)
-      if (cadastroRef.current  && !cadastroRef.current.contains(e.target as Node))  setCadastroOpen(false)
+      if (menuRef.current         && !menuRef.current.contains(e.target as Node))         setMenuOpen(false)
+      if (userRef.current         && !userRef.current.contains(e.target as Node))         setUserOpen(false)
+      if (cadastroRef.current     && !cadastroRef.current.contains(e.target as Node))     setCadastroOpen(false)
+      // Fecha alertas se o clique foi fora de ambos os sinos (desktop e mobile)
+      if (
+        alertRef.current         && !alertRef.current.contains(e.target as Node) &&
+        mobileAlertRef.current   && !mobileAlertRef.current.contains(e.target as Node)
+      ) setAlertOpen(false)
     }
     document.addEventListener('mousedown', handleClick)
     return () => document.removeEventListener('mousedown', handleClick)
@@ -254,7 +259,7 @@ export function TopNav() {
         {/* Mobile — sino + hamburguer direita */}
         <div style={{display:'flex',alignItems:'center',gap:'8px',marginLeft:'auto'}} className="mobile-menu-btn">
           {/* Sino mobile */}
-          <div ref={alertRef} style={{position:'relative'}}>
+          <div ref={mobileAlertRef} style={{position:'relative'}}>
             <button onClick={() => setAlertOpen(o => !o)} style={{position:'relative',width:'34px',height:'34px',borderRadius:'var(--radius-sm)',background:alertOpen?'var(--bg-3)':'var(--bg-2)',border:'1px solid var(--border-md)',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer'}}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={hasAlerts ? 'var(--low)' : 'var(--text-3)'} strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0"/></svg>
               {hasAlerts && <span style={{position:'absolute',top:'-4px',right:'-4px',width:'16px',height:'16px',borderRadius:'50%',background:'var(--empty)',fontSize:'9px',fontWeight:'700',color:'#fff',display:'flex',alignItems:'center',justifyContent:'center',border:'2px solid var(--bg)'}}>{count > 9 ? '9+' : count}</span>}
