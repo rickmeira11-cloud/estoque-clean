@@ -7,7 +7,7 @@ import type { Product } from '@/types'
 const S={ok:{label:'OK',color:'var(--ok)',bg:'var(--ok-dim)'},low:{label:'Baixo',color:'var(--low)',bg:'var(--low-dim)'},empty:{label:'Zerado',color:'var(--empty)',bg:'var(--empty-dim)'}}
 const getStatus=(p:Product)=>p.quantity===0?'empty':p.quantity<=p.min_stock?'low':'ok'
 const blank={name:'',category:'',type:'non_perishable',container:'',unit:'un',min_stock:'1',last_purchase_value:'',expiration_date:'',notes:'',barcode:''}
-function isDirty(form:typeof blank){return form.name!==blank.name||form.category!==blank.category||form.notes!==blank.notes}
+function formsDiffer(a:typeof blank,b:typeof blank){return (Object.keys(a) as (keyof typeof blank)[]).some(k=>a[k]!==b[k])}
 export default function EstoquePage() {
   const {profile,canEdit}=useProfile()
   const [products,setProducts]=useState<Product[]>([])
@@ -25,10 +25,11 @@ export default function EstoquePage() {
   const [showModal,setShowModal]=useState(false)
   const [editItem,setEditItem]=useState<Product|null>(null)
   const [form,setForm]=useState(blank)
+  const [formSnapshot,setFormSnapshot]=useState(blank)
   const [saving,setSaving]=useState(false)
   const formRef  = useRef(null)
   const firstRef = useRef(null)
-  function handleClose(){if(isDirty(form)&&!confirm('Existem dados preenchidos. Deseja fechar sem salvar?'))return;setShowModal(false);setEditItem(null);setForm(blank)}
+  function handleClose(){if(formsDiffer(form,formSnapshot)&&!confirm('Existem alterações não salvas. Deseja fechar sem salvar?'))return;setShowModal(false);setEditItem(null);setForm(blank)}
   const [formError,setFormError]=useState<string|null>(null)
   useEffect(()=>{
     if(!profile?.church_id)return
@@ -132,8 +133,8 @@ export default function EstoquePage() {
     if(data){setProducts(data as Product[]);setCategories([...new Set(data.map((p:any)=>p.category).filter(Boolean))].sort() as string[])}
     setLoading(false)
   }
-  function openNew(){setEditItem(null);setForm(blank);setFormError(null);setShowModal(true);setTimeout(()=>{formRef.current?.scrollIntoView({behavior:'instant',block:'nearest'});firstRef.current?.focus()},100)}
-  function openEdit(p:Product){setEditItem(p);setForm({name:p.name,category:p.category||'',type:p.type,container:p.container||'',unit:p.unit||'un',min_stock:String(p.min_stock),last_purchase_value:p.last_purchase_value?String(p.last_purchase_value):'',expiration_date:p.expiration_date||'',notes:p.notes||'',barcode:p.barcode||''});setFormError(null);setShowModal(true);setTimeout(()=>{formRef.current?.scrollIntoView({behavior:'instant',block:'nearest'});firstRef.current?.focus()},100)}
+  function openNew(){setEditItem(null);setForm(blank);setFormSnapshot(blank);setFormError(null);setShowModal(true);setTimeout(()=>{formRef.current?.scrollIntoView({behavior:'instant',block:'nearest'});firstRef.current?.focus()},100)}
+  function openEdit(p:Product){const f={name:p.name,category:p.category||'',type:p.type,container:p.container||'',unit:p.unit||'un',min_stock:String(p.min_stock),last_purchase_value:p.last_purchase_value?String(p.last_purchase_value):'',expiration_date:p.expiration_date||'',notes:p.notes||'',barcode:p.barcode||''};setEditItem(p);setForm(f);setFormSnapshot(f);setFormError(null);setShowModal(true);setTimeout(()=>{formRef.current?.scrollIntoView({behavior:'instant',block:'nearest'});firstRef.current?.focus()},100)}
   async function save() {
     if(!profile?.church_id){setFormError('Perfil não carregado. Aguarde e tente novamente.');return}
     if(!form.name.trim()){setFormError('Nome obrigatório');return}
