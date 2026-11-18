@@ -643,7 +643,7 @@ export default function PatrimonioPage() {
         return (
           <div style={{ marginBottom: '20px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
             {vencidos.length > 0 && (
-              <div style={{ padding: '12px 16px', borderRadius: 'var(--radius)', background: 'var(--empty-dim)', border: '1px solid rgba(239,68,68,0.2)' }}>
+              <div style={{ padding: '12px 16px', borderRadius: 'var(--radius)', background: 'var(--empty-dim)', border: '1px solid var(--empty-dim)' }}>
                 <div style={{ fontSize: '13px', fontWeight: '600', color: 'var(--empty)', marginBottom: '6px' }}>
                   🔴 {vencidos.length} empréstimo(s) com devolução vencida
                 </div>
@@ -655,7 +655,7 @@ export default function PatrimonioPage() {
               </div>
             )}
             {proximos.length > 0 && (
-              <div style={{ padding: '12px 16px', borderRadius: 'var(--radius)', background: 'var(--low-dim)', border: '1px solid rgba(245,158,11,0.2)' }}>
+              <div style={{ padding: '12px 16px', borderRadius: 'var(--radius)', background: 'var(--low-dim)', border: '1px solid var(--low-dim)' }}>
                 <div style={{ fontSize: '13px', fontWeight: '600', color: 'var(--low)', marginBottom: '6px' }}>
                   🟡 {proximos.length} devolução(ões) nos próximos 7 dias
                 </div>
@@ -683,7 +683,7 @@ export default function PatrimonioPage() {
         return (
           <div style={{ marginBottom: '20px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
             {vencidas.length > 0 && (
-              <div style={{ padding: '12px 16px', borderRadius: 'var(--radius)', background: 'var(--empty-dim)', border: '1px solid rgba(239,68,68,0.2)' }}>
+              <div style={{ padding: '12px 16px', borderRadius: 'var(--radius)', background: 'var(--empty-dim)', border: '1px solid var(--empty-dim)' }}>
                 <div style={{ fontSize: '13px', fontWeight: '600', color: 'var(--empty)', marginBottom: '6px' }}>
                   🔴 {vencidas.length} manutenção(ões) vencida(s)
                 </div>
@@ -695,7 +695,7 @@ export default function PatrimonioPage() {
               </div>
             )}
             {proximas.length > 0 && (
-              <div style={{ padding: '12px 16px', borderRadius: 'var(--radius)', background: 'var(--low-dim)', border: '1px solid rgba(245,158,11,0.2)' }}>
+              <div style={{ padding: '12px 16px', borderRadius: 'var(--radius)', background: 'var(--low-dim)', border: '1px solid var(--low-dim)' }}>
                 <div style={{ fontSize: '13px', fontWeight: '600', color: 'var(--low)', marginBottom: '6px' }}>
                   🟡 {proximas.length} manutenção(ões) nos próximos 30 dias
                 </div>
@@ -763,7 +763,7 @@ export default function PatrimonioPage() {
                 const st = STATUS_CFG[p.status]
                 return (
                   <tr key={p.id} onClick={() => setDetail(p)} style={{ borderTop: '1px solid var(--border)', cursor: 'pointer' }}
-                    onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.02)')}
+                    onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-3)')}
                     onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
                     <td style={{ padding: '10px 14px', fontWeight: '500', color: 'var(--text-1)' }}>{p.name}{p.quantity > 1 && <span style={{ fontSize: '11px', color: 'var(--text-3)', fontWeight: '400' }}> ×{p.quantity}</span>}</td>
                     <td style={{ padding: '10px 14px', color: 'var(--text-2)' }}>{p.category || '—'}</td>
@@ -809,14 +809,14 @@ export default function PatrimonioPage() {
 
       {/* Modal de preview da importacao */}
       {importPreview && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 500, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+        <div style={{ position: 'fixed', inset: 0, background: 'var(--overlay)', zIndex: 500, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
           <div style={{ background: 'var(--bg-2)', borderRadius: 'var(--radius)', padding: '24px', maxWidth: '900px', width: '100%', maxHeight: '85vh', display: 'flex', flexDirection: 'column' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
               <h3 style={{ fontSize: '16px', fontWeight: '600' }}>Prévia da importação</h3>
               <div style={{ display: 'flex', gap: '8px' }}>
                 <span style={{ fontSize: '12px', padding: '3px 10px', borderRadius: '99px', background: 'var(--ok-dim)', color: 'var(--ok)', fontWeight: '600' }}>{importPreview.filter(r => r.action === 'criar' && r.selected).length} novos</span>
                 <span style={{ fontSize: '12px', padding: '3px 10px', borderRadius: '99px', background: 'var(--low-dim)', color: 'var(--low)', fontWeight: '600' }}>{importPreview.filter(r => r.action === 'atualizar' && r.selected).length} atualizações</span>
-                {importPreview.some(r => r.warning) && <span style={{ fontSize: '12px', padding: '3px 10px', borderRadius: '99px', background: 'rgba(245,158,11,0.15)', color: 'var(--low)', fontWeight: '600' }}>⚠️ {importPreview.filter(r => r.warning).length} possíveis duplicatas</span>}
+                {importPreview.some(r => r.warning) && <span style={{ fontSize: '12px', padding: '3px 10px', borderRadius: '99px', background: 'var(--low-dim)', color: 'var(--low)', fontWeight: '600' }}>⚠️ {importPreview.filter(r => r.warning).length} possíveis duplicatas</span>}
               </div>
             </div>
             <div style={{ flex: 1, overflowY: 'auto', border: '1px solid var(--border)', borderRadius: '8px' }}>
@@ -830,7 +830,7 @@ export default function PatrimonioPage() {
                 </thead>
                 <tbody>
                   {importPreview.map((r, i) => (
-                    <tr key={i} style={{ borderBottom: '1px solid var(--border)', background: r.warning ? 'rgba(245,158,11,0.06)' : 'transparent' }}>
+                    <tr key={i} style={{ borderBottom: '1px solid var(--border)', background: r.warning ? 'var(--low-dim)' : 'transparent' }}>
                       <td style={{ padding: '8px 12px' }}>
                         <input type="checkbox" checked={r.selected} onChange={() => {
                           setImportPreview(prev => prev!.map((x, xi) => xi === i ? { ...x, selected: !x.selected } : x))
@@ -869,7 +869,7 @@ export default function PatrimonioPage() {
 
       {/* Modal de cadastro/edição — overlay flutuante, aparece sobre a lista ou a ficha */}
       {showModal && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 500, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+        <div style={{ position: 'fixed', inset: 0, background: 'var(--overlay)', zIndex: 500, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
         <div style={{ background: 'var(--bg-card)', border: '1px solid var(--brand)', borderRadius: 'var(--radius)', padding: '24px', maxWidth: '760px', width: '100%', maxHeight: '90vh', overflowY: 'auto' }}>
           <h3 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '18px' }}>{editItem ? 'Editar bem' : 'Novo bem'}</h3>
           {/* Campos essenciais */}
@@ -924,7 +924,7 @@ export default function PatrimonioPage() {
                   {form.nfe_file_url && (
                     <>
                       <a href={form.nfe_file_url} target="_blank" rel="noopener noreferrer" style={{ fontSize:'12px', color:'var(--brand-light)' }}>✓ Ver arquivo</a>
-                      <button type="button" onClick={() => setForm(f => ({ ...f, nfe_file_url: '' }))} style={{ fontSize:'12px', color:'var(--empty)', background:'none', border:'1px solid rgba(239,68,68,0.3)', borderRadius:'6px', padding:'3px 10px', cursor:'pointer' }}>Remover arquivo</button>
+                      <button type="button" onClick={() => setForm(f => ({ ...f, nfe_file_url: '' }))} style={{ fontSize:'12px', color:'var(--empty)', background:'none', border:'1px solid var(--empty-dim)', borderRadius:'6px', padding:'3px 10px', cursor:'pointer' }}>Remover arquivo</button>
                     </>
                   )}
                 </div>
@@ -943,7 +943,7 @@ export default function PatrimonioPage() {
 
       {/* Modal de propostas de alteração da planilha — overlay, aparece sobre lista ou ficha */}
       {showPending && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 500, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+        <div style={{ position: 'fixed', inset: 0, background: 'var(--overlay)', zIndex: 500, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
           <div style={{ background: 'var(--bg-2)', borderRadius: 'var(--radius)', padding: '24px', maxWidth: '760px', width: '100%', maxHeight: '85vh', display: 'flex', flexDirection: 'column' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
               <h3 style={{ fontSize: '16px', fontWeight: '600' }}>Mudanças pendentes da planilha ({pendingChanges.length})</h3>
