@@ -18,6 +18,10 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="pt-BR">
+      <head>
+        {/* Anti-flash: aplica tema antes do primeiro paint. Prioridade: localStorage > 'light' */}
+        <script dangerouslySetInnerHTML={{__html: `(function(){try{var t=localStorage.getItem('gestoque_theme')||'light';document.documentElement.setAttribute('data-theme',t);}catch(e){document.documentElement.setAttribute('data-theme','light');}})()`}}/>
+      </head>
       <body>
         {children}
         <script dangerouslySetInnerHTML={{__html: `
