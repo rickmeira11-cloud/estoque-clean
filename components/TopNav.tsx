@@ -123,7 +123,7 @@ export function TopNav() {
 
         {/* Logo */}
         <Link href="/dashboard" style={{display:'flex',alignItems:'center',gap:'10px',textDecoration:'none',marginRight:'12px',flexShrink:0}}>
-          <div style={{width:'30px',height:'30px',borderRadius:'8px',flexShrink:0,background:'var(--bg-3)',border:'1px solid var(--border-md)',display:'flex',alignItems:'center',justifyContent:'center',padding:'5px'}}>
+          <div style={{width:'30px',height:'30px',borderRadius:'8px',flexShrink:0,background:'#111827',border:'1px solid var(--border-md)',display:'flex',alignItems:'center',justifyContent:'center',padding:'5px'}}>
             <Image src="/logo.png" alt="Poiema" width={20} height={20} style={{objectFit:'contain',filter:'brightness(0) invert(1) opacity(0.85)'}}/>
           </div>
           <div>
