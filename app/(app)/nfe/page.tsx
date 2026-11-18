@@ -304,7 +304,7 @@ export default function NfePage() {
               </thead>
               <tbody>
                 {nfe.items.map((item, idx) => (
-                  <tr key={idx} style={{ borderBottom: '1px solid var(--border)', background: item.selectedProductId ? 'rgba(34,197,94,0.03)' : 'rgba(239,68,68,0.03)' }}>
+                  <tr key={idx} style={{ borderBottom: '1px solid var(--border)', background: item.selectedProductId ? 'var(--ok-dim)' : 'var(--empty-dim)' }}>
                     <td style={{ padding: '10px 12px', fontSize: '12px', color: 'var(--text-1)', maxWidth: '180px' }}>
                       <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={item.xProd}>{item.xProd}</div>
                     </td>
