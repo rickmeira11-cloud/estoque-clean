@@ -32,7 +32,7 @@ export default function HistoricoPage() {
           <tbody>
             {loading?[...Array(6)].map((_,i)=><tr key={i}><td colSpan={6} style={{padding:'12px 14px'}}><div className="skeleton" style={{height:'16px',borderRadius:'4px'}}/></td></tr>):rows.length===0?<tr><td colSpan={6} style={{padding:'40px',textAlign:'center',fontSize:'13px',color:'var(--text-3)'}}>Nenhuma movimentação encontrada</td></tr>:rows.map((m:any)=>{
               const t=T[m.type as keyof typeof T]||T.in
-              return (<tr key={m.id} style={{borderBottom:'1px solid var(--border)'}} onMouseEnter={e=>(e.currentTarget.style.background='rgba(255,255,255,0.02)')} onMouseLeave={e=>(e.currentTarget.style.background='transparent')}>
+              return (<tr key={m.id} style={{borderBottom:'1px solid var(--border)'}} onMouseEnter={e=>(e.currentTarget.style.background='var(--bg-3)')} onMouseLeave={e=>(e.currentTarget.style.background='transparent')}>
                 <td style={{padding:'10px 14px',fontSize:'12px',color:'var(--text-3)',fontFamily:'monospace',whiteSpace:'nowrap'}}>{new Date(m.created_at).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'})}</td>
                 <td style={{padding:'10px 14px'}}><div style={{fontSize:'13px',fontWeight:'500'}}>{m.product?.name||'—'}</div><div style={{fontSize:'11px',color:'var(--text-3)'}}>{m.product?.category||''}</div></td>
                 <td style={{padding:'10px 14px'}}><span style={{fontSize:'11px',fontWeight:'500',padding:'3px 10px',borderRadius:'99px',background:t.bg,color:t.color}}>{t.icon} {t.label}</span></td>
