@@ -7,9 +7,9 @@ import type { Product } from '@/types'
 
 type MovType = 'in' | 'out' | 'transfer'
 const CFG = {
-  in:         { label:'Entrada',  color:'var(--ok)',    icon:'↑', desc:'Adicionar ao estoque' },
-  out:        { label:'Saída',    color:'var(--empty)', icon:'↓', desc:'Retirar do estoque' },
-  transfer:   { label:'Transferir', color:'var(--brand-light)', icon:'⇌', desc:'Mover entre depósitos' },
+  in:         { label:'Entrada',    color:'var(--ok)',          dim:'var(--ok-dim)',    icon:'↑', desc:'Adicionar ao estoque' },
+  out:        { label:'Saída',      color:'var(--empty)',        dim:'var(--empty-dim)', icon:'↓', desc:'Retirar do estoque' },
+  transfer:   { label:'Transferir', color:'var(--brand-light)',  dim:'var(--brand-dim)', icon:'⇌', desc:'Mover entre depósitos' },
 }
 
 export default function MovimentacoesPage() {
@@ -254,7 +254,7 @@ export default function MovimentacoesPage() {
       </div>
 
       {success && (
-        <div className="fade-up" style={{ marginBottom: '16px', padding: '12px 16px', borderRadius: '10px', background: 'var(--ok-dim)', border: '1px solid rgba(34,197,94,0.2)', fontSize: '13px', color: 'var(--ok)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <div className="fade-up" style={{ marginBottom: '16px', padding: '12px 16px', borderRadius: '10px', background: 'var(--ok-dim)', border: '1px solid var(--ok-dim)', fontSize: '13px', color: 'var(--ok)', display: 'flex', alignItems: 'center', gap: '8px' }}>
           <span style={{ fontSize: '16px' }}>✓</span>
           {isTransfer ? 'Transferência registrada com sucesso!' : 'Movimentação registrada com sucesso!'}
         </div>
@@ -343,7 +343,7 @@ export default function MovimentacoesPage() {
                   {(Object.entries(CFG) as [MovType, typeof CFG.in][]).map(([k, v]) => (
                     <button key={k} onClick={() => { setType(k); setDestLocationId('') }} style={{
                       padding: '8px 6px', borderRadius: 'var(--radius-sm)', cursor: 'pointer',
-                      background: type === k ? `${v.color}1a` : 'var(--bg-3)',
+                      background: type === k ? v.dim : 'var(--bg-3)',
                       border: `1px solid ${type === k ? v.color : 'var(--border)'}`,
                       color: type === k ? v.color : 'var(--text-2)',
                       fontSize: '12px', fontWeight: type === k ? '500' : '400',
