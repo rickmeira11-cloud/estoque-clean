@@ -686,7 +686,7 @@ export default function RelatoriosPage() {
                       const sc = {ok:{l:'OK',c:'var(--ok)',b:'var(--ok-dim)'},low:{l:'Baixo',c:'var(--low)',b:'var(--low-dim)'},empty:{l:'Zerado',c:'var(--empty)',b:'var(--empty-dim)'}}[s]
                       return (
                         <tr key={p.id} style={{ borderBottom:'1px solid var(--border)' }}
-                          onMouseEnter={e=>(e.currentTarget.style.background='rgba(255,255,255,0.02)')}
+                          onMouseEnter={e=>(e.currentTarget.style.background='var(--bg-3)')}
                           onMouseLeave={e=>(e.currentTarget.style.background='transparent')}>
                           <td style={{ padding:'10px 14px', fontSize:'13px', fontWeight:'500', color:'var(--text-1)' }}>{p.name}</td>
                           <td style={{ padding:'10px 14px', fontSize:'12px', color:'var(--text-2)' }}>{p.category||'—'}</td>
@@ -730,7 +730,7 @@ export default function RelatoriosPage() {
                       const tc = {in:{l:'Entrada',c:'var(--ok)',b:'var(--ok-dim)'},out:{l:'Saída',c:'var(--empty)',b:'var(--empty-dim)'},adjustment:{l:'Ajuste',c:'var(--info)',b:'var(--info-dim)'}}[m.type as string]||{l:'—',c:'var(--text-2)',b:'transparent'}
                       return (
                         <tr key={m.id} style={{ borderBottom:'1px solid var(--border)' }}
-                          onMouseEnter={e=>(e.currentTarget.style.background='rgba(255,255,255,0.02)')}
+                          onMouseEnter={e=>(e.currentTarget.style.background='var(--bg-3)')}
                           onMouseLeave={e=>(e.currentTarget.style.background='transparent')}>
                           <td style={{ padding:'10px 14px', fontSize:'12px', color:'var(--text-3)', fontFamily:'var(--font-mono)', whiteSpace:'nowrap' }}>{new Date(m.created_at).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'})}</td>
                           <td style={{ padding:'10px 14px', fontSize:'13px', fontWeight:'500', color:'var(--text-1)' }}>{m.product?.name||'—'}</td>
@@ -773,7 +773,7 @@ export default function RelatoriosPage() {
                         const sc = {low:{l:'Baixo',c:'var(--low)',b:'var(--low-dim)'},empty:{l:'Zerado',c:'var(--empty)',b:'var(--empty-dim)'}}[s]
                         return (
                           <tr key={p.id} style={{ borderBottom:'1px solid var(--border)' }}
-                            onMouseEnter={e=>(e.currentTarget.style.background='rgba(255,255,255,0.02)')}
+                            onMouseEnter={e=>(e.currentTarget.style.background='var(--bg-3)')}
                             onMouseLeave={e=>(e.currentTarget.style.background='transparent')}>
                             <td style={{ padding:'10px 14px', fontSize:'13px', fontWeight:'500', color:'var(--text-1)' }}>{p.name}</td>
                             <td style={{ padding:'10px 14px', fontSize:'12px', color:'var(--text-2)' }}>{p.category||'—'}</td>
@@ -869,7 +869,7 @@ export default function RelatoriosPage() {
                     <tbody>
                       {Object.entries(locMap).sort(([,a],[,b])=>b.total-a.total).map(([loc,d])=>(
                         <tr key={loc} style={{ borderBottom:'1px solid var(--border)' }}
-                          onMouseEnter={e=>(e.currentTarget.style.background='rgba(255,255,255,0.02)')}
+                          onMouseEnter={e=>(e.currentTarget.style.background='var(--bg-3)')}
                           onMouseLeave={e=>(e.currentTarget.style.background='transparent')}>
                           <td style={{ padding:'10px 14px', fontSize:'13px', fontWeight:'500', color:'var(--text-1)' }}>{loc}</td>
                           <td style={{ padding:'10px 14px', fontSize:'14px', fontWeight:'700', color:'var(--ok)', fontFamily:'var(--font-mono)' }}>+{d.entradas}</td>
@@ -1033,7 +1033,7 @@ export default function RelatoriosPage() {
                     <tbody>
                       {precosRows.map((r:any) => (
                         <tr key={r.id} style={{ borderBottom:'1px solid var(--border)' }}
-                          onMouseEnter={e=>(e.currentTarget.style.background='rgba(255,255,255,0.02)')}
+                          onMouseEnter={e=>(e.currentTarget.style.background='var(--bg-3)')}
                           onMouseLeave={e=>(e.currentTarget.style.background='transparent')}>
                           <td style={{ padding:'10px 14px', fontSize:'12px', color:'var(--text-3)' }}>
                             {new Date(r.created_at).toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit'})}
