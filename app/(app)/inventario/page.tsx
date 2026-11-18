@@ -452,7 +452,7 @@ export default function InventarioFisicoPage() {
               </thead>
               <tbody>
                 {filteredItems.map(item => (
-                  <tr key={item.id} style={{ borderBottom: '1px solid var(--border)', background: item.counted_qty !== null && item.difference !== 0 ? 'rgba(239,68,68,0.04)' : 'transparent' }}>
+                  <tr key={item.id} style={{ borderBottom: '1px solid var(--border)', background: item.counted_qty !== null && item.difference !== 0 ? 'var(--empty-dim)' : 'transparent' }}>
                     <td style={{ padding: '10px 14px', fontSize: '13px', fontWeight: '500', color: 'var(--text-1)' }}>{item.product.name}</td>
                     <td style={{ padding: '10px 14px', fontSize: '12px', color: 'var(--text-3)' }}>{item.product.category || '—'}</td>
                     <td style={{ padding: '10px 14px', fontSize: '12px', color: 'var(--text-2)' }}>{item.location.name}</td>
