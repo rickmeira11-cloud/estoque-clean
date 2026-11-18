@@ -28,6 +28,8 @@
   --topbar-h:  52px;
   --radius:    12px;
   --radius-sm: 8px;
+  --bg-nav:    rgba(17,17,19,0.92);
+  --overlay:   rgba(0,0,0,0.55);
 }
 
 /* ── TEMA CLARO ────────────────────────────────────── */
@@ -47,6 +49,7 @@
   --empty-dim: rgba(239,68,68,0.12);
   --info-dim:  rgba(99,102,241,0.10);
   --brand-dim: rgba(99,102,241,0.10);
+  --bg-nav:    rgba(255,255,255,0.92);
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body { background: var(--bg); color: var(--text-1); font-family: var(--font-sans); -webkit-font-smoothing: antialiased; }

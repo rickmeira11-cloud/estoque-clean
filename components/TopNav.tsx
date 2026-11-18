@@ -111,7 +111,7 @@ export function TopNav() {
 
   return (
     <>
-    <header style={{position:'fixed',top:0,left:0,right:0,zIndex:50,height:'var(--topbar-h)',background:'rgba(17,17,19,0.92)',backdropFilter:'blur(20px)',borderBottom:'1px solid var(--border)'}}>
+    <header style={{position:'fixed',top:0,left:0,right:0,zIndex:50,height:'var(--topbar-h)',background:'var(--bg-nav)',backdropFilter:'blur(20px)',borderBottom:'1px solid var(--border)'}}>
       <div style={{display:'flex',alignItems:'center',height:'100%',padding:'0 20px',gap:'8px',maxWidth:'1400px',margin:'0 auto'}}>
 
         {/* Hamburguer mobile — antes do logo */}
@@ -123,7 +123,7 @@ export function TopNav() {
 
         {/* Logo */}
         <Link href="/dashboard" style={{display:'flex',alignItems:'center',gap:'10px',textDecoration:'none',marginRight:'12px',flexShrink:0}}>
-          <div style={{width:'30px',height:'30px',borderRadius:'8px',flexShrink:0,background:'#111827',border:'1px solid var(--border-md)',display:'flex',alignItems:'center',justifyContent:'center',padding:'5px'}}>
+          <div style={{width:'30px',height:'30px',borderRadius:'8px',flexShrink:0,background:'var(--bg-3)',border:'1px solid var(--border-md)',display:'flex',alignItems:'center',justifyContent:'center',padding:'5px'}}>
             <Image src="/logo.png" alt="Poiema" width={20} height={20} style={{objectFit:'contain',filter:'brightness(0) invert(1) opacity(0.85)'}}/>
           </div>
           <div>
@@ -235,7 +235,7 @@ export function TopNav() {
                   <span style={{fontSize:'10px',padding:'2px 8px',borderRadius:'99px',background:'var(--brand-dim)',color:'var(--brand-light)',fontWeight:'500'}}>
                     {{super_admin:'Super Admin',admin:'Admin',operator:'Operador',viewer:'Visualizador'}[profile?.role||'operator']}
                   </span>
-                  {churchName && <span style={{fontSize:'10px',padding:'2px 8px',borderRadius:'99px',background:'rgba(255,255,255,0.04)',color:'var(--text-3)',border:'1px solid var(--border)'}}>{churchName}</span>}
+                  {churchName && <span style={{fontSize:'10px',padding:'2px 8px',borderRadius:'99px',background:'var(--bg-3)',color:'var(--text-3)',border:'1px solid var(--border)'}}>{churchName}</span>}
                 </div>
               </div>
               {profile?.churches && profile.churches.length > 1 && (
@@ -306,7 +306,7 @@ export function TopNav() {
 
     {/* Sidebar mobile overlay */}
     {menuOpen && (
-      <div onClick={() => setMenuOpen(false)} style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.6)',zIndex:300,backdropFilter:'blur(2px)'}} className="mobile-menu-btn"/>
+      <div onClick={() => setMenuOpen(false)} style={{position:'fixed',inset:0,background:'var(--overlay)',zIndex:300,backdropFilter:'blur(2px)'}} className="mobile-menu-btn"/>
     )}
 
     {/* Sidebar mobile painel */}
@@ -317,7 +317,7 @@ export function TopNav() {
 
         {/* Dashboard */}
         {(()=>{ const act=active('/dashboard'); return (
-          <Link href="/dashboard" onClick={()=>setMenuOpen(false)} style={{display:'flex',alignItems:'center',gap:'12px',padding:'12px 16px',textDecoration:'none',color:act?'var(--text-1)':'var(--text-2)',background:act?'rgba(99,102,241,0.08)':'transparent',transition:'background 0.1s',borderLeft:act?'3px solid var(--brand)':'3px solid transparent'}}>
+          <Link href="/dashboard" onClick={()=>setMenuOpen(false)} style={{display:'flex',alignItems:'center',gap:'12px',padding:'12px 16px',textDecoration:'none',color:act?'var(--text-1)':'var(--text-2)',background:act?'var(--brand-dim)':'transparent',transition:'background 0.1s',borderLeft:act?'3px solid var(--brand)':'3px solid transparent'}}>
             <span style={{color:act?'var(--brand-light)':'var(--text-3)',flexShrink:0}}><Icon d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" size={16}/></span>
             <span style={{fontSize:'14px',fontWeight:act?'600':'400'}}>Dashboard</span>
           </Link>
@@ -332,7 +332,7 @@ export function TopNav() {
           {href:'/nfe',label:'Importar NF-e',icon:'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z'},
           {href:'/patrimonio',label:'Patrimônio',icon:'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4'},
         ].map(n=>{ const act=active(n.href); return (
-          <Link key={n.href} href={n.href} onClick={()=>setMenuOpen(false)} style={{display:'flex',alignItems:'center',gap:'12px',padding:'12px 16px',textDecoration:'none',color:act?'var(--text-1)':'var(--text-2)',background:act?'rgba(99,102,241,0.08)':'transparent',transition:'background 0.1s',borderLeft:act?'3px solid var(--brand)':'3px solid transparent'}}>
+          <Link key={n.href} href={n.href} onClick={()=>setMenuOpen(false)} style={{display:'flex',alignItems:'center',gap:'12px',padding:'12px 16px',textDecoration:'none',color:act?'var(--text-1)':'var(--text-2)',background:act?'var(--brand-dim)':'transparent',transition:'background 0.1s',borderLeft:act?'3px solid var(--brand)':'3px solid transparent'}}>
             <span style={{color:act?'var(--brand-light)':'var(--text-3)',flexShrink:0}}><Icon d={n.icon} size={16}/></span>
             <span style={{fontSize:'14px',fontWeight:act?'600':'400'}}>{n.label}</span>
           </Link>
@@ -341,7 +341,7 @@ export function TopNav() {
         {/* Relatórios */}
         <div style={{padding:'12px 16px 4px',fontSize:'10px',fontWeight:'700',color:'var(--text-3)',textTransform:'uppercase',letterSpacing:'0.08em',borderTop:'1px solid var(--border)',marginTop:'4px'}}>Relatórios</div>
         {(()=>{ const act=active('/relatorios'); return (
-          <Link href="/relatorios" onClick={()=>setMenuOpen(false)} style={{display:'flex',alignItems:'center',gap:'12px',padding:'12px 16px',textDecoration:'none',color:act?'var(--text-1)':'var(--text-2)',background:act?'rgba(99,102,241,0.08)':'transparent',transition:'background 0.1s',borderLeft:act?'3px solid var(--brand)':'3px solid transparent'}}>
+          <Link href="/relatorios" onClick={()=>setMenuOpen(false)} style={{display:'flex',alignItems:'center',gap:'12px',padding:'12px 16px',textDecoration:'none',color:act?'var(--text-1)':'var(--text-2)',background:act?'var(--brand-dim)':'transparent',transition:'background 0.1s',borderLeft:act?'3px solid var(--brand)':'3px solid transparent'}}>
             <span style={{color:act?'var(--brand-light)':'var(--text-3)',flexShrink:0}}><Icon d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" size={16}/></span>
             <span style={{fontSize:'14px',fontWeight:act?'600':'400'}}>Relatórios</span>
           </Link>
@@ -360,7 +360,7 @@ export function TopNav() {
         {isAdmin && <>
           <div style={{padding:'12px 16px 4px',fontSize:'10px',fontWeight:'700',color:'var(--text-3)',textTransform:'uppercase',letterSpacing:'0.08em',borderTop:'1px solid var(--border)',marginTop:'4px'}}>Cadastros</div>
           {NAV_CADASTROS.map(n=>{ const act=active(n.href); return (
-            <Link key={n.href} href={n.href} onClick={()=>setMenuOpen(false)} style={{display:'flex',alignItems:'center',gap:'12px',padding:'12px 16px',textDecoration:'none',color:act?'var(--text-1)':'var(--text-2)',background:act?'rgba(99,102,241,0.08)':'transparent',transition:'background 0.1s',borderLeft:act?'3px solid var(--brand)':'3px solid transparent'}}>
+            <Link key={n.href} href={n.href} onClick={()=>setMenuOpen(false)} style={{display:'flex',alignItems:'center',gap:'12px',padding:'12px 16px',textDecoration:'none',color:act?'var(--text-1)':'var(--text-2)',background:act?'var(--brand-dim)':'transparent',transition:'background 0.1s',borderLeft:act?'3px solid var(--brand)':'3px solid transparent'}}>
               <span style={{color:act?'var(--brand-light)':'var(--text-3)',flexShrink:0}}><Icon d={n.icon} size={16}/></span>
               <span style={{fontSize:'14px',fontWeight:act?'600':'400'}}>{n.label}</span>
             </Link>
