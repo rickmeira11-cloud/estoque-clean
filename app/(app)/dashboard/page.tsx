@@ -373,7 +373,7 @@ export default function DashboardPage() {
           ) : (
             <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
               {stats.critical.map(p => (
-                <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 10px', borderRadius: 'var(--radius-sm)', marginBottom: '6px', background: p.quantity === 0 ? 'var(--empty-dim)' : 'var(--low-dim)', border: `1px solid ${p.quantity === 0 ? 'rgba(239,68,68,0.12)' : 'rgba(245,158,11,0.12)'}` }}>
+                <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 10px', borderRadius: 'var(--radius-sm)', marginBottom: '6px', background: p.quantity === 0 ? 'var(--empty-dim)' : 'var(--low-dim)', border: `1px solid ${p.quantity === 0 ? 'var(--empty-dim)' : 'var(--low-dim)'}` }}>
                   <div style={{ minWidth: 0 }}>
                     <div style={{ fontSize: '12px', fontWeight: '500', color: 'var(--text-1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</div>
                     <div style={{ fontSize: '10px', color: 'var(--text-3)' }}>{p.category || '—'}</div>
@@ -401,7 +401,7 @@ export default function DashboardPage() {
               {forecast.map(p => (
                 <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 10px', borderRadius: 'var(--radius-sm)', marginBottom: '6px',
                   background: (p.diasParaZerar||99) <= 7 ? 'var(--empty-dim)' : 'var(--low-dim)',
-                  border: `1px solid ${(p.diasParaZerar||99) <= 7 ? 'rgba(239,68,68,0.12)' : 'rgba(245,158,11,0.12)'}` }}>
+                  border: `1px solid ${(p.diasParaZerar||99) <= 7 ? 'var(--empty-dim)' : 'var(--low-dim)'}` }}>
                   <div style={{ minWidth: 0 }}>
                     <div style={{ fontSize: '12px', fontWeight: '500', color: 'var(--text-1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</div>
                     <div style={{ fontSize: '10px', color: 'var(--text-3)', marginTop: '1px' }}>{p.mediaDiaria} {p.unit||'un'}/dia · estoque: {p.quantity}</div>
