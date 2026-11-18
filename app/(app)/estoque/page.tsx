@@ -192,7 +192,7 @@ export default function EstoquePage() {
             <tbody>
               {filtered.length===0?(<tr><td colSpan={7} style={{padding:'40px',textAlign:'center',color:'var(--text-3)',fontSize:'13px'}}>Nenhum produto encontrado</td></tr>):filtered.map(p=>{
                 const locId=filterLoc!=='all'?locations.find((l)=>l.name===filterLoc)?.id:null;const displayQty=locId?(locBalance[p.id+'|'+locId]||0):p.quantity;const sKey=displayQty===0?'empty':displayQty<=p.min_stock?'low':'ok';const s=sKey;const {label,color,bg}=S[s]
-                return (<tr key={p.id} style={{borderBottom:'1px solid var(--border)'}} onMouseEnter={e=>(e.currentTarget.style.background='rgba(255,255,255,0.02)')} onMouseLeave={e=>(e.currentTarget.style.background='transparent')}>
+                return (<tr key={p.id} style={{borderBottom:'1px solid var(--border)'}} onMouseEnter={e=>(e.currentTarget.style.background='var(--bg-3)')} onMouseLeave={e=>(e.currentTarget.style.background='transparent')}>
                   <td style={{padding:'12px 14px'}}><div style={{fontSize:'13px',fontWeight:'500'}}>{p.name}</div>{p.notes&&<div style={{fontSize:'11px',color:'var(--text-3)',marginTop:'2px'}}>{p.notes}</div>}</td>
                   <td style={{padding:'12px 14px',fontSize:'12px',color:'var(--text-2)'}}>{p.category||'—'}</td>
                   <td style={{padding:'12px 14px',fontSize:'18px',fontWeight:'700',color:'var(--text-1)',fontFamily:'var(--font-mono)'}}>{displayQty}{locId&&<span style={{fontSize:'10px',color:'var(--text-3)',display:'block',lineHeight:1}}>dep</span>}</td>
@@ -214,7 +214,7 @@ export default function EstoquePage() {
               const {label,color,bg}=S[sKey]
               const locs=Object.entries(locBalance).filter(([k,v])=>k.startsWith(p.id+'|')&&v>0)
               return (
-                <div key={p.id} style={{borderBottom:'1px solid var(--border)',padding:'14px 16px',transition:'background 0.1s'}} onMouseEnter={e=>(e.currentTarget.style.background='rgba(255,255,255,0.02)')} onMouseLeave={e=>(e.currentTarget.style.background='transparent')}>
+                <div key={p.id} style={{borderBottom:'1px solid var(--border)',padding:'14px 16px',transition:'background 0.1s'}} onMouseEnter={e=>(e.currentTarget.style.background='var(--bg-3)')} onMouseLeave={e=>(e.currentTarget.style.background='transparent')}>
                   <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:'8px'}}>
                     <div style={{minWidth:0,flex:1}}>
                       <div style={{fontSize:'14px',fontWeight:'600',color:'var(--text-1)'}}>{p.name}</div>
@@ -241,7 +241,7 @@ export default function EstoquePage() {
         </div>
       )}
       {showModal&&(
-        <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.65)',backdropFilter:'blur(4px)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:50,padding:'20px'}} onClick={handleClose}>
+        <div style={{position:'fixed',inset:0,background:'var(--overlay)',backdropFilter:'blur(4px)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:50,padding:'20px'}} onClick={handleClose}>
           <div className="fade-up" ref={formRef} onClick={e=>e.stopPropagation()} style={{background:'var(--bg-2)',border:'1px solid var(--border-md)',borderRadius:'16px',padding:'28px',width:'100%',maxWidth:'480px',maxHeight:'90vh',overflowY:'auto'}}>
             <h2 style={{fontSize:'16px',fontWeight:'600',marginBottom:'22px'}}>{editItem?'Editar produto':'Novo produto'}</h2>
             {formError&&<div style={{marginBottom:'14px',padding:'8px 12px',borderRadius:'8px',background:'var(--empty-dim)',fontSize:'13px',color:'var(--empty)'}}>{formError}</div>}
