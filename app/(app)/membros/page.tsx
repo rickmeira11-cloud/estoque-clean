@@ -80,17 +80,23 @@ export default function MembrosPage() {
   const [selected, setSelected] = useState<Member | null>(null)
   const [syncing,  setSyncing]  = useState(false)
   const [syncMsg,  setSyncMsg]  = useState<string | null>(null)
+  const [loadErr,  setLoadErr]  = useState<string | null>(null)
 
   useEffect(() => { if (profile?.church_id) load() }, [profile?.church_id])
 
   async function load() {
     setLoading(true)
+    setLoadErr(null)
     const sb = createClient()
-    const { data } = await sb
+    const { data, error } = await sb
       .from('members')
       .select('*')
       .eq('church_id', profile!.church_id)
       .order('full_name')
+    if (error) {
+      console.error('[membros] load error:', error)
+      setLoadErr(error.message)
+    }
     setMembers(data || [])
     setLoading(false)
   }
@@ -224,6 +230,13 @@ export default function MembrosPage() {
           </button>
         )}
       </div>
+
+      {/* Erro de leitura */}
+      {loadErr && (
+        <div style={{ marginBottom: '16px', padding: '10px 14px', borderRadius: 'var(--radius-sm)', background: 'var(--empty-dim)', border: '1px solid var(--border-md)', color: 'var(--empty)', fontSize: '13px' }}>
+          Erro ao carregar membros: {loadErr}
+        </div>
+      )}
 
       {/* Estado de carregamento */}
       {loading ? (
