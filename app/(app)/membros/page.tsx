@@ -28,6 +28,7 @@ type Member = {
 
 type EditForm = {
   full_name: string
+  birth_date: string
   phone: string
   neighborhood: string
   city: string
@@ -124,6 +125,7 @@ export default function MembrosPage() {
   function openEdit(m: Member) {
     setForm({
       full_name: m.full_name,
+      birth_date: m.birth_date || '',
       phone: m.phone || '',
       neighborhood: m.neighborhood || '',
       city: m.city || '',
@@ -155,6 +157,7 @@ export default function MembrosPage() {
 
     const payload: Partial<Member> = {
       full_name: form.full_name.trim(),
+      birth_date: form.birth_date.trim() || null,
       phone: form.phone.trim() || null,
       neighborhood: form.neighborhood.trim() || null,
       city: form.city.trim() || null,
@@ -442,6 +445,10 @@ export default function MembrosPage() {
                     </FormField>
                     <FormField label="Complemento" half>
                       <input value={form.address_complement} onChange={e => set('address_complement', e.target.value)} style={INPUT_STYLE}
+                        onFocus={e => e.target.style.borderColor = 'var(--brand)'} onBlur={e => e.target.style.borderColor = 'var(--border)'}/>
+                    </FormField>
+                    <FormField label="Nascimento (AAAA-MM-DD)" half>
+                      <input value={form.birth_date} onChange={e => set('birth_date', e.target.value)} placeholder="ex: 1990-05-20" style={INPUT_STYLE}
                         onFocus={e => e.target.style.borderColor = 'var(--brand)'} onBlur={e => e.target.style.borderColor = 'var(--border)'}/>
                     </FormField>
                     <FormField label="Naturalidade" half>
