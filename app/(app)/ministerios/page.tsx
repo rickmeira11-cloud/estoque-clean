@@ -7,9 +7,9 @@ type MemberRole = 'lider' | 'lider_assistente' | 'membro'
 const ROLE_LABEL: Record<MemberRole, string> = { lider: 'Líder', lider_assistente: 'Líder de Equipe', membro: 'Membro' }
 const ROLE_ORDER: Record<MemberRole, number> = { lider: 0, lider_assistente: 1, membro: 2 }
 
-type Member = { id: string; name: string; role: MemberRole; photo_url: string | null; bio: string | null; phone: string | null; email: string | null; is_active: boolean; member_id: string | null }
-type MemberOption = { id: string; full_name: string }
-type Ministry = { id: string; name: string; description: string | null; meeting_schedule: string | null; location: string | null; cover_image_url: string | null; is_active: boolean; members?: Member[] }
+type MinMember = { id: string; name: string; role: MemberRole; photo_url: string | null; bio: string | null; phone: string | null; email: string | null; is_active: boolean; member_id: string }
+type Ministry = { id: string; name: string; description: string | null; meeting_schedule: string | null; location: string | null; cover_image_url: string | null; is_active: boolean; members?: MinMember[] }
+type RegisteredMember = { id: string; full_name: string }
 
 const COLORS = ['#6366f1','#0f6e56','#854f0b','#712b13','#444441','#185fa5','#3b6d11','#993556']
 function getColor(name: string) { let h = 0; for (let i = 0; i < name.length; i++) h = name.charCodeAt(i) + ((h << 5) - h); return COLORS[Math.abs(h) % COLORS.length] }
@@ -23,7 +23,10 @@ function Avatar({ name, photo, size = 36 }: { name: string; photo: string | null
 }
 
 const blankMin = { name: '', description: '', meeting_schedule: '', location: '' }
-const blankMem = { name: '', role: 'membro' as MemberRole, phone: '', email: '', bio: '', photo_url: null as string | null, member_id: null as string | null }
+const blankMem = { member_id: '', role: 'membro' as MemberRole, phone: '', email: '', bio: '', photo_url: null as string | null }
+const blankQuickCreate = { full_name: '', phone: '', email: '' }
+
+const CHURCH_ID = '8db14705-9da8-4844-8b01-a73845297831'
 
 export default function MinisteriosAdminPage() {
   const { profile, isAdmin } = useProfile()
@@ -32,25 +35,36 @@ export default function MinisteriosAdminPage() {
   const [selected, setSelected] = useState<Ministry | null>(null)
   const [showMinForm, setShowMinForm] = useState(false)
   const [showMemForm, setShowMemForm] = useState(false)
-  const [editMinId, setEditMinId] = useState<string | null>(null)
   const [editMemId, setEditMemId] = useState<string | null>(null)
+  const [editMinId, setEditMinId] = useState<string | null>(null)
   const [minForm, setMinForm] = useState(blankMin)
   const [memForm, setMemForm] = useState(blankMem)
   const [saving, setSaving] = useState(false)
   const [uploading, setUploading] = useState(false)
   const formRef  = useRef(null)
-  const firstRef = useRef(null)
+  const firstRef = useRef<HTMLInputElement>(null)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
-  const [memberOptions, setMemberOptions] = useState<MemberOption[]>([])
   const photoRef = useRef<HTMLInputElement>(null)
   const modalPhotoRef = useRef<HTMLInputElement>(null)
   const [modalPhotoPreview, setModalPhotoPreview] = useState<string | null>(null)
 
+  // Busca de membro cadastrado
+  const [memberSearch, setMemberSearch] = useState('')
+  const [memberOptions, setMemberOptions] = useState<RegisteredMember[]>([])
+  const [memberResults, setMemberResults] = useState<RegisteredMember[]>([])
+  const [selectedMemberName, setSelectedMemberName] = useState('')
+  const [showDropdown, setShowDropdown] = useState(false)
+
+  // Criação rápida de membro
+  const [showQuickCreate, setShowQuickCreate] = useState(false)
+  const [quickCreate, setQuickCreate] = useState(blankQuickCreate)
+  const [quickSaving, setQuickSaving] = useState(false)
+
   useEffect(() => {
     if (profile?.church_id) {
       load()
-      createClient().from('members').select('id, full_name').eq('church_id', profile.church_id).eq('is_active', true).order('full_name').then(({ data }) => { if (data) setMemberOptions(data) })
+      loadMemberOptions()
     }
   }, [profile?.church_id])
 
@@ -61,7 +75,7 @@ export default function MinisteriosAdminPage() {
     if (mins) {
       const withMembers = await Promise.all(mins.map(async m => {
         const { data: members } = await sb.from('ministry_members').select('*').eq('ministry_id', m.id).order('role')
-        return { ...m, members: (members || []).sort((a: Member, b: Member) => ROLE_ORDER[a.role] - ROLE_ORDER[b.role]) }
+        return { ...m, members: (members || []).sort((a: MinMember, b: MinMember) => ROLE_ORDER[a.role] - ROLE_ORDER[b.role]) }
       }))
       setMinistries(withMembers)
       if (selected) {
@@ -72,11 +86,17 @@ export default function MinisteriosAdminPage() {
     setLoading(false)
   }
 
+  async function loadMemberOptions() {
+    const sb = createClient()
+    const { data } = await sb.from('members').select('id, full_name').eq('church_id', profile!.church_id).eq('is_active', true).order('full_name')
+    if (data) setMemberOptions(data)
+  }
+
   function flash(msg: string) { setSuccess(msg); setTimeout(() => setSuccess(null), 3000) }
 
   // ── Ministérios ──
-  function openNewMin() { setEditMinId(null); setMinForm(blankMin); setError(null); setShowMinForm(true); setTimeout(() => { formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }); firstRef.current?.focus() }, 100) }
-  function openEditMin(m: Ministry) { setEditMinId(m.id); setMinForm({ name: m.name, description: m.description || '', meeting_schedule: m.meeting_schedule || '', location: m.location || '' }); setError(null); setShowMinForm(true); setTimeout(() => { formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }); firstRef.current?.focus() }, 100) }
+  function openNewMin() { setEditMinId(null); setMinForm(blankMin); setError(null); setShowMinForm(true); setTimeout(() => { (formRef.current as any)?.scrollIntoView({ behavior: 'smooth', block: 'start' }); firstRef.current?.focus() }, 100) }
+  function openEditMin(m: Ministry) { setEditMinId(m.id); setMinForm({ name: m.name, description: m.description || '', meeting_schedule: m.meeting_schedule || '', location: m.location || '' }); setError(null); setShowMinForm(true); setTimeout(() => { (formRef.current as any)?.scrollIntoView({ behavior: 'smooth', block: 'start' }); firstRef.current?.focus() }, 100) }
 
   async function saveMin() {
     if (!minForm.name.trim()) { setError('Nome obrigatório'); return }
@@ -94,18 +114,84 @@ export default function MinisteriosAdminPage() {
     await load()
   }
 
-  // ── Membros ──
-  function openNewMem() { setEditMemId(null); setMemForm(blankMem); setModalPhotoPreview(null); setError(null); setShowMemForm(true) }
-  function openEditMem(mem: Member) { setEditMemId(mem.id); setMemForm({ name: mem.name, role: mem.role, phone: mem.phone || '', email: mem.email || '', bio: mem.bio || '', photo_url: mem.photo_url, member_id: mem.member_id }); setModalPhotoPreview(mem.photo_url); setError(null); setShowMemForm(true) }
+  // ── Busca de membro ──
+  function handleMemberSearch(val: string) {
+    setMemberSearch(val)
+    setSelectedMemberName('')
+    setMemForm(f => ({ ...f, member_id: '' }))
+    if (val.length < 2) { setMemberResults([]); setShowDropdown(false); return }
+    const q = val.toLowerCase()
+    const results = memberOptions.filter(o => o.full_name.toLowerCase().includes(q)).slice(0, 8)
+    setMemberResults(results)
+    setShowDropdown(true)
+  }
+
+  function selectMember(o: RegisteredMember) {
+    setMemForm(f => ({ ...f, member_id: o.id }))
+    setSelectedMemberName(o.full_name)
+    setMemberSearch(o.full_name)
+    setShowDropdown(false)
+  }
+
+  // ── Criação rápida ──
+  async function saveQuickCreate() {
+    if (!quickCreate.full_name.trim()) { setError('Nome obrigatório para criar membro'); return }
+    setQuickSaving(true); setError(null)
+    const sb = createClient()
+    const { data: newMem, error: err } = await sb.from('members').insert({
+      church_id: CHURCH_ID,
+      full_name: quickCreate.full_name.trim(),
+      phone: quickCreate.phone.trim() || null,
+      email: quickCreate.email.trim().toLowerCase() || null,
+      is_active: true,
+    }).select('id, full_name').single()
+    if (err) { setError('Erro ao criar membro: ' + err.message); setQuickSaving(false); return }
+    if (newMem) {
+      setMemberOptions(prev => [...prev, newMem].sort((a, b) => a.full_name.localeCompare(b.full_name)))
+      selectMember(newMem)
+      setShowQuickCreate(false)
+      setQuickCreate(blankQuickCreate)
+      flash(`Membro "${newMem.full_name}" criado!`)
+    }
+    setQuickSaving(false)
+  }
+
+  // ── Membros de ministério ──
+  function openNewMem() {
+    setEditMemId(null)
+    setMemForm(blankMem)
+    setMemberSearch('')
+    setSelectedMemberName('')
+    setMemberResults([])
+    setShowDropdown(false)
+    setShowQuickCreate(false)
+    setQuickCreate(blankQuickCreate)
+    setModalPhotoPreview(null)
+    setError(null)
+    setShowMemForm(true)
+  }
+
+  function openEditMem(mem: MinMember) {
+    setEditMemId(mem.id)
+    setMemForm({ member_id: mem.member_id, role: mem.role, phone: mem.phone || '', email: mem.email || '', bio: mem.bio || '', photo_url: mem.photo_url })
+    const found = memberOptions.find(o => o.id === mem.member_id)
+    setMemberSearch(found?.full_name || mem.name)
+    setSelectedMemberName(found?.full_name || mem.name)
+    setMemberResults([])
+    setShowDropdown(false)
+    setShowQuickCreate(false)
+    setModalPhotoPreview(mem.photo_url)
+    setError(null)
+    setShowMemForm(true)
+  }
 
   async function saveMem() {
     if (!selected) return
-    if (!memForm.name.trim()) { setError('Nome obrigatório'); return }
+    if (!memForm.member_id) { setError('Selecione um membro cadastrado'); return }
     setSaving(true); setError(null)
     const sb = createClient()
     let photo_url = memForm.photo_url || null
 
-    // Upload de foto se selecionada no modal
     const modalFile = modalPhotoRef.current?.files?.[0]
     if (modalFile) {
       const ext = modalFile.name.split('.').pop()
@@ -117,8 +203,24 @@ export default function MinisteriosAdminPage() {
       photo_url = urlData.publicUrl
     }
 
-    const payload = { ministry_id: selected.id, church_id: profile!.church_id, name: memForm.name.trim(), role: memForm.role, phone: memForm.phone || null, email: memForm.email || null, bio: memForm.bio || null, photo_url, member_id: memForm.member_id || null }
-    const { error: err } = editMemId ? await sb.from('ministry_members').update(payload).eq('id', editMemId) : await sb.from('ministry_members').insert(payload)
+    // name espelha o full_name do membro vinculado
+    const linkedMember = memberOptions.find(o => o.id === memForm.member_id)
+    const name = linkedMember?.full_name || selectedMemberName
+
+    const payload = {
+      ministry_id: selected.id,
+      church_id: profile!.church_id,
+      member_id: memForm.member_id,
+      name,
+      role: memForm.role,
+      phone: memForm.phone || null,
+      email: memForm.email || null,
+      bio: memForm.bio || null,
+      photo_url,
+    }
+    const { error: err } = editMemId
+      ? await sb.from('ministry_members').update(payload).eq('id', editMemId)
+      : await sb.from('ministry_members').insert(payload)
     if (err) setError(err.message)
     else { setShowMemForm(false); setModalPhotoPreview(null); await load(); flash(editMemId ? 'Membro atualizado!' : 'Membro adicionado!') }
     setSaving(false)
@@ -146,6 +248,7 @@ export default function MinisteriosAdminPage() {
   }
 
   const L = { display: 'block' as const, fontSize: '11px', color: 'var(--text-3)', marginBottom: '5px' }
+  const INPUT_S: React.CSSProperties = { width: '100%', padding: '9px 12px', background: 'var(--bg-3)', border: '1px solid var(--border)', borderRadius: '8px', fontSize: '13px', color: 'var(--text-1)', outline: 'none', boxSizing: 'border-box' }
 
   if (!isAdmin) return (
     <div style={{ maxWidth: '600px' }}>
@@ -188,21 +291,20 @@ export default function MinisteriosAdminPage() {
             <div key={m.id}
               onClick={() => setSelected(m)}
               style={{ background: 'var(--bg-card)', border: `1px solid ${selected?.id === m.id ? 'var(--brand)' : 'var(--border)'}`, borderRadius: '10px', overflow: 'hidden', transition: 'border-color 0.15s', opacity: m.is_active ? 1 : 0.5 }}>
-              <div style={{ padding: '12px 14px' }} onClick={() => setSelected(m)}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
-                <div style={{ minWidth: 0 }}>
-                  <div style={{ fontSize: '13px', fontWeight: '500', color: 'var(--text-1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.name}</div>
-                  <div style={{ fontSize: '11px', color: 'var(--text-3)', marginTop: '3px', display: 'flex', gap: '10px' }}>
-                    {m.meeting_schedule && <span>{m.meeting_schedule}</span>}
-                    <span>{m.members?.length || 0} membro(s)</span>
+              <div style={{ padding: '12px 14px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontSize: '13px', fontWeight: '500', color: 'var(--text-1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.name}</div>
+                    <div style={{ fontSize: '11px', color: 'var(--text-3)', marginTop: '3px', display: 'flex', gap: '10px' }}>
+                      {m.meeting_schedule && <span>{m.meeting_schedule}</span>}
+                      <span>{m.members?.filter(mb => mb.is_active).length || 0} membro(s)</span>
+                    </div>
                   </div>
+                  <span style={{ fontSize: '10px', padding: '2px 8px', borderRadius: '99px', background: m.is_active ? 'var(--ok-dim)' : 'rgba(255,255,255,0.05)', color: m.is_active ? 'var(--ok)' : 'var(--text-3)', flexShrink: 0 }}>
+                    {m.is_active ? 'Ativo' : 'Inativo'}
+                  </span>
                 </div>
-                <span style={{ fontSize: '10px', padding: '2px 8px', borderRadius: '99px', background: m.is_active ? 'var(--ok-dim)' : 'rgba(255,255,255,0.05)', color: m.is_active ? 'var(--ok)' : 'var(--text-3)', flexShrink: 0 }}>
-                  {m.is_active ? 'Ativo' : 'Inativo'}
-                </span>
               </div>
-              </div>
-              {/* Barra de ações */}
               <div style={{ display: 'flex', borderTop: '1px solid var(--border)' }}>
                 <button onClick={e => { e.stopPropagation(); openEditMin(m) }} style={{ flex: 1, padding: '10px', background: 'transparent', border: 'none', borderRight: '1px solid var(--border)', fontSize: '13px', color: 'var(--text-2)', cursor: 'pointer', fontWeight: '500' }}>
                   Editar
@@ -218,7 +320,6 @@ export default function MinisteriosAdminPage() {
         {/* Detalhe do ministério selecionado */}
         {selected && (
           <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px', overflow: 'hidden' }}>
-            {/* Header */}
             <div style={{ height: '80px', background: selected.cover_image_url ? `url(${selected.cover_image_url}) center/cover` : 'linear-gradient(135deg, #1a1a2e 0%, #16213e 60%, #0f3460 100%)', display: 'flex', alignItems: 'flex-end', padding: '12px 16px', position: 'relative' }}>
               <div style={{ fontSize: '16px', fontWeight: '700', color: '#fff', textShadow: '0 1px 4px rgba(0,0,0,0.6)' }}>{selected.name}</div>
               <button onClick={() => setSelected(null)} style={{ position: 'absolute', top: '10px', right: '10px', width: '26px', height: '26px', borderRadius: '50%', background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px' }}>✕</button>
@@ -234,7 +335,6 @@ export default function MinisteriosAdminPage() {
                 </button>
               </div>
 
-              {/* Lista de membros */}
               {(selected.members || []).filter(m => m.is_active).length === 0 ? (
                 <div style={{ textAlign: 'center', padding: '30px', fontSize: '13px', color: 'var(--text-3)' }}>
                   Nenhum membro cadastrado.
@@ -243,15 +343,13 @@ export default function MinisteriosAdminPage() {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                   {(selected.members || []).filter(m => m.is_active).map(mem => (
                     <div key={mem.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', borderRadius: '8px', background: 'var(--bg-3)', border: '1px solid var(--border)' }}>
-                      {/* Avatar clicável para upload */}
                       <div style={{ position: 'relative', cursor: 'pointer' }} title="Clique para trocar foto" onClick={() => { setEditMemId(mem.id); photoRef.current?.click() }}>
                         <Avatar name={mem.name} photo={mem.photo_url} size={40}/>
-                        <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', background: 'rgba(0,0,0,0)', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 0.15s', fontSize: '16px' }}
+                        <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', background: 'rgba(0,0,0,0)', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 0.15s' }}
                           onMouseEnter={e => (e.currentTarget.style.background = 'rgba(0,0,0,0.4)')}
                           onMouseLeave={e => (e.currentTarget.style.background = 'rgba(0,0,0,0)')}>
                         </div>
                       </div>
-
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontSize: '13px', fontWeight: '500', color: 'var(--text-1)' }}>{mem.name}</div>
                         <div style={{ fontSize: '11px', marginTop: '2px' }}>
@@ -261,7 +359,6 @@ export default function MinisteriosAdminPage() {
                           {mem.bio && <span style={{ color: 'var(--text-3)', marginLeft: '8px' }}>{mem.bio}</span>}
                         </div>
                       </div>
-
                       <div style={{ display: 'flex', gap: '4px', flexShrink: 0 }}>
                         <button onClick={() => openEditMem(mem)} style={{ padding: '4px 9px', background: 'transparent', border: '1px solid var(--border)', borderRadius: '6px', fontSize: '11px', color: 'var(--text-2)', cursor: 'pointer' }}>Editar</button>
                         <button onClick={() => removeMem(mem.id)} style={{ padding: '4px 9px', background: 'transparent', border: '1px solid rgba(239,68,68,0.3)', borderRadius: '6px', fontSize: '11px', color: 'var(--empty)', cursor: 'pointer' }}>✕</button>
@@ -271,7 +368,6 @@ export default function MinisteriosAdminPage() {
                 </div>
               )}
 
-              {/* Input de foto oculto */}
               <input ref={photoRef} type="file" accept="image/*" style={{ display: 'none' }}
                 onChange={async e => {
                   const file = e.target.files?.[0]
@@ -297,6 +393,7 @@ export default function MinisteriosAdminPage() {
               <div><label style={L}>Horário dos encontros</label><input value={minForm.meeting_schedule} onChange={e => setMinForm(f => ({ ...f, meeting_schedule: e.target.value }))} placeholder="Ex: Sábados às 19h"/></div>
               <div><label style={L}>Local</label><input value={minForm.location} onChange={e => setMinForm(f => ({ ...f, location: e.target.value }))} placeholder="Ex: Sala 3"/></div>
             </div>
+            {error && <div style={{ marginTop: '12px', padding: '8px 12px', borderRadius: '8px', background: 'var(--empty-dim)', fontSize: '13px', color: 'var(--empty)' }}>{error}</div>}
             <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
               <button onClick={saveMin} disabled={saving} style={{ flex: 1, padding: '10px', background: 'var(--brand)', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: '500', cursor: 'pointer', opacity: saving ? 0.7 : 1 }}>
                 {saving ? 'Salvando...' : editMinId ? 'Salvar' : 'Criar ministério'}
@@ -311,57 +408,118 @@ export default function MinisteriosAdminPage() {
       {showMemForm && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, padding: '20px' }}
           onClick={e => e.target === e.currentTarget && setShowMemForm(false)}>
-          <div className="fade-up" style={{ background: 'var(--bg-2)', border: '1px solid var(--border-md)', borderRadius: '16px', padding: '28px', width: '100%', maxWidth: '440px' }}>
+          <div className="fade-up" style={{ background: 'var(--bg-2)', border: '1px solid var(--border-md)', borderRadius: '16px', padding: '28px', width: '100%', maxWidth: '480px', maxHeight: '90vh', overflowY: 'auto' }}>
             <h2 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '20px' }}>{editMemId ? 'Editar' : 'Adicionar'} membro</h2>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              {/* Avatar com preview e clique para upload */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '4px' }}>
-                <div style={{ position: 'relative', cursor: 'pointer' }} onClick={() => modalPhotoRef.current?.click()}>
-                  <div style={{ width: '64px', height: '64px', borderRadius: '50%', overflow: 'hidden', border: '2px solid var(--border-md)', background: 'var(--bg-3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '22px', fontWeight: 600, color: '#fff' }}
-                    style={{ background: modalPhotoPreview ? 'transparent' : '#6366f1' }}>
-                    {modalPhotoPreview
-                      ? <img src={modalPhotoPreview} alt="foto" style={{ width: '100%', height: '100%', objectFit: 'cover' }}/>
-                      : (memForm.name.charAt(0).toUpperCase() || '?')
-                    }
-                  </div>
-                  <div style={{ position: 'absolute', bottom: 0, right: 0, width: '22px', height: '22px', background: 'var(--brand)', borderRadius: '50%', border: '2px solid var(--bg-2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
-                  </div>
-                </div>
-                <div>
-                  <div style={{ fontSize: '13px', fontWeight: '500', color: 'var(--text-1)' }}>Foto do membro</div>
-                  <div style={{ fontSize: '11px', color: 'var(--text-3)', marginTop: '2px' }}>Clique no avatar para selecionar</div>
-                  <input ref={modalPhotoRef} type="file" accept="image/*" style={{ display: 'none' }}
-                    onChange={e => {
-                      const file = e.target.files?.[0]
-                      if (file) setModalPhotoPreview(URL.createObjectURL(file))
-                    }}
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+
+              {/* Busca de membro cadastrado */}
+              <div>
+                <label style={L}>Membro cadastrado *</label>
+                <div style={{ position: 'relative' }}>
+                  <input
+                    value={memberSearch}
+                    onChange={e => handleMemberSearch(e.target.value)}
+                    onFocus={() => { if (memberResults.length > 0) setShowDropdown(true) }}
+                    onBlur={() => setTimeout(() => setShowDropdown(false), 150)}
+                    placeholder="Buscar por nome..."
+                    style={{ ...INPUT_S, borderColor: memForm.member_id ? 'var(--ok)' : 'var(--border)' }}
                   />
+                  {memForm.member_id && (
+                    <div style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--ok)', fontSize: '14px' }}>✓</div>
+                  )}
+                  {showDropdown && memberResults.length > 0 && (
+                    <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: 'var(--bg-2)', border: '1px solid var(--border-md)', borderRadius: '8px', zIndex: 100, boxShadow: '0 8px 24px rgba(0,0,0,0.3)', maxHeight: '200px', overflowY: 'auto', marginTop: '4px' }}>
+                      {memberResults.map(o => (
+                        <div key={o.id} onMouseDown={() => selectMember(o)}
+                          style={{ padding: '9px 14px', fontSize: '13px', color: 'var(--text-1)', cursor: 'pointer', borderBottom: '1px solid var(--border)' }}
+                          onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-3)')}
+                          onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+                          {o.full_name}
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
+
+                {/* Nenhum resultado + criar */}
+                {memberSearch.length >= 2 && memberResults.length === 0 && !memForm.member_id && !showQuickCreate && (
+                  <div style={{ marginTop: '8px', padding: '10px 12px', borderRadius: '8px', background: 'var(--bg-3)', border: '1px solid var(--border)', fontSize: '12px', color: 'var(--text-3)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span>Nenhum membro encontrado com esse nome.</span>
+                    <button onMouseDown={() => { setShowQuickCreate(true); setQuickCreate({ ...blankQuickCreate, full_name: memberSearch }) }}
+                      style={{ background: 'var(--brand)', color: '#fff', border: 'none', borderRadius: '6px', padding: '4px 10px', fontSize: '11px', fontWeight: '500', cursor: 'pointer', flexShrink: 0, marginLeft: '10px' }}>
+                      + Criar agora
+                    </button>
+                  </div>
+                )}
+
+                {/* Mini-formulário de criação rápida */}
+                {showQuickCreate && (
+                  <div style={{ marginTop: '10px', padding: '14px', borderRadius: '10px', background: 'var(--bg-3)', border: '1px solid var(--border-md)' }}>
+                    <div style={{ fontSize: '12px', fontWeight: '500', color: 'var(--text-2)', marginBottom: '10px' }}>Criar novo membro</div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      <div>
+                        <label style={L}>Nome completo *</label>
+                        <input value={quickCreate.full_name} onChange={e => setQuickCreate(f => ({ ...f, full_name: e.target.value }))} placeholder="Nome completo" style={INPUT_S}/>
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                        <div>
+                          <label style={L}>Telefone</label>
+                          <input value={quickCreate.phone} onChange={e => setQuickCreate(f => ({ ...f, phone: e.target.value }))} placeholder="(47) 9xxxx-xxxx" style={INPUT_S}/>
+                        </div>
+                        <div>
+                          <label style={L}>E-mail</label>
+                          <input value={quickCreate.email} onChange={e => setQuickCreate(f => ({ ...f, email: e.target.value }))} placeholder="email@..." style={INPUT_S}/>
+                        </div>
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', gap: '8px', marginTop: '10px' }}>
+                      <button onClick={saveQuickCreate} disabled={quickSaving} style={{ flex: 1, padding: '8px', background: 'var(--brand)', color: '#fff', border: 'none', borderRadius: '7px', fontSize: '12px', fontWeight: '500', cursor: 'pointer', opacity: quickSaving ? 0.7 : 1 }}>
+                        {quickSaving ? 'Criando...' : 'Criar e selecionar'}
+                      </button>
+                      <button onClick={() => setShowQuickCreate(false)} style={{ padding: '8px 12px', background: 'transparent', border: '1px solid var(--border)', borderRadius: '7px', fontSize: '12px', color: 'var(--text-2)', cursor: 'pointer' }}>Cancelar</button>
+                    </div>
+                  </div>
+                )}
               </div>
-              <div><label style={L}>Nome *</label><input value={memForm.name} onChange={e => setMemForm(f => ({ ...f, name: e.target.value }))} placeholder="Nome completo"/></div>
+
+              {/* Papel + Bio */}
               <div>
                 <label style={L}>Papel no ministério</label>
-                <select value={memForm.role} onChange={e => setMemForm(f => ({ ...f, role: e.target.value as MemberRole }))}>
+                <select value={memForm.role} onChange={e => setMemForm(f => ({ ...f, role: e.target.value as MemberRole }))} style={{ ...INPUT_S, cursor: 'pointer' }}>
                   <option value="lider">Líder</option>
                   <option value="lider_assistente">Líder de Equipe</option>
                   <option value="membro">Membro</option>
                 </select>
               </div>
-              <div><label style={L}>Bio / função</label><input value={memForm.bio} onChange={e => setMemForm(f => ({ ...f, bio: e.target.value }))} placeholder="Ex: Guitarrista, Vocal..."/></div>
               <div>
-                <label style={L}>Vincular ao membro cadastrado <span style={{ opacity: 0.6 }}>(opcional)</span></label>
-                <select value={memForm.member_id || ''} onChange={e => setMemForm(f => ({ ...f, member_id: e.target.value || null }))}>
-                  <option value="">— Não vinculado —</option>
-                  {memberOptions.map(o => <option key={o.id} value={o.id}>{o.full_name}</option>)}
-                </select>
-                {memberOptions.length === 0 && <div style={{ fontSize: '11px', color: 'var(--text-3)', marginTop: '4px' }}>Nenhum membro importado ainda.</div>}
+                <label style={L}>Bio / função</label>
+                <input value={memForm.bio} onChange={e => setMemForm(f => ({ ...f, bio: e.target.value }))} placeholder="Ex: Guitarrista, Vocal..." style={INPUT_S}/>
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                <div><label style={L}>Telefone</label><input value={memForm.phone} onChange={e => setMemForm(f => ({ ...f, phone: e.target.value }))} placeholder="(47) 9xxxx-xxxx"/></div>
-                <div><label style={L}>E-mail</label><input value={memForm.email} onChange={e => setMemForm(f => ({ ...f, email: e.target.value }))} placeholder="email@..."/></div>
+
+              {/* Foto */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                <div style={{ position: 'relative', cursor: 'pointer' }} onClick={() => modalPhotoRef.current?.click()}>
+                  <div style={{ width: '56px', height: '56px', borderRadius: '50%', overflow: 'hidden', border: '2px solid var(--border-md)', background: modalPhotoPreview ? 'transparent' : '#6366f1', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px', fontWeight: 600, color: '#fff' }}>
+                    {modalPhotoPreview
+                      ? <img src={modalPhotoPreview} alt="foto" style={{ width: '100%', height: '100%', objectFit: 'cover' }}/>
+                      : (selectedMemberName.charAt(0).toUpperCase() || '?')
+                    }
+                  </div>
+                  <div style={{ position: 'absolute', bottom: 0, right: 0, width: '20px', height: '20px', background: 'var(--brand)', borderRadius: '50%', border: '2px solid var(--bg-2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
+                  </div>
+                </div>
+                <div>
+                  <div style={{ fontSize: '12px', color: 'var(--text-2)' }}>Foto (opcional)</div>
+                  <div style={{ fontSize: '11px', color: 'var(--text-3)', marginTop: '2px' }}>Clique no avatar para selecionar</div>
+                  <input ref={modalPhotoRef} type="file" accept="image/*" style={{ display: 'none' }}
+                    onChange={e => { const file = e.target.files?.[0]; if (file) setModalPhotoPreview(URL.createObjectURL(file)) }}
+                  />
+                </div>
               </div>
             </div>
+
             {error && <div style={{ marginTop: '12px', padding: '8px 12px', borderRadius: '8px', background: 'var(--empty-dim)', fontSize: '13px', color: 'var(--empty)' }}>{error}</div>}
             <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
               <button onClick={saveMem} disabled={saving} style={{ flex: 1, padding: '10px', background: 'var(--brand)', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: '500', cursor: 'pointer', opacity: saving ? 0.7 : 1 }}>
