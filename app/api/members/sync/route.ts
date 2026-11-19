@@ -49,27 +49,35 @@ export async function POST(request: Request) {
 
     let inserted = 0
     let updated  = 0
-    let skipped  = 0 // linhas sem email (não entram no upsert por email)
-    const noEmailRows: string[] = []
+    let skipped_no_email = 0
+    let skipped_error    = 0
+    const skipped_reasons: { row: number; name: string; email?: string; reason: string }[] = []
 
-    for (const raw of rawRows) {
+    for (let i = 0; i < rawRows.length; i++) {
+      const raw = rawRows[i]
       const m = mapRowMembro(raw)
-      if (!m) continue
-
-      if (!m.email) {
-        // Sem e-mail: não dá pra fazer upsert determinístico.
-        // Registra para log mas não insere para evitar duplicatas.
-        skipped++
-        noEmailRows.push(m.full_name)
+      if (!m) {
+        skipped_reasons.push({ row: i + 1, name: '(linha vazia ou sem nome)', reason: 'full_name ausente' })
+        skipped_no_email++
         continue
       }
 
-      // Upsert por (church_id, lower(email))
+      if (!m.email) {
+        skipped_no_email++
+        skipped_reasons.push({ row: i + 1, name: m.full_name, reason: 'email ausente' })
+        continue
+      }
+
+      // Email normalizado para lowercase antes do upsert.
+      // A constraint members_email_church é UNIQUE(church_id, email) — sem expressão —
+      // exigindo que o valor armazenado já esteja normalizado.
+      const emailNorm = m.email.toLowerCase().trim()
+
       const payload = {
         church_id:                    CHURCH_ID,
         source_row_id:                m.source_row_id,
         submitted_at:                 m.submitted_at,
-        email:                        m.email.toLowerCase().trim(),
+        email:                        emailNorm,
         full_name:                    m.full_name,
         birth_date:                   m.birth_date,
         birth_state:                  m.birth_state,
@@ -88,7 +96,7 @@ export async function POST(request: Request) {
         updated_at:                   new Date().toISOString(),
       }
 
-      // onConflict usa o índice members_email_church
+      // onConflict aponta para a constraint nomeada members_email_church
       const { data: row, error } = await sb
         .from('members')
         .upsert(payload, {
@@ -99,12 +107,12 @@ export async function POST(request: Request) {
         .single()
 
       if (error) {
-        console.error('[members/sync] upsert error:', error.message, '| email:', m.email)
-        skipped++
+        skipped_error++
+        skipped_reasons.push({ row: i + 1, name: m.full_name, email: emailNorm, reason: error.message })
         continue
       }
 
-      // Se created_at === updated_at (dentro do mesmo segundo) → inserção nova
+      // created_at === updated_at → inserção nova; caso contrário → atualização
       if (row && row.created_at === row.updated_at) {
         inserted++
       } else {
@@ -118,14 +126,17 @@ export async function POST(request: Request) {
       .eq('church_id', CHURCH_ID)
 
     const total = count || 0
+    const skipped = skipped_no_email + skipped_error
 
     return NextResponse.json({
       ok: true,
       inserted,
       updated,
       skipped,
+      skipped_no_email,
+      skipped_error,
       total,
-      ...(noEmailRows.length > 0 ? { sem_email: noEmailRows } : {}),
+      ...(skipped_reasons.length > 0 ? { skipped_reasons } : {}),
     })
 
   } catch (err: any) {
