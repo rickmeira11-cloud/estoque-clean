@@ -72,7 +72,7 @@ export default function LoginPage() {
         <div style={{ textAlign: 'center', marginBottom: '32px' }}>
           <div style={{
             width: '64px', height: '64px', borderRadius: '16px',
-            background: 'var(--brand-dim)',
+            background: '#111827',
             border: '1px solid var(--border-md)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             margin: '0 auto 16px',
@@ -224,11 +224,8 @@ export default function LoginPage() {
 
         {/* Rodapé */}
         <div style={{ marginTop: '28px', textAlign: 'center' }}>
-          <div style={{ fontSize: '11px', color: 'var(--text-3)', letterSpacing: '0.03em' }}>
-            Sistema de Gestão de Estoque
-          </div>
-          <div style={{ fontSize: '10px', color: 'var(--text-3)', marginTop: '4px', letterSpacing: '0.02em' }}>
-            v1.0 · Poiema
+          <div style={{ fontSize: '11px', color: 'var(--text-3)', letterSpacing: '0.08em' }}>
+            POIEMA
           </div>
         </div>
       </div>
