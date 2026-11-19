@@ -4,37 +4,63 @@ import { createClient } from '@/lib/supabase/client'
 import { useProfile } from '@/hooks/useProfile'
 import AdminTable, { type FieldDef } from '@/components/AdminTable'
 
-type Event = { id: string; name: string; event_date: string | null; description: string | null; is_active: boolean }
-
-const FIELDS: FieldDef[] = [
-  { type: 'text', key: 'name', label: 'Nome', placeholder: 'Ex: Culto Domingo, Retiro Jovens...', required: true },
-  { type: 'date', key: 'date', label: 'Data do evento' },
-  { type: 'text', key: 'desc', label: 'Descrição', placeholder: 'Opcional' },
-]
-
-const INITIAL = { name: '', date: '', desc: '' }
+type EventType = { id: string; name: string }
+type Event = { id: string; name: string; event_date: string | null; description: string | null; is_active: boolean; event_type_id: string | null; event_type?: EventType | null }
 
 export default function EventosPage() {
   const { profile, isAdmin } = useProfile()
-  const [events,  setEvents]  = useState<Event[]>([])
-  const [loading, setLoading] = useState(true)
+  const [events,     setEvents]     = useState<Event[]>([])
+  const [eventTypes, setEventTypes] = useState<EventType[]>([])
+  const [loading,    setLoading]    = useState(true)
 
-  useEffect(() => { if (profile?.church_id) load() }, [profile?.church_id])
+  useEffect(() => { if (profile?.church_id) { load(); loadTypes() } }, [profile?.church_id])
+
+  async function loadTypes() {
+    const { data } = await createClient()
+      .from('event_types').select('id, name')
+      .eq('church_id', profile!.church_id)
+      .eq('is_active', true)
+      .order('name')
+    if (data) setEventTypes(data)
+  }
 
   async function load() {
     setLoading(true)
     const { data } = await createClient()
-      .from('events').select('*')
+      .from('events').select('*, event_type:event_types(id, name)')
       .eq('church_id', profile!.church_id)
       .order('event_date', { ascending: false })
     if (data) setEvents(data as Event[])
     setLoading(false)
   }
 
+  const FIELDS: FieldDef[] = [
+    { type: 'text', key: 'name', label: 'Nome', placeholder: 'Ex: Culto Domingo, Retiro Jovens...', required: true },
+    { type: 'date', key: 'date', label: 'Data do evento' },
+    {
+      type: 'slot', key: 'event_type_id', label: 'Tipo de evento',
+      render: (value, onChange) => (
+        <select value={value} onChange={e => onChange(e.target.value)}>
+          <option value="">— Sem tipo —</option>
+          {eventTypes.map(et => <option key={et.id} value={et.id}>{et.name}</option>)}
+        </select>
+      ),
+    },
+    { type: 'text', key: 'desc', label: 'Descrição', placeholder: 'Opcional' },
+  ]
+
+  const INITIAL = { name: '', date: '', event_type_id: '', desc: '' }
+
   async function onSave(form: Record<string, string>, editId: string | null): Promise<string | null> {
     if (!form.name.trim()) return 'Nome é obrigatório'
     const sb = createClient()
-    const payload = { church_id: profile!.church_id, name: form.name.trim(), event_date: form.date || null, description: form.desc || null }
+    const payload = {
+      church_id:     profile!.church_id,
+      name:          form.name.trim(),
+      event_date:    form.date || null,
+      event_type_id: form.event_type_id || null,
+      description:   form.desc || null,
+    }
     const { error } = editId
       ? await sb.from('events').update(payload).eq('id', editId)
       : await sb.from('events').insert(payload)
@@ -68,7 +94,7 @@ export default function EventosPage() {
       fields={FIELDS}
       initialForm={INITIAL}
       formTitle={editing => editing ? 'Editar evento' : 'Novo evento'}
-      onEditInit={ev => ({ name: ev.name, date: ev.event_date || '', desc: ev.description || '' })}
+      onEditInit={ev => ({ name: ev.name, date: ev.event_date || '', event_type_id: ev.event_type_id || '', desc: ev.description || '' })}
       onSave={onSave}
       onDelete={onDelete}
       onToggle={onToggle}
@@ -81,6 +107,7 @@ export default function EventosPage() {
             </div>
             <div style={{ fontSize: '12px', color: 'var(--text-3)', marginTop: '3px', display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
               {ev.event_date && <span>📅 {new Date(ev.event_date + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}</span>}
+              {ev.event_type && <span style={{ padding: '1px 7px', borderRadius: '99px', background: 'var(--brand-dim)', color: 'var(--brand-light)', fontSize: '11px' }}>{ev.event_type.name}</span>}
               {ev.description && <span>· {ev.description}</span>}
             </div>
           </div>
