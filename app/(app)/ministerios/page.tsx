@@ -23,10 +23,7 @@ function Avatar({ name, photo, size = 36 }: { name: string; photo: string | null
 }
 
 const blankMin = { name: '', description: '', meeting_schedule: '', location: '' }
-const blankMem = { member_id: '', role: 'membro' as MemberRole, phone: '', email: '', bio: '', photo_url: null as string | null }
-const blankQuickCreate = { full_name: '', phone: '', email: '' }
-
-const CHURCH_ID = '8db14705-9da8-4844-8b01-a73845297831'
+const blankMem = { member_id: '', role: 'membro' as MemberRole, bio: '', photo_url: null as string | null }
 
 export default function MinisteriosAdminPage() {
   const { profile, isAdmin } = useProfile()
@@ -55,11 +52,6 @@ export default function MinisteriosAdminPage() {
   const [memberResults, setMemberResults] = useState<RegisteredMember[]>([])
   const [selectedMemberName, setSelectedMemberName] = useState('')
   const [showDropdown, setShowDropdown] = useState(false)
-
-  // Criação rápida de membro
-  const [showQuickCreate, setShowQuickCreate] = useState(false)
-  const [quickCreate, setQuickCreate] = useState(blankQuickCreate)
-  const [quickSaving, setQuickSaving] = useState(false)
 
   useEffect(() => {
     if (profile?.church_id) {
@@ -133,29 +125,6 @@ export default function MinisteriosAdminPage() {
     setShowDropdown(false)
   }
 
-  // ── Criação rápida ──
-  async function saveQuickCreate() {
-    if (!quickCreate.full_name.trim()) { setError('Nome obrigatório para criar membro'); return }
-    setQuickSaving(true); setError(null)
-    const sb = createClient()
-    const { data: newMem, error: err } = await sb.from('members').insert({
-      church_id: CHURCH_ID,
-      full_name: quickCreate.full_name.trim(),
-      phone: quickCreate.phone.trim() || null,
-      email: quickCreate.email.trim().toLowerCase() || null,
-      is_active: true,
-    }).select('id, full_name').single()
-    if (err) { setError('Erro ao criar membro: ' + err.message); setQuickSaving(false); return }
-    if (newMem) {
-      setMemberOptions(prev => [...prev, newMem].sort((a, b) => a.full_name.localeCompare(b.full_name)))
-      selectMember(newMem)
-      setShowQuickCreate(false)
-      setQuickCreate(blankQuickCreate)
-      flash(`Membro "${newMem.full_name}" criado!`)
-    }
-    setQuickSaving(false)
-  }
-
   // ── Membros de ministério ──
   function openNewMem() {
     setEditMemId(null)
@@ -164,8 +133,6 @@ export default function MinisteriosAdminPage() {
     setSelectedMemberName('')
     setMemberResults([])
     setShowDropdown(false)
-    setShowQuickCreate(false)
-    setQuickCreate(blankQuickCreate)
     setModalPhotoPreview(null)
     setError(null)
     setShowMemForm(true)
@@ -173,13 +140,12 @@ export default function MinisteriosAdminPage() {
 
   function openEditMem(mem: MinMember) {
     setEditMemId(mem.id)
-    setMemForm({ member_id: mem.member_id, role: mem.role, phone: mem.phone || '', email: mem.email || '', bio: mem.bio || '', photo_url: mem.photo_url })
+    setMemForm({ member_id: mem.member_id, role: mem.role, bio: mem.bio || '', photo_url: mem.photo_url })
     const found = memberOptions.find(o => o.id === mem.member_id)
     setMemberSearch(found?.full_name || mem.name)
     setSelectedMemberName(found?.full_name || mem.name)
     setMemberResults([])
     setShowDropdown(false)
-    setShowQuickCreate(false)
     setModalPhotoPreview(mem.photo_url)
     setError(null)
     setShowMemForm(true)
@@ -213,8 +179,6 @@ export default function MinisteriosAdminPage() {
       member_id: memForm.member_id,
       name,
       role: memForm.role,
-      phone: memForm.phone || null,
-      email: memForm.email || null,
       bio: memForm.bio || null,
       photo_url,
     }
@@ -442,43 +406,9 @@ export default function MinisteriosAdminPage() {
                   )}
                 </div>
 
-                {/* Nenhum resultado + criar */}
-                {memberSearch.length >= 2 && memberResults.length === 0 && !memForm.member_id && !showQuickCreate && (
-                  <div style={{ marginTop: '8px', padding: '10px 12px', borderRadius: '8px', background: 'var(--bg-3)', border: '1px solid var(--border)', fontSize: '12px', color: 'var(--text-3)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span>Nenhum membro encontrado com esse nome.</span>
-                    <button onMouseDown={() => { setShowQuickCreate(true); setQuickCreate({ ...blankQuickCreate, full_name: memberSearch }) }}
-                      style={{ background: 'var(--brand)', color: '#fff', border: 'none', borderRadius: '6px', padding: '4px 10px', fontSize: '11px', fontWeight: '500', cursor: 'pointer', flexShrink: 0, marginLeft: '10px' }}>
-                      + Criar agora
-                    </button>
-                  </div>
-                )}
-
-                {/* Mini-formulário de criação rápida */}
-                {showQuickCreate && (
-                  <div style={{ marginTop: '10px', padding: '14px', borderRadius: '10px', background: 'var(--bg-3)', border: '1px solid var(--border-md)' }}>
-                    <div style={{ fontSize: '12px', fontWeight: '500', color: 'var(--text-2)', marginBottom: '10px' }}>Criar novo membro</div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                      <div>
-                        <label style={L}>Nome completo *</label>
-                        <input value={quickCreate.full_name} onChange={e => setQuickCreate(f => ({ ...f, full_name: e.target.value }))} placeholder="Nome completo" style={INPUT_S}/>
-                      </div>
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-                        <div>
-                          <label style={L}>Telefone</label>
-                          <input value={quickCreate.phone} onChange={e => setQuickCreate(f => ({ ...f, phone: e.target.value }))} placeholder="(47) 9xxxx-xxxx" style={INPUT_S}/>
-                        </div>
-                        <div>
-                          <label style={L}>E-mail</label>
-                          <input value={quickCreate.email} onChange={e => setQuickCreate(f => ({ ...f, email: e.target.value }))} placeholder="email@..." style={INPUT_S}/>
-                        </div>
-                      </div>
-                    </div>
-                    <div style={{ display: 'flex', gap: '8px', marginTop: '10px' }}>
-                      <button onClick={saveQuickCreate} disabled={quickSaving} style={{ flex: 1, padding: '8px', background: 'var(--brand)', color: '#fff', border: 'none', borderRadius: '7px', fontSize: '12px', fontWeight: '500', cursor: 'pointer', opacity: quickSaving ? 0.7 : 1 }}>
-                        {quickSaving ? 'Criando...' : 'Criar e selecionar'}
-                      </button>
-                      <button onClick={() => setShowQuickCreate(false)} style={{ padding: '8px 12px', background: 'transparent', border: '1px solid var(--border)', borderRadius: '7px', fontSize: '12px', color: 'var(--text-2)', cursor: 'pointer' }}>Cancelar</button>
-                    </div>
+                {memberSearch.length >= 2 && memberResults.length === 0 && !memForm.member_id && (
+                  <div style={{ marginTop: '6px', fontSize: '12px', color: 'var(--text-3)' }}>
+                    Nenhum membro encontrado. Cadastre o membro primeiro na tela <a href="/membros" style={{ color: 'var(--brand-light)', textDecoration: 'none' }}>Membros</a>.
                   </div>
                 )}
               </div>
