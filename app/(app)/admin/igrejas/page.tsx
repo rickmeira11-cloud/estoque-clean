@@ -22,6 +22,7 @@ export default function IgrejasPage() {
   const [showWizard,   setShowWizard]   = useState(false)
   const [newChurchId,  setNewChurchId]  = useState(null)
   const [newChurchName,setNewChurchName]= useState('')
+  const [viewMode,     setViewMode]     = useState('cards')
   const formRef  = useRef(null)
   const firstRef = useRef(null)
   const fileRef = useRef(null)
@@ -136,9 +137,15 @@ export default function IgrejasPage() {
           <h1 style={{ fontSize: '22px', fontWeight: '600' }}>Igrejas</h1>
           <p style={{ fontSize: '13px', color: 'var(--text-3)', marginTop: '4px' }}>Organizações cadastradas no sistema</p>
         </div>
-        <button onClick={openNew} style={{ padding: '9px 18px', background: 'var(--brand)', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: '500', cursor: 'pointer', flexShrink: 0 }}>
-          + Nova igreja
-        </button>
+        <div style={{ display: 'flex', gap: '8px', flexShrink: 0 }}>
+          <div style={{ display: 'flex', border: '1px solid var(--border)', borderRadius: '8px', overflow: 'hidden' }}>
+            <button onClick={() => setViewMode('cards')} style={{ padding: '7px 12px', background: viewMode === 'cards' ? 'var(--bg-3)' : 'transparent', border: 'none', borderRight: '1px solid var(--border)', fontSize: '12px', color: viewMode === 'cards' ? 'var(--text-1)' : 'var(--text-3)', cursor: 'pointer' }}>Cards</button>
+            <button onClick={() => setViewMode('list')} style={{ padding: '7px 12px', background: viewMode === 'list' ? 'var(--bg-3)' : 'transparent', border: 'none', fontSize: '12px', color: viewMode === 'list' ? 'var(--text-1)' : 'var(--text-3)', cursor: 'pointer' }}>Lista</button>
+          </div>
+          <button onClick={openNew} style={{ padding: '9px 18px', background: 'var(--brand)', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: '500', cursor: 'pointer' }}>
+            + Nova igreja
+          </button>
+        </div>
       </div>
 
       {/* Wizard de onboarding */}
@@ -222,12 +229,51 @@ export default function IgrejasPage() {
         <div style={{ textAlign: 'center', padding: '40px', fontSize: '13px', color: 'var(--text-3)', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px' }}>
           Nenhuma igreja cadastrada.
         </div>
+      ) : viewMode === 'list' ? (
+        <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px', overflow: 'hidden' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+            <thead>
+              <tr style={{ borderBottom: '1px solid var(--border)' }}>
+                <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: '11px', color: 'var(--text-3)', fontWeight: '500', width: '40px' }}></th>
+                <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: '11px', color: 'var(--text-3)', fontWeight: '500' }}>Nome</th>
+                <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: '11px', color: 'var(--text-3)', fontWeight: '500' }}>Cidade / UF</th>
+                <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: '11px', color: 'var(--text-3)', fontWeight: '500', fontFamily: 'monospace' }}>Slug</th>
+                <th style={{ padding: '10px 14px', textAlign: 'center', fontSize: '11px', color: 'var(--text-3)', fontWeight: '500' }}>Usuários</th>
+                <th style={{ padding: '10px 14px', textAlign: 'center', fontSize: '11px', color: 'var(--text-3)', fontWeight: '500' }}>Status</th>
+                <th style={{ padding: '10px 14px', textAlign: 'right', fontSize: '11px', color: 'var(--text-3)', fontWeight: '500' }}>Ações</th>
+              </tr>
+            </thead>
+            <tbody>
+              {churches.map((c, idx) => (
+                <tr key={c.id} style={{ borderBottom: idx < churches.length - 1 ? '1px solid var(--border)' : 'none', opacity: c.is_active ? 1 : 0.5 }}>
+                  <td style={{ padding: '10px 14px' }}>
+                    <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'var(--brand-dim)', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', flexShrink: 0 }}>
+                      {c.logo_url ? <img src={c.logo_url} alt={c.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }}/> : <span style={{ fontSize: '14px', fontWeight: '700', color: 'var(--brand-light)' }}>{c.name.charAt(0).toUpperCase()}</span>}
+                    </div>
+                  </td>
+                  <td style={{ padding: '10px 14px', fontWeight: '500', color: 'var(--text-1)' }}>{c.name}</td>
+                  <td style={{ padding: '10px 14px', color: 'var(--text-3)' }}>{[c.city, c.state].filter(Boolean).join(', ') || '—'}</td>
+                  <td style={{ padding: '10px 14px', color: 'var(--text-3)', fontFamily: 'monospace', fontSize: '12px' }}>{c.slug}</td>
+                  <td style={{ padding: '10px 14px', textAlign: 'center', color: 'var(--text-2)' }}>{c._users}</td>
+                  <td style={{ padding: '10px 14px', textAlign: 'center' }}>
+                    <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '99px', background: c.is_active ? 'var(--ok-dim)' : 'rgba(255,255,255,0.05)', color: c.is_active ? 'var(--ok)' : 'var(--text-3)' }}>{c.is_active ? 'Ativa' : 'Inativa'}</span>
+                  </td>
+                  <td style={{ padding: '10px 14px', textAlign: 'right' }}>
+                    <div style={{ display: 'flex', gap: '6px', justifyContent: 'flex-end' }}>
+                      <button onClick={() => openEdit(c)} style={{ padding: '4px 10px', background: 'transparent', border: '1px solid var(--border)', borderRadius: '6px', fontSize: '12px', color: 'var(--text-2)', cursor: 'pointer' }}>Editar</button>
+                      <button onClick={() => toggleActive(c)} style={{ padding: '4px 10px', background: 'transparent', border: '1px solid var(--border)', borderRadius: '6px', fontSize: '12px', color: c.is_active ? 'var(--empty)' : 'var(--ok)', cursor: 'pointer' }}>{c.is_active ? 'Desativar' : 'Ativar'}</button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
           {churches.map(c => (
             <div key={c.id} style={{ borderRadius: '12px', background: 'var(--bg-card)', border: `1px solid ${c.is_active ? 'var(--border)' : 'rgba(255,255,255,0.03)'}`, opacity: c.is_active ? 1 : 0.5, overflow: 'hidden' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '14px 16px' }}>
-                {/* Logo ou inicial */}
                 <div style={{ width: '44px', height: '44px', borderRadius: '10px', background: 'var(--brand-dim)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, overflow: 'hidden' }}>
                   {c.logo_url ? (
                     <img src={c.logo_url} alt={c.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
@@ -247,7 +293,6 @@ export default function IgrejasPage() {
                   {c.is_active ? 'Ativa' : 'Inativa'}
                 </span>
               </div>
-              {/* Barra de ações */}
               <div style={{ display: 'flex', borderTop: '1px solid var(--border)' }}>
                 <button onClick={() => openEdit(c)} style={{ flex: 1, padding: '10px', background: 'transparent', border: 'none', borderRight: '1px solid var(--border)', fontSize: '13px', color: 'var(--text-2)', cursor: 'pointer', fontWeight: '500' }}>
                   Editar

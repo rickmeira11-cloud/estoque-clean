@@ -42,6 +42,7 @@ export default function MinisteriosAdminPage() {
   const firstRef = useRef<HTMLInputElement>(null)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
+  const [viewMode, setViewMode] = useState<'painel' | 'lista'>('painel')
   const photoRef = useRef<HTMLInputElement>(null)
   const modalPhotoRef = useRef<HTMLInputElement>(null)
   const [modalPhotoPreview, setModalPhotoPreview] = useState<string | null>(null)
@@ -228,7 +229,11 @@ export default function MinisteriosAdminPage() {
           <h1 style={{ fontSize: '22px', fontWeight: '600' }}>Ministérios</h1>
           <p style={{ fontSize: '13px', color: 'var(--text-3)', marginTop: '4px' }}>Gerencie ministérios e seus membros</p>
         </div>
-        <div style={{ display: 'flex', gap: '10px' }}>
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <div style={{ display: 'flex', border: '1px solid var(--border)', borderRadius: '8px', overflow: 'hidden' }}>
+            <button onClick={() => setViewMode('painel')} style={{ padding: '7px 12px', background: viewMode === 'painel' ? 'var(--bg-3)' : 'transparent', border: 'none', borderRight: '1px solid var(--border)', fontSize: '12px', color: viewMode === 'painel' ? 'var(--text-1)' : 'var(--text-3)', cursor: 'pointer' }}>Painel</button>
+            <button onClick={() => setViewMode('lista')} style={{ padding: '7px 12px', background: viewMode === 'lista' ? 'var(--bg-3)' : 'transparent', border: 'none', fontSize: '12px', color: viewMode === 'lista' ? 'var(--text-1)' : 'var(--text-3)', cursor: 'pointer' }}>Lista</button>
+          </div>
           <a href="https://calendariopoiema.vercel.app/" target="_blank" rel="noopener noreferrer" style={{ padding: '9px 16px', background: 'transparent', border: '1px solid var(--border)', borderRadius: '8px', fontSize: '13px', color: 'var(--text-2)', cursor: 'pointer', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '6px' }}>
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3"/></svg>
             Ver mural público
@@ -242,7 +247,54 @@ export default function MinisteriosAdminPage() {
       {success && <div className="fade-up" style={{ marginBottom: '14px', padding: '10px 14px', borderRadius: '8px', background: 'var(--ok-dim)', border: '1px solid rgba(34,197,94,0.2)', fontSize: '13px', color: 'var(--ok)' }}>{success}</div>}
       {error && <div style={{ marginBottom: '14px', padding: '10px 14px', borderRadius: '8px', background: 'var(--empty-dim)', fontSize: '13px', color: 'var(--empty)' }}>{error}<button onClick={() => setError(null)} style={{ marginLeft: '10px', background: 'none', border: 'none', color: 'var(--empty)', cursor: 'pointer' }}>✕</button></div>}
 
-      <div style={{ display: 'grid', gridTemplateColumns: selected ? '280px 1fr' : '1fr', gap: '16px' }}>
+      {viewMode === 'lista' && (
+        <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px', overflow: 'hidden' }}>
+          {loading ? (
+            <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '8px' }}>{[1,2,3].map(i => <div key={i} className="skeleton" style={{ height: '36px', borderRadius: '6px' }}/>)}</div>
+          ) : ministries.flatMap(m => (m.members || []).filter(mb => mb.is_active).map(mb => ({ ...mb, _ministry: m.name }))).length === 0 ? (
+            <div style={{ padding: '40px', textAlign: 'center', fontSize: '13px', color: 'var(--text-3)' }}>Nenhum membro cadastrado nos ministérios.</div>
+          ) : (
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+              <thead>
+                <tr style={{ borderBottom: '1px solid var(--border)' }}>
+                  <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: '11px', color: 'var(--text-3)', fontWeight: '500' }}>Ministério</th>
+                  <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: '11px', color: 'var(--text-3)', fontWeight: '500' }}>Membro</th>
+                  <th style={{ padding: '10px 14px', textAlign: 'center', fontSize: '11px', color: 'var(--text-3)', fontWeight: '500' }}>Papel</th>
+                  <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: '11px', color: 'var(--text-3)', fontWeight: '500' }}>Bio / função</th>
+                  <th style={{ padding: '10px 14px', textAlign: 'right', fontSize: '11px', color: 'var(--text-3)', fontWeight: '500' }}>Ações</th>
+                </tr>
+              </thead>
+              <tbody>
+                {ministries.flatMap(m =>
+                  (m.members || []).filter(mb => mb.is_active).map(mb => ({ ...mb, _ministry: m.name, _ministryObj: m }))
+                ).map((mb, idx, arr) => (
+                  <tr key={mb.id} style={{ borderBottom: idx < arr.length - 1 ? '1px solid var(--border)' : 'none' }}>
+                    <td style={{ padding: '10px 14px', color: 'var(--text-2)', fontWeight: '500' }}>{mb._ministry}</td>
+                    <td style={{ padding: '10px 14px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <Avatar name={mb.name} photo={mb.photo_url} size={28}/>
+                        <span style={{ color: 'var(--text-1)', fontWeight: '500' }}>{mb.name}</span>
+                      </div>
+                    </td>
+                    <td style={{ padding: '10px 14px', textAlign: 'center' }}>
+                      <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '99px', color: mb.role === 'lider' ? 'var(--brand-light)' : mb.role === 'lider_assistente' ? '#a78bfa' : 'var(--text-3)', background: mb.role === 'lider' ? 'var(--brand-dim)' : mb.role === 'lider_assistente' ? 'rgba(167,139,250,0.1)' : 'var(--bg-3)' }}>{ROLE_LABEL[mb.role]}</span>
+                    </td>
+                    <td style={{ padding: '10px 14px', color: 'var(--text-3)', fontSize: '12px' }}>{mb.bio || '—'}</td>
+                    <td style={{ padding: '10px 14px', textAlign: 'right' }}>
+                      <div style={{ display: 'flex', gap: '6px', justifyContent: 'flex-end' }}>
+                        <button onClick={() => { setSelected(mb._ministryObj); openEditMem(mb) }} style={{ padding: '4px 10px', background: 'transparent', border: '1px solid var(--border)', borderRadius: '6px', fontSize: '12px', color: 'var(--text-2)', cursor: 'pointer' }}>Editar</button>
+                        <button onClick={() => removeMem(mb.id)} style={{ padding: '4px 10px', background: 'transparent', border: '1px solid rgba(239,68,68,0.3)', borderRadius: '6px', fontSize: '12px', color: 'var(--empty)', cursor: 'pointer' }}>✕</button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      )}
+
+      <div style={{ display: viewMode === 'lista' ? 'none' : 'grid', gridTemplateColumns: selected ? '280px 1fr' : '1fr', gap: '16px' }}>
         {/* Lista de ministérios */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
           {loading ? (

@@ -22,6 +22,7 @@ export default function UsuariosPage() {
   const [pendentes,    setPendentes]    = useState([])
   const [approvingId,  setApprovingId]  = useState(null)
   const [approveForm,  setApproveForm]  = useState({ church_id: '', role: 'operator' })
+  const [viewMode,     setViewMode]     = useState('cards')
   const formRef  = useRef(null)
   const firstRef = useRef(null)
 
@@ -166,7 +167,13 @@ export default function UsuariosPage() {
     <div style={{ maxWidth: '800px' }}>
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:'24px', gap:'12px' }}>
         <div><h1 style={{ fontSize:'22px', fontWeight:'600' }}>Usuarios</h1><p style={{ fontSize:'13px', color:'var(--text-3)', marginTop:'4px' }}>Gerencie acessos e vinculos com igrejas</p></div>
-        <button onClick={openNew} style={{ padding:'9px 18px', background:'var(--brand)', color:'#fff', border:'none', borderRadius:'8px', fontSize:'13px', fontWeight:'500', cursor:'pointer', flexShrink:0 }}>+ Novo usuario</button>
+        <div style={{ display: 'flex', gap: '8px', flexShrink: 0 }}>
+          <div style={{ display: 'flex', border: '1px solid var(--border)', borderRadius: '8px', overflow: 'hidden' }}>
+            <button onClick={() => setViewMode('cards')} style={{ padding: '7px 12px', background: viewMode === 'cards' ? 'var(--bg-3)' : 'transparent', border: 'none', borderRight: '1px solid var(--border)', fontSize: '12px', color: viewMode === 'cards' ? 'var(--text-1)' : 'var(--text-3)', cursor: 'pointer' }}>Cards</button>
+            <button onClick={() => setViewMode('list')} style={{ padding: '7px 12px', background: viewMode === 'list' ? 'var(--bg-3)' : 'transparent', border: 'none', fontSize: '12px', color: viewMode === 'list' ? 'var(--text-1)' : 'var(--text-3)', cursor: 'pointer' }}>Lista</button>
+          </div>
+          <button onClick={openNew} style={{ padding:'9px 18px', background:'var(--brand)', color:'#fff', border:'none', borderRadius:'8px', fontSize:'13px', fontWeight:'500', cursor:'pointer' }}>+ Novo usuario</button>
+        </div>
       </div>
 
       {/* Seção: Pendentes de aprovação */}
@@ -272,6 +279,46 @@ export default function UsuariosPage() {
         <div style={{ display:'flex', flexDirection:'column', gap:'8px' }}>{[1,2,3].map(i => <div key={i} className="skeleton" style={{ height:'80px', borderRadius:'12px' }} />)}</div>
       ) : users.length === 0 ? (
         <div style={{ textAlign:'center', padding:'40px', fontSize:'13px', color:'var(--text-3)', background:'var(--bg-card)', border:'1px solid var(--border)', borderRadius:'12px' }}>Nenhum usuario.</div>
+      ) : viewMode === 'list' ? (
+        <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px', overflow: 'hidden' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+            <thead>
+              <tr style={{ borderBottom: '1px solid var(--border)' }}>
+                <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: '11px', color: 'var(--text-3)', fontWeight: '500', width: '36px' }}></th>
+                <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: '11px', color: 'var(--text-3)', fontWeight: '500' }}>Nome</th>
+                <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: '11px', color: 'var(--text-3)', fontWeight: '500' }}>E-mail</th>
+                <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: '11px', color: 'var(--text-3)', fontWeight: '500' }}>Igreja</th>
+                <th style={{ padding: '10px 14px', textAlign: 'center', fontSize: '11px', color: 'var(--text-3)', fontWeight: '500' }}>Papel</th>
+                <th style={{ padding: '10px 14px', textAlign: 'center', fontSize: '11px', color: 'var(--text-3)', fontWeight: '500' }}>Status</th>
+                <th style={{ padding: '10px 14px', textAlign: 'right', fontSize: '11px', color: 'var(--text-3)', fontWeight: '500' }}>Ações</th>
+              </tr>
+            </thead>
+            <tbody>
+              {users.map((u, idx) => (
+                <tr key={u.id} style={{ borderBottom: idx < users.length - 1 ? '1px solid var(--border)' : 'none', opacity: u.is_active ? 1 : 0.5 }}>
+                  <td style={{ padding: '10px 14px' }}>
+                    <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'var(--brand-dim)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '13px', fontWeight: '700', color: 'var(--brand-light)' }}>{(u.name||u.email||'?').charAt(0).toUpperCase()}</div>
+                  </td>
+                  <td style={{ padding: '10px 14px', fontWeight: '500', color: 'var(--text-1)' }}>{u.name||'(sem nome)'}</td>
+                  <td style={{ padding: '10px 14px', color: 'var(--text-3)', fontSize: '12px' }}>{u.email}</td>
+                  <td style={{ padding: '10px 14px', color: 'var(--text-3)' }}>{u.church?.name || '—'}</td>
+                  <td style={{ padding: '10px 14px', textAlign: 'center' }}>
+                    <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '99px', background: 'var(--brand-dim)', color: 'var(--brand-light)', fontWeight: '500' }}>{ROLES[u.role]||u.role}</span>
+                  </td>
+                  <td style={{ padding: '10px 14px', textAlign: 'center' }}>
+                    <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '99px', background: u.is_active ? 'var(--ok-dim)' : 'rgba(255,255,255,0.05)', color: u.is_active ? 'var(--ok)' : 'var(--text-3)' }}>{u.is_active ? 'Ativo' : 'Inativo'}</span>
+                  </td>
+                  <td style={{ padding: '10px 14px', textAlign: 'right' }}>
+                    <div style={{ display: 'flex', gap: '6px', justifyContent: 'flex-end' }}>
+                      <button onClick={() => openEdit(u)} style={{ padding: '4px 10px', background: 'transparent', border: '1px solid var(--border)', borderRadius: '6px', fontSize: '12px', color: 'var(--text-2)', cursor: 'pointer' }}>Editar</button>
+                      <button onClick={() => toggleActive(u)} style={{ padding: '4px 10px', background: 'transparent', border: '1px solid var(--border)', borderRadius: '6px', fontSize: '12px', color: u.is_active ? 'var(--empty)' : 'var(--ok)', cursor: 'pointer' }}>{u.is_active ? 'Desativar' : 'Ativar'}</button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       ) : (
         <div style={{ display:'flex', flexDirection:'column', gap:'8px' }}>
           {users.map(u => (
