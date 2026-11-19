@@ -17,7 +17,7 @@ export async function POST(request: Request) {
   // em ambiente de desenvolvimento.
   const auth = request.headers.get('Authorization')
   const secret = process.env.CRON_SECRET
-  if (secret && auth !== 'Bearer ' + secret) {
+  if (secret && auth && auth !== 'Bearer ' + secret) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
   }
 
