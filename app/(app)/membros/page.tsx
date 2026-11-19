@@ -51,6 +51,17 @@ function fmtDate(iso: string | null): string {
   return d.toLocaleDateString('pt-BR')
 }
 
+function isoToBr(iso: string): string {
+  if (!iso) return ''
+  const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})/)
+  return m ? `${m[3]}/${m[2]}/${m[1]}` : iso
+}
+
+function brToIso(br: string): string {
+  const m = br.match(/^(\d{2})\/(\d{2})\/(\d{4})$/)
+  return m ? `${m[3]}-${m[2]}-${m[1]}` : br
+}
+
 function timeAgo(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime()
   const m = Math.floor(diff / 60000)
@@ -125,7 +136,7 @@ export default function MembrosPage() {
   function openEdit(m: Member) {
     setForm({
       full_name: m.full_name,
-      birth_date: m.birth_date || '',
+      birth_date: isoToBr(m.birth_date || ''),
       phone: m.phone || '',
       neighborhood: m.neighborhood || '',
       city: m.city || '',
@@ -157,7 +168,7 @@ export default function MembrosPage() {
 
     const payload: Partial<Member> = {
       full_name: form.full_name.trim(),
-      birth_date: form.birth_date.trim() || null,
+      birth_date: form.birth_date.trim() ? brToIso(form.birth_date.trim()) : null,
       phone: form.phone.trim() || null,
       neighborhood: form.neighborhood.trim() || null,
       city: form.city.trim() || null,
@@ -403,7 +414,7 @@ export default function MembrosPage() {
                       ['2OU+', selected.small_group],
                       ['Ministra em', selected.serves_in_ministry],
                       ['Deseja servir em', selected.wants_to_serve_other_ministry],
-                      ['Deseja sediar grupo', selected.wants_to_host_group],
+                      ['Anfitrião de 2ou+', selected.wants_to_host_group],
                     ].map(([label, val]) => val ? (
                       <div key={label as string} style={{ marginBottom: '10px' }}>
                         <div style={{ fontSize: '10px', fontWeight: '600', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '2px' }}>{label}</div>
@@ -447,8 +458,8 @@ export default function MembrosPage() {
                       <input value={form.address_complement} onChange={e => set('address_complement', e.target.value)} style={INPUT_STYLE}
                         onFocus={e => e.target.style.borderColor = 'var(--brand)'} onBlur={e => e.target.style.borderColor = 'var(--border)'}/>
                     </FormField>
-                    <FormField label="Nascimento (AAAA-MM-DD)" half>
-                      <input value={form.birth_date} onChange={e => set('birth_date', e.target.value)} placeholder="ex: 1990-05-20" style={INPUT_STYLE}
+                    <FormField label="Nascimento (DD/MM/AAAA)" half>
+                      <input value={form.birth_date} onChange={e => set('birth_date', e.target.value)} placeholder="ex: 20/05/1990" style={INPUT_STYLE}
                         onFocus={e => e.target.style.borderColor = 'var(--brand)'} onBlur={e => e.target.style.borderColor = 'var(--border)'}/>
                     </FormField>
                     <FormField label="Naturalidade" half>
@@ -475,9 +486,12 @@ export default function MembrosPage() {
                       <input value={form.wants_to_serve_other_ministry} onChange={e => set('wants_to_serve_other_ministry', e.target.value)} style={INPUT_STYLE}
                         onFocus={e => e.target.style.borderColor = 'var(--brand)'} onBlur={e => e.target.style.borderColor = 'var(--border)'}/>
                     </FormField>
-                    <FormField label="Deseja sediar grupo">
-                      <input value={form.wants_to_host_group} onChange={e => set('wants_to_host_group', e.target.value)} style={INPUT_STYLE}
-                        onFocus={e => e.target.style.borderColor = 'var(--brand)'} onBlur={e => e.target.style.borderColor = 'var(--border)'}/>
+                    <FormField label="Deseja ser anfitrião de 2ou+?">
+                      <select value={form.wants_to_host_group} onChange={e => set('wants_to_host_group', e.target.value)} style={{ ...INPUT_STYLE, cursor: 'pointer' }}>
+                        <option value="">Não informado</option>
+                        <option value="Sim">Sim</option>
+                        <option value="Não">Não</option>
+                      </select>
                     </FormField>
 
                     {/* Toggles */}
