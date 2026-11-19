@@ -7,7 +7,8 @@ type MemberRole = 'lider' | 'lider_assistente' | 'membro'
 const ROLE_LABEL: Record<MemberRole, string> = { lider: 'Líder', lider_assistente: 'Líder de Equipe', membro: 'Membro' }
 const ROLE_ORDER: Record<MemberRole, number> = { lider: 0, lider_assistente: 1, membro: 2 }
 
-type Member = { id: string; name: string; role: MemberRole; photo_url: string | null; bio: string | null; phone: string | null; email: string | null; is_active: boolean }
+type Member = { id: string; name: string; role: MemberRole; photo_url: string | null; bio: string | null; phone: string | null; email: string | null; is_active: boolean; member_id: string | null }
+type MemberOption = { id: string; full_name: string }
 type Ministry = { id: string; name: string; description: string | null; meeting_schedule: string | null; location: string | null; cover_image_url: string | null; is_active: boolean; members?: Member[] }
 
 const COLORS = ['#6366f1','#0f6e56','#854f0b','#712b13','#444441','#185fa5','#3b6d11','#993556']
@@ -22,7 +23,7 @@ function Avatar({ name, photo, size = 36 }: { name: string; photo: string | null
 }
 
 const blankMin = { name: '', description: '', meeting_schedule: '', location: '' }
-const blankMem = { name: '', role: 'membro' as MemberRole, phone: '', email: '', bio: '', photo_url: null as string | null }
+const blankMem = { name: '', role: 'membro' as MemberRole, phone: '', email: '', bio: '', photo_url: null as string | null, member_id: null as string | null }
 
 export default function MinisteriosAdminPage() {
   const { profile, isAdmin } = useProfile()
@@ -41,11 +42,17 @@ export default function MinisteriosAdminPage() {
   const firstRef = useRef(null)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
+  const [memberOptions, setMemberOptions] = useState<MemberOption[]>([])
   const photoRef = useRef<HTMLInputElement>(null)
   const modalPhotoRef = useRef<HTMLInputElement>(null)
   const [modalPhotoPreview, setModalPhotoPreview] = useState<string | null>(null)
 
-  useEffect(() => { if (profile?.church_id) load() }, [profile?.church_id])
+  useEffect(() => {
+    if (profile?.church_id) {
+      load()
+      createClient().from('members').select('id, full_name').eq('church_id', profile.church_id).eq('is_active', true).order('full_name').then(({ data }) => { if (data) setMemberOptions(data) })
+    }
+  }, [profile?.church_id])
 
   async function load() {
     setLoading(true)
@@ -89,7 +96,7 @@ export default function MinisteriosAdminPage() {
 
   // ── Membros ──
   function openNewMem() { setEditMemId(null); setMemForm(blankMem); setModalPhotoPreview(null); setError(null); setShowMemForm(true) }
-  function openEditMem(mem: Member) { setEditMemId(mem.id); setMemForm({ name: mem.name, role: mem.role, phone: mem.phone || '', email: mem.email || '', bio: mem.bio || '', photo_url: mem.photo_url }); setModalPhotoPreview(mem.photo_url); setError(null); setShowMemForm(true) }
+  function openEditMem(mem: Member) { setEditMemId(mem.id); setMemForm({ name: mem.name, role: mem.role, phone: mem.phone || '', email: mem.email || '', bio: mem.bio || '', photo_url: mem.photo_url, member_id: mem.member_id }); setModalPhotoPreview(mem.photo_url); setError(null); setShowMemForm(true) }
 
   async function saveMem() {
     if (!selected) return
@@ -110,7 +117,7 @@ export default function MinisteriosAdminPage() {
       photo_url = urlData.publicUrl
     }
 
-    const payload = { ministry_id: selected.id, church_id: profile!.church_id, name: memForm.name.trim(), role: memForm.role, phone: memForm.phone || null, email: memForm.email || null, bio: memForm.bio || null, photo_url }
+    const payload = { ministry_id: selected.id, church_id: profile!.church_id, name: memForm.name.trim(), role: memForm.role, phone: memForm.phone || null, email: memForm.email || null, bio: memForm.bio || null, photo_url, member_id: memForm.member_id || null }
     const { error: err } = editMemId ? await sb.from('ministry_members').update(payload).eq('id', editMemId) : await sb.from('ministry_members').insert(payload)
     if (err) setError(err.message)
     else { setShowMemForm(false); setModalPhotoPreview(null); await load(); flash(editMemId ? 'Membro atualizado!' : 'Membro adicionado!') }
@@ -342,6 +349,14 @@ export default function MinisteriosAdminPage() {
                 </select>
               </div>
               <div><label style={L}>Bio / função</label><input value={memForm.bio} onChange={e => setMemForm(f => ({ ...f, bio: e.target.value }))} placeholder="Ex: Guitarrista, Vocal..."/></div>
+              <div>
+                <label style={L}>Vincular ao membro cadastrado <span style={{ opacity: 0.6 }}>(opcional)</span></label>
+                <select value={memForm.member_id || ''} onChange={e => setMemForm(f => ({ ...f, member_id: e.target.value || null }))}>
+                  <option value="">— Não vinculado —</option>
+                  {memberOptions.map(o => <option key={o.id} value={o.id}>{o.full_name}</option>)}
+                </select>
+                {memberOptions.length === 0 && <div style={{ fontSize: '11px', color: 'var(--text-3)', marginTop: '4px' }}>Nenhum membro importado ainda.</div>}
+              </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                 <div><label style={L}>Telefone</label><input value={memForm.phone} onChange={e => setMemForm(f => ({ ...f, phone: e.target.value }))} placeholder="(47) 9xxxx-xxxx"/></div>
                 <div><label style={L}>E-mail</label><input value={memForm.email} onChange={e => setMemForm(f => ({ ...f, email: e.target.value }))} placeholder="email@..."/></div>
