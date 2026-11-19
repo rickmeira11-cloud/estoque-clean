@@ -99,7 +99,10 @@ export default function MembrosPage() {
     setSyncing(true)
     setSyncMsg(null)
     try {
-      const res = await fetch('/api/members/sync', { method: 'POST' })
+      const res = await fetch('/api/members/sync', {
+        method: 'POST',
+        credentials: 'same-origin',
+      })
       const json = await res.json()
       if (!json.ok) {
         setSyncMsg('Erro: ' + (json.error || 'falha desconhecida'))

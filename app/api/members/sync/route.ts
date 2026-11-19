@@ -1,11 +1,10 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { createClient as createServerClient } from '@/lib/supabase/server'
 import { mapRowMembro } from '@/lib/members-planilha'
 
 const CHURCH_ID = '8db14705-9da8-4844-8b01-a73845297831'
 
-// URL do CSV publicado da planilha Google Sheets do Form de Membros.
-// Manter no env para facilitar troca sem redeploy.
 const CSV_URL = process.env.MEMBERS_SHEET_CSV_URL || ''
 
 export async function GET() {
@@ -13,12 +12,29 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  // Autenticação: aceita CRON_SECRET (para o cron Vercel) ou chamada interna sem auth
-  // em ambiente de desenvolvimento.
   const auth = request.headers.get('Authorization')
   const secret = process.env.CRON_SECRET
-  if (secret && auth && auth !== 'Bearer ' + secret) {
-    return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+
+  // Caminho 1: CRON_SECRET no header Authorization (cron Vercel)
+  if (auth) {
+    if (!secret || auth !== 'Bearer ' + secret) {
+      return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+    }
+  } else {
+    // Caminho 2: sessão Supabase de usuário admin/super_admin (botão da UI)
+    const sb = await createServerClient()
+    const { data: { user } } = await sb.auth.getUser()
+    if (!user) {
+      return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+    }
+    const { data: profile } = await sb
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .single()
+    if (!profile || !['admin', 'super_admin'].includes(profile.role)) {
+      return NextResponse.json({ error: 'forbidden' }, { status: 403 })
+    }
   }
 
   if (!CSV_URL) {
