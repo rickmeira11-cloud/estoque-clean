@@ -1,7 +1,8 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useProfile } from '@/hooks/useProfile'
+import { useSyncTheme } from '@/hooks/useSyncTheme'
 import { valorAtual, valorAquisicaoTotal } from '@/lib/patrimonio-calc'
 import dynamic from 'next/dynamic'
 const RelatoriosLineChart    = dynamic(() => import('@/components/charts/RelatoriosLineChart'),    { ssr: false })
@@ -23,7 +24,7 @@ const TABS: { id: ReportTab; label: string; icon: string }[] = [
   { id:'patrimonio',    label:'Patrimônio',    icon:'M3 21h18M5 21V10m14 11V10M4 10l8-6 8 6M9 21v-6h6v6' },
 ]
 
-const COLORS = ['#6366f1','#22c55e','#f59e0b','#ef4444','#a78bfa','#34d399','#fb923c','#60a5fa']
+const COLOR_VARS = ['--brand','--ok','--low','--empty','--brand-light','--ok','--low','--info']
 
 
 function Icon({ d, size=15 }: { d:string; size?:number }) {
@@ -47,6 +48,12 @@ const PATR_STATUS: { id: string; label: string; color: string; bg: string }[] = 
 
 export default function RelatoriosPage() {
   const { profile } = useProfile()
+  const theme = useSyncTheme()
+  const COLORS = useMemo(() => {
+    if (typeof document === 'undefined') return COLOR_VARS.map(() => '')
+    const s = getComputedStyle(document.documentElement)
+    return COLOR_VARS.map(v => s.getPropertyValue(v).trim())
+  }, [theme])
   const [tab,        setTab]        = useState<ReportTab>('inventario')
   const [categories,  setCategories]  = useState<string[]>([])
   const [locBalanceView, setLocBalanceView] = useState<any[]>([])

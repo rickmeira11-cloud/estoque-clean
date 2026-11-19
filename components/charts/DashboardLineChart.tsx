@@ -9,10 +9,10 @@ export default function DashboardLineChart({ data }: { data: { label: string; en
   return (
     <ResponsiveContainer width="100%" height="100%">
       <LineChart data={data} margin={{ top: 4, right: 16, left: 0, bottom: 4 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false}/>
-        <XAxis dataKey="label" tick={{ fontSize: 11, fill: '#52525b' }} axisLine={false} tickLine={false} interval="preserveStartEnd" padding={{ left: 8, right: 8 }}/>
-        <YAxis tick={{ fontSize: 11, fill: '#52525b' }} axisLine={false} tickLine={false} width={32}/>
-        <Tooltip contentStyle={tooltipStyle} cursor={{ stroke: 'rgba(255,255,255,0.08)', strokeWidth: 1 }}/>
+        <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false}/>
+        <XAxis dataKey="label" tick={{ fontSize: 11, fill: 'var(--text-3)' }} axisLine={false} tickLine={false} interval="preserveStartEnd" padding={{ left: 8, right: 8 }}/>
+        <YAxis tick={{ fontSize: 11, fill: 'var(--text-3)' }} axisLine={false} tickLine={false} width={32}/>
+        <Tooltip contentStyle={tooltipStyle} cursor={{ stroke: 'var(--border-md)', strokeWidth: 1 }}/>
         <Line type="monotone" dataKey="entradas" name="Entradas" stroke="var(--ok)"    strokeWidth={2} dot={false} activeDot={{ r: 5, strokeWidth: 0 }}/>
         <Line type="monotone" dataKey="saidas"   name="Saídas"   stroke="var(--empty)" strokeWidth={2} dot={false} activeDot={{ r: 5, strokeWidth: 0 }}/>
       </LineChart>

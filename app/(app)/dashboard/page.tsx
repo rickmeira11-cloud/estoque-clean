@@ -2,6 +2,7 @@
 import { useEffect, useState, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useProfile } from '@/hooks/useProfile'
+import { useSyncTheme } from '@/hooks/useSyncTheme'
 import { valorAtual } from '@/lib/patrimonio-calc'
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
@@ -17,7 +18,7 @@ type Movement = {
 }
 
 // ── helpers ─────────────────────────────────────────────────────
-const COLORS = ['#6366f1','#22c55e','#f59e0b','#ef4444','#a78bfa','#34d399','#fb923c','#60a5fa']
+const COLOR_VARS = ['--brand','--ok','--low','--empty','--brand-light','--ok','--low','--info']
 const tooltipStyle = { background:'var(--bg-2)', border:'1px solid var(--border-md)', borderRadius:'8px', fontSize:'12px', color:'var(--text-1)' }
 
 function fmtBRL(v: number | null | undefined): string {
@@ -95,6 +96,12 @@ const gridPanels: React.CSSProperties = { display: 'grid', gridTemplateColumns: 
 // ── página ──────────────────────────────────────────────────────
 export default function DashboardPage() {
   const { profile } = useProfile()
+  const theme = useSyncTheme()
+  const COLORS = useMemo(() => {
+    if (typeof document === 'undefined') return COLOR_VARS.map(() => '')
+    const s = getComputedStyle(document.documentElement)
+    return COLOR_VARS.map(v => s.getPropertyValue(v).trim())
+  }, [theme])
 
   const [products,  setProducts]  = useState<Product[]>([])
   const [movements, setMovements] = useState<Movement[]>([])
