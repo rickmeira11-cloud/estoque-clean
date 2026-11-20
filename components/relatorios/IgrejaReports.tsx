@@ -105,10 +105,14 @@ export default function IgrejaReports() {
   const membersWithoutGroup    = useMemo(() => activeMembers.filter(m => !activeGroupMemberIds.has(m.id)), [activeMembers, activeGroupMemberIds])
 
   const ministryCounts = useMemo(() => {
-    return ministries.filter(m => m.is_active).map(m => ({
-      name: m.name.length > 16 ? m.name.slice(0, 14) + '…' : m.name,
-      value: ministryMembers.filter(mm => mm.ministry_id === m.id).length,
-    })).sort((a, b) => b.value - a.value)
+    return ministries
+      .filter(m => m.is_active)
+      .map(m => ({
+        name: m.name.length > 16 ? m.name.slice(0, 14) + '…' : m.name,
+        value: new Set(ministryMembers.filter(mm => mm.ministry_id === m.id).map(mm => mm.member_id)).size,
+      }))
+      .filter(m => m.value > 0)
+      .sort((a, b) => b.value - a.value)
   }, [ministries, ministryMembers])
 
   const ministriesEmpty = useMemo(() => {
@@ -201,7 +205,7 @@ export default function IgrejaReports() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           <div style={{ ...panelStyle, height: '320px', display: 'flex', flexDirection: 'column' }}>
             <span style={panelTitle}>Membros por ministério</span>
-            {ministryCounts.length === 0 ? <Notice>Nenhum ministério cadastrado.</Notice> : <div style={{ flex: 1 }}><RelatoriosBarChart data={ministryCounts} /></div>}
+            {ministryCounts.length === 0 ? <Notice>Nenhum ministério com membros vinculados.</Notice> : <div style={{ flex: 1 }}><RelatoriosBarChart data={ministryCounts} /></div>}
           </div>
           <div style={panelStyle}>
             <span style={panelTitle}>Ministérios sem nenhum membro vinculado ({ministriesEmpty.length})</span>
