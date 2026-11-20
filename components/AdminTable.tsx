@@ -3,6 +3,7 @@ import { useRef, useState, type ReactNode } from 'react'
 
 export type FieldDef =
   | { type: 'text' | 'date'; key: string; label: string; placeholder?: string; required?: boolean }
+  | { type: 'select'; key: string; label: string; required?: boolean; options: { value: string; label: string }[] }
   | { type: 'slot'; key: string; label: string; render: (value: string, onChange: (v: string) => void) => ReactNode }
 
 type Actions = {
@@ -124,6 +125,13 @@ export default function AdminTable<T extends { id: string }>({
                 <label style={L}>{field.label}{field.required ? ' *' : ''}</label>
                 {field.type === 'slot' ? (
                   field.render(form[field.key] ?? '', v => setForm(f => ({ ...f, [field.key]: v })))
+                ) : field.type === 'select' ? (
+                  <select
+                    value={form[field.key] ?? ''}
+                    onChange={e => setForm(f => ({ ...f, [field.key]: e.target.value }))}
+                  >
+                    {field.options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                  </select>
                 ) : (
                   <input
                     ref={i === 0 ? firstRef : undefined}
