@@ -6,6 +6,7 @@ import { useProfile } from '@/hooks/useProfile'
 type Rule = {
   id: string; name: string; weekday: number; description: string | null; is_active: boolean
   frequency: 'semanal' | 'quinzenal' | 'mensal'; anchor_date: string | null; month_week: number | null; lead_days: number
+  event_time: string | null
 }
 
 const WEEKDAYS = ['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado']
@@ -24,6 +25,7 @@ export default function EventosRecorrentesPage() {
   const [anchor,   setAnchor]   = useState('')
   const [monthWeek,setMonthWeek]= useState('1')
   const [leadDays, setLeadDays] = useState('2')
+  const [time,     setTime]     = useState('')
   const [desc,     setDesc]     = useState('')
   const [saving,   setSaving]   = useState(false)
   const [success,  setSuccess]  = useState('')
@@ -38,7 +40,7 @@ export default function EventosRecorrentesPage() {
   }
 
   function resetForm() {
-    setName(''); setWeekday('0'); setFreq('semanal'); setAnchor(''); setMonthWeek('1'); setLeadDays('2'); setDesc('')
+    setName(''); setWeekday('0'); setFreq('semanal'); setAnchor(''); setMonthWeek('1'); setLeadDays('2'); setTime(''); setDesc('')
   }
 
   async function handleSave() {
@@ -49,7 +51,7 @@ export default function EventosRecorrentesPage() {
       church_id: profile!.church_id, name: name.trim(), weekday: parseInt(weekday),
       frequency: freq, anchor_date: freq === 'quinzenal' ? anchor : null,
       month_week: freq === 'mensal' ? parseInt(monthWeek) : null,
-      lead_days: parseInt(leadDays) || 2, description: desc || null,
+      lead_days: parseInt(leadDays) || 2, event_time: time || null, description: desc || null,
     })
     setShowForm(false); resetForm()
     setSuccess('Regra criada!'); setTimeout(() => setSuccess(''), 3000)
@@ -134,6 +136,10 @@ export default function EventosRecorrentesPage() {
               <label style={L}>Antecedência (dias)</label>
               <input type="number" min="0" value={leadDays} onChange={e => setLeadDays(e.target.value)}/>
             </div>
+            <div>
+              <label style={L}>Horário</label>
+              <input type="time" value={time} onChange={e => setTime(e.target.value)}/>
+            </div>
             <div style={{ gridColumn:'1 / -1' }}><label style={L}>Descrição</label><input value={desc} onChange={e => setDesc(e.target.value)} placeholder="Opcional"/></div>
           </div>
           <div style={{ display:'flex', gap:'8px', justifyContent:'flex-end' }}>
@@ -159,7 +165,7 @@ export default function EventosRecorrentesPage() {
                   {!r.is_active && <span style={{ fontSize:'10px', padding:'2px 8px', borderRadius:'99px', background:'var(--bg-3)', color:'var(--text-3)' }}>Pausada</span>}
                 </div>
                 <div style={{ fontSize:'12px', color:'var(--text-3)', marginTop:'3px' }}>
-                  {ruleDescription(r)} · cria {r.lead_days} dia(s) antes
+                  {ruleDescription(r)}{r.event_time && ` às ${r.event_time.slice(0,5)}`} · cria {r.lead_days} dia(s) antes
                   {r.description && ' · ' + r.description}
                 </div>
               </div>

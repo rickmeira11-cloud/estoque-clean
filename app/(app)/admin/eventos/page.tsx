@@ -10,7 +10,7 @@ const FIELD_TYPE_LABEL: Record<FieldType, string> = {
 }
 type TypeField = { id: string; event_type_id: string; field_key: string; label: string; field_type: FieldType; is_required: boolean; sort_order: number; is_active: boolean }
 type EventType = { id: string; name: string }
-type Event = { id: string; name: string; event_date: string | null; description: string | null; is_active: boolean; event_type_id: string | null; event_type?: EventType | null }
+type Event = { id: string; name: string; event_date: string | null; event_time: string | null; description: string | null; is_active: boolean; event_type_id: string | null; event_type?: EventType | null }
 type RegisteredMember = { id: string; full_name: string }
 type Attachment = { id: string; file_url: string; file_name: string; file_size: number | null; created_at: string }
 
@@ -21,7 +21,7 @@ const INPUT_STYLE: React.CSSProperties = {
 }
 const L: React.CSSProperties = { fontSize: '12px', color: 'var(--text-2)', display: 'block', marginBottom: '4px' }
 
-const blankForm = { name: '', date: '', event_type_id: '', desc: '' }
+const blankForm = { name: '', date: '', time: '', event_type_id: '', desc: '' }
 
 export default function EventosPage() {
   const { profile, isAdmin } = useProfile()
@@ -121,7 +121,7 @@ export default function EventosPage() {
 
   async function openEdit(ev: Event) {
     setEditId(ev.id)
-    setForm({ name: ev.name, date: ev.event_date || '', event_type_id: ev.event_type_id || '', desc: ev.description || '' })
+    setForm({ name: ev.name, date: ev.event_date || '', time: ev.event_time?.slice(0,5) || '', event_type_id: ev.event_type_id || '', desc: ev.description || '' })
     setError(null)
     resetCustomState()
     setShowForm(true)
@@ -202,6 +202,7 @@ export default function EventosPage() {
       church_id:     profile!.church_id,
       name:          form.name.trim(),
       event_date:    form.date || null,
+      event_time:    form.time || null,
       event_type_id: form.event_type_id || null,
       description:   form.desc || null,
     }
@@ -310,6 +311,10 @@ export default function EventosPage() {
             <div>
               <label style={L}>Data do evento</label>
               <input type="date" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} style={INPUT_STYLE} />
+            </div>
+            <div>
+              <label style={L}>Horário</label>
+              <input type="time" value={form.time} onChange={e => setForm(f => ({ ...f, time: e.target.value }))} style={INPUT_STYLE} />
             </div>
             <div>
               <label style={L}>Tipo de evento</label>
@@ -440,7 +445,7 @@ export default function EventosPage() {
                   {!ev.is_active && <span style={{ fontSize: '10px', padding: '2px 8px', borderRadius: '99px', background: 'var(--bg-3)', color: 'var(--text-3)' }}>Inativo</span>}
                 </div>
                 <div style={{ fontSize: '12px', color: 'var(--text-3)', marginTop: '3px', display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-                  {ev.event_date && <span>📅 {new Date(ev.event_date + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}</span>}
+                  {ev.event_date && <span>📅 {new Date(ev.event_date + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}{ev.event_time && ` às ${ev.event_time.slice(0,5)}`}</span>}
                   {ev.event_type && <span style={{ padding: '1px 7px', borderRadius: '99px', background: 'var(--brand-dim)', color: 'var(--brand-light)', fontSize: '11px' }}>{ev.event_type.name}</span>}
                   {ev.description && <span>· {ev.description}</span>}
                 </div>

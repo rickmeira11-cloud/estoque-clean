@@ -75,6 +75,7 @@ export async function POST() {
         church_id:   CHURCH_ID,
         name:        rule.name,
         event_date:  targetDate,
+        event_time:  rule.event_time || null,
         description: rule.description || null,
         is_active:   true,
       })
