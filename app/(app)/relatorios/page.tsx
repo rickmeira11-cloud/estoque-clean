@@ -8,6 +8,7 @@ import dynamic from 'next/dynamic'
 const RelatoriosLineChart    = dynamic(() => import('@/components/charts/RelatoriosLineChart'),    { ssr: false })
 const RelatoriosBarChart     = dynamic(() => import('@/components/charts/RelatoriosBarChart'),     { ssr: false })
 const RelatoriosDepositsChart = dynamic(() => import('@/components/charts/RelatoriosDepositsChart'), { ssr: false })
+const IgrejaReports = dynamic(() => import('@/components/relatorios/IgrejaReports'), { ssr: false })
 
 type ReportTab = 'inventario' | 'movimentacoes' | 'criticos' | 'consumo' | 'depositos' | 'auditoria' | 'ministerios' | 'precos' | 'eventos' | 'patrimonio'
 
@@ -47,8 +48,9 @@ const PATR_STATUS: { id: string; label: string; color: string; bg: string }[] = 
 ]
 
 export default function RelatoriosPage() {
-  const { profile } = useProfile()
+  const { profile, isAdmin } = useProfile()
   const theme = useSyncTheme()
+  const [view, setView] = useState<'estoque' | 'igreja'>('estoque')
   const COLORS = useMemo(() => {
     if (typeof document === 'undefined') return COLOR_VARS.map(() => '')
     const s = getComputedStyle(document.documentElement)
@@ -598,11 +600,28 @@ export default function RelatoriosPage() {
   return (
     <div style={{ maxWidth:'1100px' }}>
       {/* Header */}
-      <div style={{ marginBottom:'24px' }}>
-        <h1 style={{ fontSize:'22px', fontWeight:'600' }}>Relatórios</h1>
-        <p style={{ fontSize:'13px', color:'var(--text-3)', marginTop:'4px' }}>Analise e exporte dados do estoque</p>
+      <div style={{ marginBottom:'24px', display:'flex', justifyContent:'space-between', alignItems:'flex-start', flexWrap:'wrap', gap:'12px' }}>
+        <div>
+          <h1 style={{ fontSize:'22px', fontWeight:'600' }}>Relatórios</h1>
+          <p style={{ fontSize:'13px', color:'var(--text-3)', marginTop:'4px' }}>{view === 'estoque' ? 'Analise e exporte dados do estoque' : 'Relatórios da igreja: membros, ministérios, grupos e eventos'}</p>
+        </div>
+        {isAdmin && (
+          <div style={{ display:'flex', gap:'4px', background:'var(--bg-card)', border:'1px solid var(--border)', borderRadius:'var(--radius-sm)', padding:'3px' }}>
+            {(['estoque','igreja'] as const).map(v => (
+              <button key={v} onClick={() => setView(v)} style={{
+                padding:'7px 16px', borderRadius:'6px', cursor:'pointer', fontSize:'13px', fontWeight:'500',
+                background: view===v ? 'var(--brand)' : 'transparent',
+                color: view===v ? '#fff' : 'var(--text-2)', border:'none',
+              }}>{v === 'estoque' ? 'Estoque' : 'Igreja'}</button>
+            ))}
+          </div>
+        )}
       </div>
 
+      {view === 'igreja' && isAdmin ? (
+        <IgrejaReports />
+      ) : (
+      <>
       {/* Tabs */}
       <div className='report-tabs' style={{ display:'flex', gap:'6px', marginBottom:'20px', flexWrap:'wrap' }}>
         {TABS.map(t => (
@@ -1356,6 +1375,8 @@ export default function RelatoriosPage() {
             )
           )}
         </>
+      )}
+      </>
       )}
     </div>
   )
