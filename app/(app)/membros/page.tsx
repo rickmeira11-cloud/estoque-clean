@@ -58,6 +58,11 @@ function isValidEmail(v: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim())
 }
 
+const MINISTRY_ROLE_LABEL: Record<string, string> = { lider: 'Líder', lider_assistente: 'Líder de Equipe', membro: 'Membro' }
+const GROUP_ROLE_LABEL: Record<string, string> = { leader: 'Líder', host: 'Anfitrião', member: 'Membro' }
+type MinistryLink = { ministry_id: string; ministry_name: string; role: string }
+type GroupLink = { group_id: string; group_name: string; role: string }
+
 function fmtDate(iso: string | null): string {
   if (!iso) return '—'
   const d = new Date(iso + (iso.length === 10 ? 'T12:00:00' : ''))
@@ -130,8 +135,24 @@ export default function MembrosPage() {
   const [createForm, setCreateForm] = useState<CreateForm>(BLANK_CREATE_FORM)
   const [creating,   setCreating]   = useState(false)
   const [createErr,  setCreateErr]  = useState<string | null>(null)
+  const [ministryLinks, setMinistryLinks] = useState<MinistryLink[]>([])
+  const [groupLinks,    setGroupLinks]    = useState<GroupLink[]>([])
+  const [linksLoading,  setLinksLoading]  = useState(false)
 
   useEffect(() => { if (profile?.church_id) load() }, [profile?.church_id])
+  useEffect(() => { if (selected) loadLinks(selected.id); else { setMinistryLinks([]); setGroupLinks([]) } }, [selected?.id])
+
+  async function loadLinks(memberId: string) {
+    setLinksLoading(true)
+    const sb = createClient()
+    const [{ data: minData }, { data: grpData }] = await Promise.all([
+      sb.from('ministry_members').select('role, ministry:ministries(id, name)').eq('member_id', memberId).eq('is_active', true),
+      sb.from('small_group_members').select('role, small_group:small_groups(id, name)').eq('member_id', memberId),
+    ])
+    setMinistryLinks((minData || []).map((m: any) => ({ ministry_id: m.ministry?.id, ministry_name: m.ministry?.name || '—', role: m.role })))
+    setGroupLinks((grpData || []).map((g: any) => ({ group_id: g.small_group?.id, group_name: g.small_group?.name || '—', role: g.role })))
+    setLinksLoading(false)
+  }
 
   async function load() {
     setLoading(true)
@@ -533,6 +554,43 @@ export default function MembrosPage() {
                     <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '99px', background: selected.is_active ? 'var(--ok-dim)' : 'var(--bg-3)', color: selected.is_active ? 'var(--ok)' : 'var(--text-3)', fontWeight: '500' }}>{selected.is_active ? 'Ativo' : 'Inativo'}</span>
                   </div>
                   <div style={{ marginTop: '12px', fontSize: '11px', color: 'var(--text-3)' }}>Atualizado {timeAgo(selected.updated_at)}</div>
+
+                  {/* Vínculos atuais (somente leitura) */}
+                  <div style={{ marginTop: '18px', paddingTop: '14px', borderTop: '1px solid var(--border)' }}>
+                    <div style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px' }}>Vínculos atuais</div>
+                    {linksLoading ? (
+                      <div style={{ fontSize: '12px', color: 'var(--text-3)' }}>Carregando...</div>
+                    ) : ministryLinks.length === 0 && groupLinks.length === 0 ? (
+                      <div style={{ fontSize: '12px', color: 'var(--text-3)' }}>Nenhum vínculo registrado.</div>
+                    ) : (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                        {ministryLinks.length > 0 && (
+                          <div>
+                            <div style={{ fontSize: '10px', color: 'var(--text-3)', marginBottom: '4px' }}>Ministérios</div>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                              {ministryLinks.map((l, i) => (
+                                <a key={i} href="/ministerios" style={{ fontSize: '12px', padding: '4px 10px', borderRadius: '99px', background: 'var(--brand-dim)', color: 'var(--brand-light)', textDecoration: 'none' }}>
+                                  {l.ministry_name}{l.role && ` · ${MINISTRY_ROLE_LABEL[l.role] || l.role}`}
+                                </a>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        {groupLinks.length > 0 && (
+                          <div>
+                            <div style={{ fontSize: '10px', color: 'var(--text-3)', marginBottom: '4px' }}>Grupos (2ou+)</div>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                              {groupLinks.map((l, i) => (
+                                <a key={i} href="/admin/grupos" style={{ fontSize: '12px', padding: '4px 10px', borderRadius: '99px', background: 'var(--ok-dim)', color: 'var(--ok)', textDecoration: 'none' }}>
+                                  {l.group_name}{l.role && ` · ${GROUP_ROLE_LABEL[l.role] || l.role}`}
+                                </a>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </>
               ) : form && (
                 // Modo edição
