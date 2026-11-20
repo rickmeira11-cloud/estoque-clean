@@ -325,9 +325,9 @@ function EventosReport({ eventTypes }: { eventTypes: EventType[] }) {
   }, [events, eventTypes])
 
   const cultoType = useMemo(() => eventTypes.find(t => t.name.toLowerCase().includes('culto')), [eventTypes])
-  const cultoFields = useMemo(() => allFields.filter(f => f.event_type_id === cultoType?.id), [allFields, cultoType])
-  const adultosField = cultoFields.find(f => f.field_key === 'adultos')
-  const criancasField = cultoFields.find(f => f.field_key === 'criancas')
+  const cultoFields = useMemo(() => allFields.filter(f => f.event_type_id === cultoType?.id && f.field_type === 'number'), [allFields, cultoType])
+  const adultosField = cultoFields.find(f => f.field_key.includes('adult'))
+  const criancasField = cultoFields.find(f => f.field_key.includes('crian'))
 
   const cultoChartData = useMemo(() => {
     if (!cultoType || !adultosField || !criancasField) return []
@@ -341,7 +341,8 @@ function EventosReport({ eventTypes }: { eventTypes: EventType[] }) {
 
   const batismoType = useMemo(() => eventTypes.find(t => t.name.toLowerCase().includes('batismo')), [eventTypes])
   const batismoFields = useMemo(() => allFields.filter(f => f.event_type_id === batismoType?.id), [allFields, batismoType])
-  const qtdBatizadosField = batismoFields.find(f => f.field_key === 'quantidade_batizados')
+  const numberFields = batismoFields.filter(f => f.field_type === 'number')
+  const qtdBatizadosField = numberFields.find(f => f.field_key.includes('batism') || f.field_key.includes('quantidade')) || numberFields[0]
   const membrosBatizadosField = batismoFields.find(f => f.field_type === 'member_relation')
 
   const batismoTotal = useMemo(() => {
@@ -358,7 +359,12 @@ function EventosReport({ eventTypes }: { eventTypes: EventType[] }) {
       .map((fm: any) => ({ name: memberNames[fm.member_id] || fm.member_id, eventId: fm.event_id }))
   }, [batismoType, membrosBatizadosField, events, fieldMembers, memberNames])
 
-  const ataFieldsAllTypes = useMemo(() => allFields.filter(f => f.field_key === 'ata' && f.field_type === 'textarea'), [allFields])
+  const ataFieldsAllTypes = useMemo(() => {
+    const textareas = allFields.filter(f => f.field_type === 'textarea')
+    const byType: Record<string, EventTypeField> = {}
+    for (const f of textareas) if (!byType[f.event_type_id]) byType[f.event_type_id] = f
+    return Object.values(byType)
+  }, [allFields])
 
   const atas = useMemo(() => {
     if (!ataFieldsAllTypes.length) return []
@@ -407,7 +413,7 @@ function EventosReport({ eventTypes }: { eventTypes: EventType[] }) {
           <div style={{ ...panelStyle, height: '320px', display: 'flex', flexDirection: 'column' }}>
             <span style={panelTitle}>Cultos — Adultos x Crianças</span>
             {!cultoType ? <Notice>Nenhum tipo de evento chamado "Culto" encontrado.</Notice>
-              : (!adultosField || !criancasField) ? <Notice>Campo{!adultosField && !criancasField ? 's' : ''} "{!adultosField ? 'adultos' : 'criancas'}"{!adultosField && !criancasField ? ' e "criancas"' : ''} não configurado{!adultosField && !criancasField ? 's' : ''} para o tipo Culto. Cadastre em Tipos de Evento.</Notice>
+              : (!adultosField || !criancasField) ? <Notice>Faltam campos numéricos para o tipo Culto: {!adultosField && 'um com "adulto" no nome'}{!adultosField && !criancasField && ' e '}{!criancasField && 'um com "criança" no nome'}. Cadastre em Tipos de Evento.</Notice>
               : cultoChartData.length === 0 ? <Notice>Nenhum culto no período.</Notice>
               : (
                 <div style={{ flex: 1 }}>
@@ -431,7 +437,7 @@ function EventosReport({ eventTypes }: { eventTypes: EventType[] }) {
             {!batismoType ? <Notice>Nenhum tipo de evento chamado "Batismo" encontrado.</Notice> : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                 {!qtdBatizadosField
-                  ? <Notice>Campo "quantidade_batizados" não configurado para o tipo Batismo. Cadastre em Tipos de Evento.</Notice>
+                  ? <Notice>Nenhum campo numérico configurado para o tipo Batismo. Cadastre em Tipos de Evento.</Notice>
                   : <div style={{ fontSize: '24px', fontWeight: '700', color: 'var(--brand-light)' }}>{batismoTotal} batizado{batismoTotal !== 1 ? 's' : ''} no período</div>}
                 {!membrosBatizadosField
                   ? <Notice>Nenhum campo de relação com membros configurado para o tipo Batismo.</Notice>
@@ -449,7 +455,7 @@ function EventosReport({ eventTypes }: { eventTypes: EventType[] }) {
               <span style={panelTitle}>Atas de reunião</span>
               <input value={ataSearch} onChange={e => setAtaSearch(e.target.value)} placeholder="Buscar no texto da ata..." style={{ maxWidth: '240px' }} />
             </div>
-            {ataFieldsAllTypes.length === 0 ? <Notice>Nenhum tipo de evento tem um campo "ata" (texto longo) configurado.</Notice>
+            {ataFieldsAllTypes.length === 0 ? <Notice>Nenhum tipo de evento tem um campo de texto longo (ata) configurado.</Notice>
               : atas.length === 0 ? <Notice>Nenhuma ata encontrada{ataSearch ? ' para essa busca' : ' no período'}.</Notice>
               : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
