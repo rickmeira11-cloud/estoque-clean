@@ -6,8 +6,9 @@ import { useProfile } from '@/hooks/useProfile'
 type Rule = {
   id: string; name: string; weekday: number; description: string | null; is_active: boolean
   frequency: 'semanal' | 'quinzenal' | 'mensal'; anchor_date: string | null; month_week: number | null; lead_days: number
-  event_time: string | null
+  event_time: string | null; event_type_id: string | null
 }
+type EventType = { id: string; name: string }
 
 const WEEKDAYS = ['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado']
 const FREQ_LABEL: Record<string,string> = { semanal:'Semanal', quinzenal:'Quinzenal', mensal:'Mensal' }
@@ -17,6 +18,7 @@ const L: React.CSSProperties = { display:'block', fontSize:'11px', fontWeight:'5
 export default function EventosRecorrentesPage() {
   const { profile, isAdmin } = useProfile()
   const [rules,    setRules]    = useState<Rule[]>([])
+  const [eventTypes, setEventTypes] = useState<EventType[]>([])
   const [loading,  setLoading]  = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [name,     setName]     = useState('')
@@ -26,11 +28,21 @@ export default function EventosRecorrentesPage() {
   const [monthWeek,setMonthWeek]= useState('1')
   const [leadDays, setLeadDays] = useState('2')
   const [time,     setTime]     = useState('')
+  const [eventTypeId, setEventTypeId] = useState('')
   const [desc,     setDesc]     = useState('')
   const [saving,   setSaving]   = useState(false)
   const [success,  setSuccess]  = useState('')
 
-  useEffect(() => { if (profile?.church_id) load() }, [profile?.church_id])
+  useEffect(() => { if (profile?.church_id) { load(); loadTypes() } }, [profile?.church_id])
+
+  async function loadTypes() {
+    const { data } = await createClient()
+      .from('event_types').select('id, name')
+      .eq('church_id', profile!.church_id)
+      .eq('is_active', true)
+      .order('name')
+    if (data) setEventTypes(data)
+  }
 
   async function load() {
     setLoading(true)
@@ -40,7 +52,7 @@ export default function EventosRecorrentesPage() {
   }
 
   function resetForm() {
-    setName(''); setWeekday('0'); setFreq('semanal'); setAnchor(''); setMonthWeek('1'); setLeadDays('2'); setTime(''); setDesc('')
+    setName(''); setWeekday('0'); setFreq('semanal'); setAnchor(''); setMonthWeek('1'); setLeadDays('2'); setTime(''); setEventTypeId(''); setDesc('')
   }
 
   async function handleSave() {
@@ -51,7 +63,8 @@ export default function EventosRecorrentesPage() {
       church_id: profile!.church_id, name: name.trim(), weekday: parseInt(weekday),
       frequency: freq, anchor_date: freq === 'quinzenal' ? anchor : null,
       month_week: freq === 'mensal' ? parseInt(monthWeek) : null,
-      lead_days: parseInt(leadDays) || 2, event_time: time || null, description: desc || null,
+      lead_days: parseInt(leadDays) || 2, event_time: time || null,
+      event_type_id: eventTypeId || null, description: desc || null,
     })
     setShowForm(false); resetForm()
     setSuccess('Regra criada!'); setTimeout(() => setSuccess(''), 3000)
@@ -140,6 +153,13 @@ export default function EventosRecorrentesPage() {
               <label style={L}>Horário</label>
               <input type="time" value={time} onChange={e => setTime(e.target.value)}/>
             </div>
+            <div>
+              <label style={L}>Tipo de evento</label>
+              <select value={eventTypeId} onChange={e => setEventTypeId(e.target.value)}>
+                <option value="">— Sem tipo —</option>
+                {eventTypes.map(et => <option key={et.id} value={et.id}>{et.name}</option>)}
+              </select>
+            </div>
             <div style={{ gridColumn:'1 / -1' }}><label style={L}>Descrição</label><input value={desc} onChange={e => setDesc(e.target.value)} placeholder="Opcional"/></div>
           </div>
           <div style={{ display:'flex', gap:'8px', justifyContent:'flex-end' }}>
@@ -162,6 +182,11 @@ export default function EventosRecorrentesPage() {
                 <div style={{ display:'flex', alignItems:'center', gap:'8px', flexWrap:'wrap' }}>
                   <span style={{ fontSize:'14px', fontWeight:'600', color:'var(--text-1)' }}>{r.name}</span>
                   <span style={{ fontSize:'11px', padding:'2px 10px', borderRadius:'99px', background:'var(--brand-dim)', color:'var(--brand-light)', fontWeight:'600' }}>{FREQ_LABEL[r.frequency]}</span>
+                  {r.event_type_id && (
+                    <span style={{ fontSize:'11px', padding:'2px 10px', borderRadius:'99px', background:'var(--bg-3)', color:'var(--text-2)' }}>
+                      {eventTypes.find(et => et.id === r.event_type_id)?.name || 'Tipo removido'}
+                    </span>
+                  )}
                   {!r.is_active && <span style={{ fontSize:'10px', padding:'2px 8px', borderRadius:'99px', background:'var(--bg-3)', color:'var(--text-3)' }}>Pausada</span>}
                 </div>
                 <div style={{ fontSize:'12px', color:'var(--text-3)', marginTop:'3px' }}>

@@ -72,12 +72,13 @@ export async function POST() {
       if (existing) continue
 
       const { error } = await sb.from('events').insert({
-        church_id:   CHURCH_ID,
-        name:        rule.name,
-        event_date:  targetDate,
-        event_time:  rule.event_time || null,
-        description: rule.description || null,
-        is_active:   true,
+        church_id:     CHURCH_ID,
+        name:          rule.name,
+        event_date:    targetDate,
+        event_time:    rule.event_time || null,
+        event_type_id: rule.event_type_id || null,
+        description:   rule.description || null,
+        is_active:     true,
       })
 
       if (!error) created.push(rule.name + ' (' + new Date(targetDate + 'T12:00:00').toLocaleDateString('pt-BR') + ')')
