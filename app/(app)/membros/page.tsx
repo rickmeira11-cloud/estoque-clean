@@ -45,6 +45,19 @@ type EditForm = {
   is_active: boolean
 }
 
+type CreateForm = EditForm & { email: string }
+
+const BLANK_CREATE_FORM: CreateForm = {
+  full_name: '', email: '', birth_date: '', phone: '', neighborhood: '', city: '',
+  address_street: '', address_complement: '', birth_state: '', spouse_name: '',
+  children_info: '', small_group: '', wants_to_host_group: '', serves_in_ministry: '',
+  wants_to_serve_other_ministry: '', accepts_communication: false, is_active: true,
+}
+
+function isValidEmail(v: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim())
+}
+
 function fmtDate(iso: string | null): string {
   if (!iso) return '—'
   const d = new Date(iso + (iso.length === 10 ? 'T12:00:00' : ''))
@@ -113,6 +126,10 @@ export default function MembrosPage() {
   const [saveErr,  setSaveErr]  = useState<string | null>(null)
   const [syncing,  setSyncing]  = useState(false)
   const [syncMsg,  setSyncMsg]  = useState<string | null>(null)
+  const [showCreate, setShowCreate] = useState(false)
+  const [createForm, setCreateForm] = useState<CreateForm>(BLANK_CREATE_FORM)
+  const [creating,   setCreating]   = useState(false)
+  const [createErr,  setCreateErr]  = useState<string | null>(null)
 
   useEffect(() => { if (profile?.church_id) load() }, [profile?.church_id])
 
@@ -224,6 +241,89 @@ export default function MembrosPage() {
     await load()
   }
 
+  function openCreate() {
+    setCreateForm(BLANK_CREATE_FORM)
+    setCreateErr(null)
+    setShowCreate(true)
+  }
+
+  function setCreateField(field: keyof CreateForm, value: string | boolean) {
+    setCreateForm(f => ({ ...f, [field]: value }))
+  }
+
+  async function handleCreate() {
+    if (!profile) return
+    const name = createForm.full_name.trim()
+    const email = createForm.email.trim().toLowerCase()
+    if (!name) { setCreateErr('Nome completo é obrigatório'); return }
+    if (!email) { setCreateErr('E-mail é obrigatório'); return }
+    if (!isValidEmail(email)) { setCreateErr('E-mail em formato inválido'); return }
+
+    setCreating(true)
+    setCreateErr(null)
+    const sb = createClient()
+
+    const { data: existing } = await sb
+      .from('members')
+      .select('id')
+      .eq('church_id', profile.church_id)
+      .eq('email', email)
+      .maybeSingle()
+    if (existing) {
+      setCreateErr('Já existe um membro cadastrado com este e-mail.')
+      setCreating(false)
+      return
+    }
+
+    const payload = {
+      church_id: profile.church_id,
+      source_row_id: null,
+      submitted_at: new Date().toISOString(),
+      email,
+      full_name: name,
+      birth_date: createForm.birth_date.trim() ? brToIso(createForm.birth_date.trim()) : null,
+      birth_state: createForm.birth_state.trim() || null,
+      spouse_name: createForm.spouse_name.trim() || null,
+      children_info: createForm.children_info.trim() || null,
+      address_street: createForm.address_street.trim() || null,
+      address_complement: createForm.address_complement.trim() || null,
+      neighborhood: createForm.neighborhood.trim() || null,
+      city: createForm.city.trim() || null,
+      phone: createForm.phone.trim() || null,
+      small_group: createForm.small_group.trim() || null,
+      wants_to_host_group: createForm.wants_to_host_group.trim() || null,
+      serves_in_ministry: createForm.serves_in_ministry.trim() || null,
+      wants_to_serve_other_ministry: createForm.wants_to_serve_other_ministry.trim() || null,
+      accepts_communication: createForm.accepts_communication,
+      is_active: createForm.is_active,
+    }
+
+    const { data: inserted, error } = await sb.from('members').insert(payload).select('id').single()
+
+    if (error) {
+      setCreateErr(error.code === '23505' ? 'Já existe um membro cadastrado com este e-mail.' : error.message)
+      setCreating(false)
+      return
+    }
+
+    try {
+      await sb.from('audit_log').insert({
+        church_id: profile.church_id,
+        user_id: profile.id,
+        action: 'member_created',
+        entity: 'members',
+        entity_id: inserted!.id,
+        description: `Cadastrou manualmente o membro ${name}`,
+        old_data: null,
+        new_data: payload,
+      })
+    } catch (_) {}
+
+    setCreating(false)
+    setShowCreate(false)
+    await load()
+  }
+
   async function handleSync() {
     setSyncing(true)
     setSyncMsg(null)
@@ -285,12 +385,18 @@ export default function MembrosPage() {
         </div>
 
         {isAdmin && (
-          <button onClick={handleSync} disabled={syncing} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 14px', borderRadius: 'var(--radius-sm)', background: syncing ? 'var(--bg-3)' : 'var(--brand)', color: '#fff', border: 'none', cursor: syncing ? 'not-allowed' : 'pointer', fontSize: '13px', fontWeight: '500', opacity: syncing ? 0.7 : 1 }}>
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ animation: syncing ? 'spin 1s linear infinite' : 'none' }}>
-              <path d="M23 4v6h-6M1 20v-6h6M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/>
-            </svg>
-            {syncing ? 'Sincronizando...' : 'Sincronizar agora'}
-          </button>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button onClick={openCreate} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 14px', borderRadius: 'var(--radius-sm)', background: 'transparent', color: 'var(--text-1)', border: '1px solid var(--border)', cursor: 'pointer', fontSize: '13px', fontWeight: '500' }}>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+              Novo membro
+            </button>
+            <button onClick={handleSync} disabled={syncing} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 14px', borderRadius: 'var(--radius-sm)', background: syncing ? 'var(--bg-3)' : 'var(--brand)', color: '#fff', border: 'none', cursor: syncing ? 'not-allowed' : 'pointer', fontSize: '13px', fontWeight: '500', opacity: syncing ? 0.7 : 1 }}>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ animation: syncing ? 'spin 1s linear infinite' : 'none' }}>
+                <path d="M23 4v6h-6M1 20v-6h6M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/>
+              </svg>
+              {syncing ? 'Sincronizando...' : 'Sincronizar agora'}
+            </button>
+          </div>
         )}
       </div>
 
@@ -524,6 +630,118 @@ export default function MembrosPage() {
                 </button>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Modal de cadastro manual */}
+      {showCreate && (
+        <div style={{ position: 'fixed', inset: 0, background: 'var(--overlay)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: '20px' }}
+          onClick={e => e.target === e.currentTarget && !creating && setShowCreate(false)}>
+          <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-md)', borderRadius: 'var(--radius)', width: '100%', maxWidth: '580px', maxHeight: '90vh', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+
+            <div style={{ padding: '18px 20px 14px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '14px', flexShrink: 0 }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: '16px', fontWeight: '700', color: 'var(--text-1)' }}>Novo membro</div>
+                <div style={{ fontSize: '12px', color: 'var(--text-3)', marginTop: '2px' }}>Cadastro manual (fora da sincronização de planilha)</div>
+              </div>
+              <button onClick={() => !creating && setShowCreate(false)} style={{ width: '28px', height: '28px', borderRadius: '50%', background: 'var(--bg-3)', border: '1px solid var(--border)', color: 'var(--text-2)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+              </button>
+            </div>
+
+            <div style={{ padding: '16px 20px 20px', overflowY: 'auto', flex: 1 }}>
+              {createErr && <div style={{ marginBottom: '12px', padding: '8px 12px', borderRadius: 'var(--radius-sm)', background: 'var(--empty-dim)', color: 'var(--empty)', fontSize: '12px' }}>Erro: {createErr}</div>}
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px 16px' }}>
+                <FormField label="Nome completo">
+                  <input value={createForm.full_name} onChange={e => setCreateField('full_name', e.target.value)} style={INPUT_STYLE}
+                    onFocus={e => e.target.style.borderColor = 'var(--brand)'} onBlur={e => e.target.style.borderColor = 'var(--border)'}/>
+                </FormField>
+                <FormField label="E-mail">
+                  <input value={createForm.email} onChange={e => setCreateField('email', e.target.value)} placeholder="email@exemplo.com" style={INPUT_STYLE}
+                    onFocus={e => e.target.style.borderColor = 'var(--brand)'} onBlur={e => e.target.style.borderColor = 'var(--border)'}/>
+                </FormField>
+                <FormField label="Telefone" half>
+                  <input value={createForm.phone} onChange={e => setCreateField('phone', e.target.value)} style={INPUT_STYLE}
+                    onFocus={e => e.target.style.borderColor = 'var(--brand)'} onBlur={e => e.target.style.borderColor = 'var(--border)'}/>
+                </FormField>
+                <FormField label="Bairro" half>
+                  <input value={createForm.neighborhood} onChange={e => setCreateField('neighborhood', e.target.value)} style={INPUT_STYLE}
+                    onFocus={e => e.target.style.borderColor = 'var(--brand)'} onBlur={e => e.target.style.borderColor = 'var(--border)'}/>
+                </FormField>
+                <FormField label="Cidade" half>
+                  <input value={createForm.city} onChange={e => setCreateField('city', e.target.value)} style={INPUT_STYLE}
+                    onFocus={e => e.target.style.borderColor = 'var(--brand)'} onBlur={e => e.target.style.borderColor = 'var(--border)'}/>
+                </FormField>
+                <FormField label="Rua / Endereço" half>
+                  <input value={createForm.address_street} onChange={e => setCreateField('address_street', e.target.value)} style={INPUT_STYLE}
+                    onFocus={e => e.target.style.borderColor = 'var(--brand)'} onBlur={e => e.target.style.borderColor = 'var(--border)'}/>
+                </FormField>
+                <FormField label="Complemento" half>
+                  <input value={createForm.address_complement} onChange={e => setCreateField('address_complement', e.target.value)} style={INPUT_STYLE}
+                    onFocus={e => e.target.style.borderColor = 'var(--brand)'} onBlur={e => e.target.style.borderColor = 'var(--border)'}/>
+                </FormField>
+                <FormField label="Nascimento (DD/MM/AAAA)" half>
+                  <input value={createForm.birth_date} onChange={e => setCreateField('birth_date', e.target.value)} placeholder="ex: 20/05/1990" style={INPUT_STYLE}
+                    onFocus={e => e.target.style.borderColor = 'var(--brand)'} onBlur={e => e.target.style.borderColor = 'var(--border)'}/>
+                </FormField>
+                <FormField label="Naturalidade" half>
+                  <input value={createForm.birth_state} onChange={e => setCreateField('birth_state', e.target.value)} style={INPUT_STYLE}
+                    onFocus={e => e.target.style.borderColor = 'var(--brand)'} onBlur={e => e.target.style.borderColor = 'var(--border)'}/>
+                </FormField>
+                <FormField label="Cônjuge" half>
+                  <input value={createForm.spouse_name} onChange={e => setCreateField('spouse_name', e.target.value)} style={INPUT_STYLE}
+                    onFocus={e => e.target.style.borderColor = 'var(--brand)'} onBlur={e => e.target.style.borderColor = 'var(--border)'}/>
+                </FormField>
+                <FormField label="Filhos">
+                  <input value={createForm.children_info} onChange={e => setCreateField('children_info', e.target.value)} style={INPUT_STYLE}
+                    onFocus={e => e.target.style.borderColor = 'var(--brand)'} onBlur={e => e.target.style.borderColor = 'var(--border)'}/>
+                </FormField>
+                <FormField label="Grupo (2OU+)">
+                  <input value={createForm.small_group} onChange={e => setCreateField('small_group', e.target.value)} style={INPUT_STYLE}
+                    onFocus={e => e.target.style.borderColor = 'var(--brand)'} onBlur={e => e.target.style.borderColor = 'var(--border)'}/>
+                </FormField>
+                <FormField label="Ministra em">
+                  <input value={createForm.serves_in_ministry} onChange={e => setCreateField('serves_in_ministry', e.target.value)} style={INPUT_STYLE}
+                    onFocus={e => e.target.style.borderColor = 'var(--brand)'} onBlur={e => e.target.style.borderColor = 'var(--border)'}/>
+                </FormField>
+                <FormField label="Deseja servir em">
+                  <input value={createForm.wants_to_serve_other_ministry} onChange={e => setCreateField('wants_to_serve_other_ministry', e.target.value)} style={INPUT_STYLE}
+                    onFocus={e => e.target.style.borderColor = 'var(--brand)'} onBlur={e => e.target.style.borderColor = 'var(--border)'}/>
+                </FormField>
+                <FormField label="Deseja ser anfitrião de 2ou+?">
+                  <select value={createForm.wants_to_host_group} onChange={e => setCreateField('wants_to_host_group', e.target.value)} style={{ ...INPUT_STYLE, cursor: 'pointer' }}>
+                    <option value="">Não informado</option>
+                    <option value="Sim">Sim</option>
+                    <option value="Não">Não</option>
+                  </select>
+                </FormField>
+
+                <div style={{ gridColumn: 'span 2', display: 'flex', gap: '24px', marginTop: '4px' }}>
+                  {[
+                    { field: 'accepts_communication' as const, label: 'Aceita comunicação' },
+                    { field: 'is_active' as const, label: 'Membro ativo' },
+                  ].map(({ field, label }) => (
+                    <label key={field} style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px', color: 'var(--text-1)' }}>
+                      <div onClick={() => setCreateField(field, !createForm[field])} style={{ width: '36px', height: '20px', borderRadius: '10px', background: createForm[field] ? 'var(--brand)' : 'var(--bg-3)', border: '1px solid ' + (createForm[field] ? 'var(--brand)' : 'var(--border)'), position: 'relative', cursor: 'pointer', flexShrink: 0, transition: 'background 0.15s' }}>
+                        <div style={{ position: 'absolute', top: '2px', left: createForm[field] ? '17px' : '2px', width: '14px', height: '14px', borderRadius: '50%', background: '#fff', transition: 'left 0.15s' }}/>
+                      </div>
+                      {label}
+                    </label>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div style={{ padding: '12px 20px', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'flex-end', gap: '8px', flexShrink: 0 }}>
+              <button onClick={() => setShowCreate(false)} disabled={creating} style={{ padding: '7px 14px', borderRadius: 'var(--radius-sm)', background: 'var(--bg-3)', color: 'var(--text-1)', border: '1px solid var(--border)', cursor: creating ? 'not-allowed' : 'pointer', fontSize: '13px' }}>
+                Cancelar
+              </button>
+              <button onClick={handleCreate} disabled={creating || !createForm.full_name.trim() || !createForm.email.trim()} style={{ padding: '7px 14px', borderRadius: 'var(--radius-sm)', background: 'var(--brand)', color: '#fff', border: 'none', cursor: (creating || !createForm.full_name.trim() || !createForm.email.trim()) ? 'not-allowed' : 'pointer', fontSize: '13px', fontWeight: '500', opacity: creating ? 0.7 : 1 }}>
+                {creating ? 'Salvando...' : 'Cadastrar membro'}
+              </button>
+            </div>
           </div>
         </div>
       )}
