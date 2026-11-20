@@ -256,7 +256,7 @@ export default function GruposPage() {
                       {memSearch.length >= 2 && memResults.length === 0 && !memForm.member_id && (
                         <p style={{ fontSize: '12px', color: 'var(--text-3)', marginTop: '6px' }}>
                           Nenhum resultado.{' '}
-                          <Link href="/admin/membros" style={{ color: 'var(--brand-light)' }}>Cadastre o membro primeiro</Link>.
+                          <Link href="/membros" style={{ color: 'var(--brand-light)' }}>Cadastre o membro primeiro</Link>.
                         </p>
                       )}
                     </div>
