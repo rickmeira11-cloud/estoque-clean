@@ -68,7 +68,7 @@ export function mapRowMembro(row: Record<string, any>): LinhaMembro | null {
     address_complement: nullify(g(['Complemento', 'Apto', 'Número'])),
     neighborhood:   nullify(g(['Bairro'])),
     city:           nullify(g(['Cidade', 'Município'])),
-    phone:          nullify(g(['Telefone', 'Celular', 'WhatsApp', 'Telefone/WhatsApp'])),
+    phone:          nullify(g(['Seu Número de telefone/WhatsApp (com ddd)', 'Telefone', 'Celular', 'WhatsApp', 'Telefone/WhatsApp'])),
     small_group:    nullify(g(['Frequenta algum 2OU+?', 'Frequenta 2OU+', 'Grupo pequeno', 'Célula', 'Frequenta grupo'])),
     wants_to_host_group: nullify(g(['Deseja sediar grupo', 'Quer sediar', 'Hospedar grupo'])),
     serves_in_ministry: nullify(g(['Já serve em algum ministério?', 'Serve em ministério', 'Ministra em', 'Ministério que serve', 'Ministérios'])),
