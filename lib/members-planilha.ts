@@ -71,8 +71,8 @@ export function mapRowMembro(row: Record<string, any>): LinhaMembro | null {
     phone:          nullify(g(['Telefone', 'Celular', 'WhatsApp', 'Telefone/WhatsApp'])),
     small_group:    nullify(g(['Frequenta algum 2OU+?', 'Frequenta 2OU+', 'Grupo pequeno', 'Célula', 'Frequenta grupo'])),
     wants_to_host_group: nullify(g(['Deseja sediar grupo', 'Quer sediar', 'Hospedar grupo'])),
-    serves_in_ministry: nullify(g(['Serve em ministério', 'Ministra em', 'Ministério que serve', 'Ministérios'])),
-    wants_to_serve_other_ministry: nullify(g(['Deseja servir em outro ministério', 'Outro ministério', 'Deseja servir'])),
+    serves_in_ministry: nullify(g(['Já serve em algum ministério?', 'Serve em ministério', 'Ministra em', 'Ministério que serve', 'Ministérios'])),
+    wants_to_serve_other_ministry: nullify(g(['Já sentiu vontade de servir em outro ministério? (fora o seu atual)', 'Deseja servir em outro ministério', 'Outro ministério', 'Deseja servir'])),
     accepts_communication: parseSim(g(['Aceita comunicação', 'Comunicação', 'Autoriza contato'])),
   }
 }
