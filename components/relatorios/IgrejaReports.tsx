@@ -2,9 +2,6 @@
 import { useEffect, useState, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useProfile } from '@/hooks/useProfile'
-import dynamic from 'next/dynamic'
-const RelatoriosBarChart = dynamic(() => import('@/components/charts/RelatoriosBarChart'), { ssr: false })
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 
 type Tab = 'membros' | 'ministerios' | 'grupos' | 'eventos'
 const TABS: { id: Tab; label: string }[] = [
@@ -104,16 +101,22 @@ export default function IgrejaReports() {
   const membersWithoutMinistry = useMemo(() => activeMembers.filter(m => !activeMinistryMemberIds.has(m.id)), [activeMembers, activeMinistryMemberIds])
   const membersWithoutGroup    = useMemo(() => activeMembers.filter(m => !activeGroupMemberIds.has(m.id)), [activeMembers, activeGroupMemberIds])
 
+  const memberNameById = useMemo(() => {
+    const map: Record<string, string> = {}
+    members.forEach(m => { map[m.id] = m.full_name })
+    return map
+  }, [members])
+
   const ministryCounts = useMemo(() => {
     return ministries
       .filter(m => m.is_active)
-      .map(m => ({
-        name: m.name.length > 16 ? m.name.slice(0, 14) + '…' : m.name,
-        value: new Set(ministryMembers.filter(mm => mm.ministry_id === m.id).map(mm => mm.member_id)).size,
-      }))
+      .map(m => {
+        const memberIds = [...new Set(ministryMembers.filter(mm => mm.ministry_id === m.id).map(mm => mm.member_id))]
+        return { id: m.id, name: m.name, value: memberIds.length, memberNames: memberIds.map(id => memberNameById[id] || id).sort() }
+      })
       .filter(m => m.value > 0)
       .sort((a, b) => b.value - a.value)
-  }, [ministries, ministryMembers])
+  }, [ministries, ministryMembers, memberNameById])
 
   const ministriesEmpty = useMemo(() => {
     const withMembers = new Set(ministryMembers.map(m => m.ministry_id))
@@ -122,11 +125,11 @@ export default function IgrejaReports() {
 
   const activeGroups = useMemo(() => smallGroups.filter(g => g.is_active), [smallGroups])
   const groupCounts = useMemo(() => {
-    return activeGroups.map(g => ({
-      name: g.name,
-      count: groupMembers.filter(gm => gm.small_group_id === g.id).length,
-    })).sort((a, b) => b.count - a.count)
-  }, [activeGroups, groupMembers])
+    return activeGroups.map(g => {
+      const memberIds = groupMembers.filter(gm => gm.small_group_id === g.id).map(gm => gm.member_id)
+      return { id: g.id, name: g.name, count: memberIds.length, memberNames: memberIds.map(id => memberNameById[id] || id).sort() }
+    }).sort((a, b) => b.count - a.count)
+  }, [activeGroups, groupMembers, memberNameById])
 
   if (loading) {
     return <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>{[1,2,3].map(i => <div key={i} className="skeleton" style={{ height: '48px', borderRadius: '8px' }}/>)}</div>
@@ -176,9 +179,22 @@ export default function IgrejaReports() {
             )}
           </div>
 
-          <div style={{ ...panelStyle, height: '320px', display: 'flex', flexDirection: 'column' }}>
-            <span style={panelTitle}>Distribuição por bairro</span>
-            {bairroDist.length === 0 ? <Notice>Sem dados.</Notice> : <div style={{ flex: 1 }}><RelatoriosBarChart data={bairroDist} /></div>}
+          <div style={panelStyle}>
+            <span style={panelTitle}>Distribuição por bairro ({bairroDist.length} bairro{bairroDist.length !== 1 ? 's' : ''})</span>
+            {bairroDist.length === 0 ? <Notice>Sem dados.</Notice> : (
+              <table style={miniTable}>
+                <thead><tr><th style={thStyle}>Bairro</th><th style={thStyle}>Membros</th><th style={thStyle}>%</th></tr></thead>
+                <tbody>
+                  {bairroDist.map(b => (
+                    <tr key={b.name}>
+                      <td style={tdStyle}>{b.name}</td>
+                      <td style={tdStyle}>{b.value}</td>
+                      <td style={tdStyle}>{activeMembers.length ? ((b.value / activeMembers.length) * 100).toFixed(0) : 0}%</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </div>
 
           <div style={panelStyle}>
@@ -203,9 +219,33 @@ export default function IgrejaReports() {
 
       {tab === 'ministerios' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          <div style={{ ...panelStyle, height: '320px', display: 'flex', flexDirection: 'column' }}>
+          <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+            <div style={{ ...panelStyle, flex: 1, minWidth: '160px' }}>
+              <div style={{ fontSize: '12px', color: 'var(--text-3)' }}>Ministérios ativos</div>
+              <div style={{ fontSize: '28px', fontWeight: '700', color: 'var(--brand-light)' }}>{ministries.filter(m => m.is_active).length}</div>
+            </div>
+            <div style={{ ...panelStyle, flex: 1, minWidth: '160px' }}>
+              <div style={{ fontSize: '12px', color: 'var(--text-3)' }}>Com membros vinculados</div>
+              <div style={{ fontSize: '28px', fontWeight: '700', color: 'var(--ok)' }}>{ministryCounts.length}</div>
+            </div>
+          </div>
+          <div style={panelStyle}>
             <span style={panelTitle}>Membros por ministério</span>
-            {ministryCounts.length === 0 ? <Notice>Nenhum ministério com membros vinculados.</Notice> : <div style={{ flex: 1 }}><RelatoriosBarChart data={ministryCounts} /></div>}
+            {ministryCounts.length === 0 ? <Notice>Nenhum ministério com membros vinculados.</Notice> : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                {ministryCounts.map(m => (
+                  <div key={m.id} style={{ padding: '12px 14px', borderRadius: '8px', background: 'var(--bg-3)', border: '1px solid var(--border)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                      <span style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-1)' }}>{m.name}</span>
+                      <span style={{ fontSize: '12px', color: 'var(--text-3)' }}>{m.value} membro{m.value !== 1 ? 's' : ''}</span>
+                    </div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '8px' }}>
+                      {m.memberNames.map(n => <span key={n} style={{ fontSize: '12px', padding: '4px 10px', borderRadius: '99px', background: 'var(--bg-2)', color: 'var(--text-2)' }}>{n}</span>)}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
           <div style={panelStyle}>
             <span style={panelTitle}>Ministérios sem nenhum membro vinculado ({ministriesEmpty.length})</span>
@@ -227,10 +267,21 @@ export default function IgrejaReports() {
           <div style={panelStyle}>
             <span style={panelTitle}>Membros por grupo</span>
             {groupCounts.length === 0 ? <Notice>Nenhum grupo cadastrado.</Notice> : (
-              <table style={miniTable}>
-                <thead><tr><th style={thStyle}>Grupo</th><th style={thStyle}>Membros</th></tr></thead>
-                <tbody>{groupCounts.map(g => <tr key={g.name}><td style={tdStyle}>{g.name}</td><td style={tdStyle}>{g.count}</td></tr>)}</tbody>
-              </table>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                {groupCounts.map(g => (
+                  <div key={g.id} style={{ padding: '12px 14px', borderRadius: '8px', background: 'var(--bg-3)', border: '1px solid var(--border)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                      <span style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-1)' }}>{g.name}</span>
+                      <span style={{ fontSize: '12px', color: 'var(--text-3)' }}>{g.count} membro{g.count !== 1 ? 's' : ''}</span>
+                    </div>
+                    {g.memberNames.length > 0 && (
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '8px' }}>
+                        {g.memberNames.map(n => <span key={n} style={{ fontSize: '12px', padding: '4px 10px', borderRadius: '99px', background: 'var(--bg-2)', color: 'var(--text-2)' }}>{n}</span>)}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
             )}
           </div>
           <div style={panelStyle}>
@@ -409,30 +460,56 @@ function EventosReport({ eventTypes }: { eventTypes: EventType[] }) {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>{[1,2].map(i => <div key={i} className="skeleton" style={{ height: '48px', borderRadius: '8px' }}/>)}</div>
       ) : (
         <>
-          <div style={{ ...panelStyle, height: '320px', display: 'flex', flexDirection: 'column' }}>
+          <div style={panelStyle}>
             <span style={panelTitle}>Eventos por tipo ({events.length} no período)</span>
-            {byType.length === 0 ? <Notice>Nenhum evento no período.</Notice> : <div style={{ flex: 1 }}><RelatoriosBarChart data={byType} /></div>}
+            {byType.length === 0 ? <Notice>Nenhum evento no período.</Notice> : (
+              <table style={miniTable}>
+                <thead><tr><th style={thStyle}>Tipo</th><th style={thStyle}>Qtde</th><th style={thStyle}>%</th></tr></thead>
+                <tbody>
+                  {byType.map(t => (
+                    <tr key={t.name}>
+                      <td style={tdStyle}>{t.name}</td>
+                      <td style={tdStyle}>{t.value}</td>
+                      <td style={tdStyle}>{events.length ? ((t.value / events.length) * 100).toFixed(0) : 0}%</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </div>
 
-          <div style={{ ...panelStyle, height: '320px', display: 'flex', flexDirection: 'column' }}>
+          <div style={panelStyle}>
             <span style={panelTitle}>Cultos — Adultos x Crianças</span>
             {!cultoType ? <Notice>Nenhum tipo de evento chamado "Culto" encontrado.</Notice>
               : (!adultosField || !criancasField) ? <Notice>Faltam campos numéricos para o tipo Culto: {!adultosField && 'um com "adulto" no nome'}{!adultosField && !criancasField && ' e '}{!criancasField && 'um com "criança" no nome'}. Cadastre em Tipos de Evento.</Notice>
               : cultoChartData.length === 0 ? <Notice>Nenhum culto no período.</Notice>
               : (
-                <div style={{ flex: 1 }}>
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={cultoChartData} margin={{ top: 4, right: 16, left: 0, bottom: 4 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false}/>
-                      <XAxis dataKey="label" tick={{ fontSize: 11, fill: 'var(--text-3)' }} axisLine={false} tickLine={false}/>
-                      <YAxis tick={{ fontSize: 11, fill: 'var(--text-3)' }} axisLine={false} tickLine={false} width={32}/>
-                      <Tooltip contentStyle={{ background: 'var(--bg-2)', border: '1px solid var(--border-md)', borderRadius: '8px', fontSize: '12px', color: 'var(--text-1)' }}/>
-                      <Legend iconType="circle" iconSize={10} wrapperStyle={{ fontSize: '12px' }}/>
-                      <Line type="monotone" dataKey="adultos" name="Adultos" stroke="var(--brand)" strokeWidth={2} dot={false} activeDot={{ r: 5, strokeWidth: 0 }}/>
-                      <Line type="monotone" dataKey="criancas" name="Crianças" stroke="var(--ok)" strokeWidth={2} dot={false} activeDot={{ r: 5, strokeWidth: 0 }}/>
-                    </LineChart>
-                  </ResponsiveContainer>
-                </div>
+                <>
+                  <table style={miniTable}>
+                    <thead><tr><th style={thStyle}>Data</th><th style={thStyle}>Adultos</th><th style={thStyle}>Crianças</th><th style={thStyle}>Total</th></tr></thead>
+                    <tbody>
+                      {cultoChartData.map((c, i) => (
+                        <tr key={i}>
+                          <td style={tdStyle}>{c.label}</td>
+                          <td style={tdStyle}>{c.adultos}</td>
+                          <td style={tdStyle}>{c.criancas}</td>
+                          <td style={tdStyle}>{c.adultos + c.criancas}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', marginTop: '14px' }}>
+                    <div style={{ fontSize: '12px', color: 'var(--text-3)' }}>
+                      Média adultos: <strong style={{ color: 'var(--text-1)' }}>{(cultoChartData.reduce((s, c) => s + c.adultos, 0) / cultoChartData.length).toFixed(1)}</strong>
+                    </div>
+                    <div style={{ fontSize: '12px', color: 'var(--text-3)' }}>
+                      Média crianças: <strong style={{ color: 'var(--text-1)' }}>{(cultoChartData.reduce((s, c) => s + c.criancas, 0) / cultoChartData.length).toFixed(1)}</strong>
+                    </div>
+                    <div style={{ fontSize: '12px', color: 'var(--text-3)' }}>
+                      Total no período: <strong style={{ color: 'var(--text-1)' }}>{cultoChartData.reduce((s, c) => s + c.adultos + c.criancas, 0)}</strong>
+                    </div>
+                  </div>
+                </>
               )}
           </div>
 
