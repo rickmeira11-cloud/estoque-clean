@@ -11,7 +11,7 @@ const TABS: { id: Tab; label: string }[] = [
   { id: 'eventos',     label: 'Eventos' },
 ]
 
-type Member = { id: string; full_name: string; is_active: boolean; neighborhood: string | null; birth_date: string | null }
+type Member = { id: string; full_name: string; is_active: boolean; neighborhood: string | null; birth_date: string | null; phone: string | null; wants_to_serve_other_ministry: string | null }
 type Ministry = { id: string; name: string; is_active: boolean }
 type MinistryMember = { ministry_id: string; member_id: string; is_active: boolean }
 type SmallGroup = { id: string; name: string; is_active: boolean }
@@ -56,7 +56,7 @@ export default function IgrejaReports() {
       { data: mem }, { data: mins }, { data: minMem },
       { data: groups }, { data: grpMem }, { data: types },
     ] = await Promise.all([
-      sb.from('members').select('id, full_name, is_active, neighborhood, birth_date').eq('church_id', profile!.church_id),
+      sb.from('members').select('id, full_name, is_active, neighborhood, birth_date, phone, wants_to_serve_other_ministry').eq('church_id', profile!.church_id),
       sb.from('ministries').select('id, name, is_active').eq('church_id', profile!.church_id),
       sb.from('ministry_members').select('ministry_id, member_id, is_active'),
       sb.from('small_groups').select('id, name, is_active').eq('church_id', profile!.church_id),
@@ -107,16 +107,25 @@ export default function IgrejaReports() {
     return map
   }, [members])
 
+  const memberById = useMemo(() => {
+    const map: Record<string, Member> = {}
+    members.forEach(m => { map[m.id] = m })
+    return map
+  }, [members])
+
   const ministryCounts = useMemo(() => {
     return ministries
       .filter(m => m.is_active)
       .map(m => {
         const memberIds = [...new Set(ministryMembers.filter(mm => mm.ministry_id === m.id).map(mm => mm.member_id))]
-        return { id: m.id, name: m.name, value: memberIds.length, memberNames: memberIds.map(id => memberNameById[id] || id).sort() }
+        const rows = memberIds
+          .map(id => ({ id, name: memberNameById[id] || id, phone: memberById[id]?.phone || null }))
+          .sort((a, b) => a.name.localeCompare(b.name))
+        return { id: m.id, name: m.name, value: memberIds.length, rows }
       })
       .filter(m => m.value > 0)
       .sort((a, b) => b.value - a.value)
-  }, [ministries, ministryMembers, memberNameById])
+  }, [ministries, ministryMembers, memberNameById, memberById])
 
   const ministriesEmpty = useMemo(() => {
     const withMembers = new Set(ministryMembers.map(m => m.ministry_id))
@@ -126,10 +135,13 @@ export default function IgrejaReports() {
   const activeGroups = useMemo(() => smallGroups.filter(g => g.is_active), [smallGroups])
   const groupCounts = useMemo(() => {
     return activeGroups.map(g => {
-      const memberIds = groupMembers.filter(gm => gm.small_group_id === g.id).map(gm => gm.member_id)
-      return { id: g.id, name: g.name, count: memberIds.length, memberNames: memberIds.map(id => memberNameById[id] || id).sort() }
+      const memberIds = [...new Set(groupMembers.filter(gm => gm.small_group_id === g.id).map(gm => gm.member_id))]
+      const rows = memberIds
+        .map(id => ({ id, name: memberNameById[id] || id, phone: memberById[id]?.phone || null }))
+        .sort((a, b) => a.name.localeCompare(b.name))
+      return { id: g.id, name: g.name, count: memberIds.length, rows }
     }).sort((a, b) => b.count - a.count)
-  }, [activeGroups, groupMembers, memberNameById])
+  }, [activeGroups, groupMembers, memberNameById, memberById])
 
   if (loading) {
     return <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>{[1,2,3].map(i => <div key={i} className="skeleton" style={{ height: '48px', borderRadius: '8px' }}/>)}</div>
@@ -232,16 +244,19 @@ export default function IgrejaReports() {
           <div style={panelStyle}>
             <span style={panelTitle}>Membros por ministério</span>
             {ministryCounts.length === 0 ? <Notice>Nenhum ministério com membros vinculados.</Notice> : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
                 {ministryCounts.map(m => (
-                  <div key={m.id} style={{ padding: '12px 14px', borderRadius: '8px', background: 'var(--bg-3)', border: '1px solid var(--border)' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                  <div key={m.id}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '6px' }}>
                       <span style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-1)' }}>{m.name}</span>
                       <span style={{ fontSize: '12px', color: 'var(--text-3)' }}>{m.value} membro{m.value !== 1 ? 's' : ''}</span>
                     </div>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '8px' }}>
-                      {m.memberNames.map(n => <span key={n} style={{ fontSize: '12px', padding: '4px 10px', borderRadius: '99px', background: 'var(--bg-2)', color: 'var(--text-2)' }}>{n}</span>)}
-                    </div>
+                    <table style={miniTable}>
+                      <thead><tr><th style={thStyle}>Nome</th><th style={thStyle}>Telefone</th></tr></thead>
+                      <tbody>
+                        {m.rows.map(r => <tr key={r.id}><td style={tdStyle}>{r.name}</td><td style={tdStyle}>{r.phone || '—'}</td></tr>)}
+                      </tbody>
+                    </table>
                   </div>
                 ))}
               </div>
@@ -253,6 +268,23 @@ export default function IgrejaReports() {
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
                 {ministriesEmpty.map(m => <span key={m.id} style={{ fontSize: '12px', padding: '4px 10px', borderRadius: '99px', background: 'var(--bg-3)', color: 'var(--text-2)' }}>{m.name}</span>)}
               </div>
+            )}
+          </div>
+          <div style={panelStyle}>
+            <span style={panelTitle}>Membros que não servem em nenhum ministério ({membersWithoutMinistry.length})</span>
+            {membersWithoutMinistry.length === 0 ? <Notice>Todos os membros ativos estão em algum ministério.</Notice> : (
+              <table style={miniTable}>
+                <thead><tr><th style={thStyle}>Nome</th><th style={thStyle}>Telefone</th><th style={thStyle}>Ministério que deseja participar</th></tr></thead>
+                <tbody>
+                  {membersWithoutMinistry.map(m => (
+                    <tr key={m.id}>
+                      <td style={tdStyle}>{m.full_name}</td>
+                      <td style={tdStyle}>{m.phone || '—'}</td>
+                      <td style={tdStyle}>{m.wants_to_serve_other_ministry || '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             )}
           </div>
         </div>
@@ -267,17 +299,20 @@ export default function IgrejaReports() {
           <div style={panelStyle}>
             <span style={panelTitle}>Membros por grupo</span>
             {groupCounts.length === 0 ? <Notice>Nenhum grupo cadastrado.</Notice> : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
                 {groupCounts.map(g => (
-                  <div key={g.id} style={{ padding: '12px 14px', borderRadius: '8px', background: 'var(--bg-3)', border: '1px solid var(--border)' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                  <div key={g.id}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '6px' }}>
                       <span style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-1)' }}>{g.name}</span>
                       <span style={{ fontSize: '12px', color: 'var(--text-3)' }}>{g.count} membro{g.count !== 1 ? 's' : ''}</span>
                     </div>
-                    {g.memberNames.length > 0 && (
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '8px' }}>
-                        {g.memberNames.map(n => <span key={n} style={{ fontSize: '12px', padding: '4px 10px', borderRadius: '99px', background: 'var(--bg-2)', color: 'var(--text-2)' }}>{n}</span>)}
-                      </div>
+                    {g.rows.length === 0 ? <Notice>Nenhum membro vinculado.</Notice> : (
+                      <table style={miniTable}>
+                        <thead><tr><th style={thStyle}>Nome</th><th style={thStyle}>Telefone</th></tr></thead>
+                        <tbody>
+                          {g.rows.map(r => <tr key={r.id}><td style={tdStyle}>{r.name}</td><td style={tdStyle}>{r.phone || '—'}</td></tr>)}
+                        </tbody>
+                      </table>
                     )}
                   </div>
                 ))}
