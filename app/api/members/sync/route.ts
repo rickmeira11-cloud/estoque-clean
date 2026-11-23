@@ -7,21 +7,7 @@ const CHURCH_ID = '8db14705-9da8-4844-8b01-a73845297831'
 
 const CSV_URL = process.env.MEMBERS_SHEET_CSV_URL || ''
 
-export async function GET(request: Request) {
-  const debug = new URL(request.url).searchParams.get('debug')
-  if (debug === 'headers' && CSV_URL) {
-    try {
-      const res = await fetch(CSV_URL, { cache: 'no-store' })
-      let text = await res.text()
-      text = text.replace(/^﻿/, '')
-      const Papa: any = (await import('papaparse')).default
-      const parsed = Papa.parse(text, { header: true, skipEmptyLines: true })
-      const rows = (parsed.data as any[]) || []
-      return Response.json({ ok: true, headers: rows.length ? Object.keys(rows[0]) : [], total_rows: rows.length })
-    } catch (err: any) {
-      return Response.json({ ok: false, error: err.message }, { status: 500 })
-    }
-  }
+export async function GET() {
   return Response.json({ ok: true, message: 'Sync de membros. Use POST para executar.' })
 }
 
