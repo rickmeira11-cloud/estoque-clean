@@ -26,6 +26,7 @@ const MONTHS = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','A
 const panelStyle: React.CSSProperties = { background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '20px' }
 const panelTitle: React.CSSProperties = { fontSize: '13px', fontWeight: '600', color: 'var(--text-1)', marginBottom: '14px' }
 const miniTable: React.CSSProperties = { width: '100%', borderCollapse: 'collapse' }
+const nameFoneTable: React.CSSProperties = { ...miniTable, tableLayout: 'fixed' }
 const thStyle: React.CSSProperties = { padding: '8px 12px', textAlign: 'left', fontSize: '11px', color: 'var(--text-3)', fontWeight: '500', textTransform: 'uppercase', letterSpacing: '0.04em', borderBottom: '1px solid var(--border)' }
 const tdStyle: React.CSSProperties = { padding: '8px 12px', fontSize: '13px', color: 'var(--text-1)', borderBottom: '1px solid var(--border)' }
 
@@ -251,7 +252,8 @@ export default function IgrejaReports() {
                       <span style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-1)' }}>{m.name}</span>
                       <span style={{ fontSize: '12px', color: 'var(--text-3)' }}>{m.value} membro{m.value !== 1 ? 's' : ''}</span>
                     </div>
-                    <table style={miniTable}>
+                    <table style={nameFoneTable}>
+                      <colgroup><col style={{ width: '70%' }} /><col style={{ width: '30%' }} /></colgroup>
                       <thead><tr><th style={thStyle}>Nome</th><th style={thStyle}>Telefone</th></tr></thead>
                       <tbody>
                         {m.rows.map(r => <tr key={r.id}><td style={tdStyle}>{r.name}</td><td style={tdStyle}>{r.phone || '—'}</td></tr>)}
@@ -307,7 +309,8 @@ export default function IgrejaReports() {
                       <span style={{ fontSize: '12px', color: 'var(--text-3)' }}>{g.count} membro{g.count !== 1 ? 's' : ''}</span>
                     </div>
                     {g.rows.length === 0 ? <Notice>Nenhum membro vinculado.</Notice> : (
-                      <table style={miniTable}>
+                      <table style={nameFoneTable}>
+                        <colgroup><col style={{ width: '70%' }} /><col style={{ width: '30%' }} /></colgroup>
                         <thead><tr><th style={thStyle}>Nome</th><th style={thStyle}>Telefone</th></tr></thead>
                         <tbody>
                           {g.rows.map(r => <tr key={r.id}><td style={tdStyle}>{r.name}</td><td style={tdStyle}>{r.phone || '—'}</td></tr>)}
