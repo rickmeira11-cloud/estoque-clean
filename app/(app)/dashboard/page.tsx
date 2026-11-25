@@ -292,6 +292,7 @@ export default function DashboardPage() {
 
   // ── patrimônio: derivados ──
   const patValor = useMemo(() => patItems.reduce((s, p) => s + valorAtual(p), 0), [patItems])
+  const patComValor = useMemo(() => patItems.filter(p => p.acquisition_value != null).length, [patItems])
 
   const empHoje = () => { const d = new Date(); d.setHours(0,0,0,0); return d }
   const empVencidos = useMemo(() => {
@@ -542,7 +543,7 @@ export default function DashboardPage() {
       {/* KPIs de patrimônio */}
       <div style={{ ...gridKpis, marginBottom: '8px' }}>
         {/* Valor do patrimônio — informativo, neutro */}
-        <Card label="Valor do patrimônio" value={fmtBRL(patValor)} color="var(--border-md)" icon="🏛️" href="/patrimonio" sub={`${patItems.length} bens ativos`}/>
+        <Card label="Valor do patrimônio" value={fmtBRL(patValor)} color="var(--border-md)" icon="🏛️" href="/patrimonio" sub={`${patComValor} de ${patItems.length} bens com valor informado (${patItems.length ? Math.round(patComValor / patItems.length * 100) : 0}%)`}/>
 
         {/* Devoluções pendentes — neutro quando 0, vermelho só com vencido */}
         <Card

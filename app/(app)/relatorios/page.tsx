@@ -62,6 +62,7 @@ export default function RelatoriosPage() {
   const [auditRows,    setAuditRows]    = useState<any[]>([])
   const [minRows,      setMinRows]      = useState<any[]>([])
   const [precosRows,   setPrecosRows]   = useState<any[]>([])
+  const [precosTotalEntradas, setPrecosTotalEntradas] = useState(0)
   const [eventosRows,  setEventosRows]  = useState<any[]>([])
   const [eventosLoading,setEventosLoading] = useState(false)
   const [eventosPeriod,setEventosPeriod] = useState('30')
@@ -183,8 +184,14 @@ export default function RelatoriosPage() {
       .order('created_at', { ascending: false })
       .limit(200)
     if (precosProd !== 'all') q = q.eq('product_id', precosProd)
-    const { data } = await q
+    let totalQ = sb.from('stock_movements')
+      .select('id', { count: 'exact', head: true })
+      .eq('church_id', profile!.church_id)
+      .eq('type', 'in')
+    if (precosProd !== 'all') totalQ = totalQ.eq('product_id', precosProd)
+    const [{ data }, { count: totalEntradas }] = await Promise.all([q, totalQ])
     if (data) setPrecosRows(data)
+    setPrecosTotalEntradas(totalEntradas || 0)
     setPrecosLoading(false)
   }
 
@@ -381,6 +388,7 @@ export default function RelatoriosPage() {
   })
   const patrTop = [...patrItems].sort((a, b) => valorAtual(b) - valorAtual(a)).slice(0, 10)
   const patrCustoManut = patrManut.reduce((s, m: any) => s + (m.cost || 0), 0)
+  const patrComValor = patrItems.filter((p: any) => p.acquisition_value != null).length
   const patrPendencias = {
     nf:         patrItems.filter((p: any) => !p.nfe_key && !p.nfe_file_url),
     ministerio: patrItems.filter((p: any) => !p.ministry_id),
@@ -1048,6 +1056,9 @@ export default function RelatoriosPage() {
                 </div>
               ) : (
                 <div style={{ ...panelStyle, padding:0, overflow:'hidden' }}>
+                  <div style={{ padding:'10px 16px', fontSize:'12px', color:'var(--text-3)', borderBottom:'1px solid var(--border)', background:'var(--bg-3)' }}>
+                    Baseado em {precosRows.length} de {precosTotalEntradas} entrada{precosTotalEntradas !== 1 ? 's' : ''} com preço informado ({precosTotalEntradas ? ((precosRows.length / precosTotalEntradas) * 100).toFixed(0) : 0}%)
+                  </div>
                   <table style={{ width:'100%', borderCollapse:'collapse' }}>
                     <thead>
                       <tr style={{ borderBottom:'1px solid var(--border)', background:'var(--bg-3)' }}>
@@ -1156,6 +1167,11 @@ export default function RelatoriosPage() {
             <div style={{ display:'flex', flexDirection:'column', gap:'24px' }}>
 
               {/* 1. Resumo geral */}
+              {patrComValor < patrResumo.total && (
+                <div style={{ padding:'10px 16px', fontSize:'12px', color:'var(--text-3)', borderRadius:'var(--radius-sm)', background:'var(--bg-3)', border:'1px solid var(--border)' }}>
+                  Valores de aquisição/atual/depreciação baseados em {patrComValor} de {patrResumo.total} bens com valor de aquisição informado ({patrResumo.total ? ((patrComValor / patrResumo.total) * 100).toFixed(0) : 0}%)
+                </div>
+              )}
               <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(180px, 1fr))', gap:'12px' }}>
                 {[
                   { l:'Total de bens', v: String(patrResumo.total), c:'var(--brand)' },
