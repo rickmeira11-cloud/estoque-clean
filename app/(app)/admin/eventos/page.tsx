@@ -32,8 +32,8 @@ export default function EventosPage() {
 
   const [search,     setSearch]     = useState('')
   const [filterType, setFilterType] = useState('')
-  const [filterFrom, setFilterFrom] = useState('')
-  const [filterTo,   setFilterTo]   = useState('')
+  const [filterFrom, setFilterFrom] = useState(() => { const d = new Date(); d.setDate(1); return d.toISOString().split('T')[0] })
+  const [filterTo,   setFilterTo]   = useState(() => { const d = new Date(); d.setMonth(d.getMonth() + 1, 0); return d.toISOString().split('T')[0] })
 
   const [showForm, setShowForm] = useState(false)
   const [editId,   setEditId]   = useState<string | null>(null)
@@ -84,7 +84,7 @@ export default function EventosPage() {
     const { data } = await createClient()
       .from('events').select('*, event_type:event_types(id, name)')
       .eq('church_id', profile!.church_id)
-      .order('event_date', { ascending: false })
+      .order('event_date', { ascending: true })
     if (data) setEvents(data as Event[])
     setLoading(false)
   }
