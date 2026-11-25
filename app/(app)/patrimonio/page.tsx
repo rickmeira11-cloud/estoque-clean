@@ -902,7 +902,7 @@ export default function PatrimonioPage() {
             </div>
           </div>
           {/* Campos avançados — colapsável */}
-          <details open={!!(editItem && (form.serial_number || form.barcode || form.acquisition_date || form.acquisition_value || form.physical_location || form.supplier || form.nfe_key || form.nfe_file_url || form.notes))} style={{ marginBottom: '14px' }}>
+          <details open={!editItem || !!(form.serial_number || form.barcode || form.acquisition_date || form.acquisition_value || form.physical_location || form.supplier || form.nfe_key || form.nfe_file_url || form.notes)} style={{ marginBottom: '14px' }}>
             <summary style={{ fontSize: '13px', fontWeight: '500', color: 'var(--text-2)', cursor: 'pointer', userSelect: 'none', padding: '8px 10px', borderRadius: 'var(--radius-sm)', background: 'var(--bg-3)', border: '1px solid var(--border)', listStyle: 'none', display: 'flex', alignItems: 'center', gap: '6px' }}>
               <span style={{ fontSize: '10px' }}>▶</span> Mais detalhes
             </summary>
