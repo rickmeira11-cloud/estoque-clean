@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useProfile } from '@/hooks/useProfile'
 import { useSyncTheme } from '@/hooks/useSyncTheme'
 import { valorAtual, valorAquisicaoTotal } from '@/lib/patrimonio-calc'
+import { exportBlocksToExcel, exportBlocksToPDF, todayStamp, type ReportBlock } from '@/lib/report-export'
 import dynamic from 'next/dynamic'
 const RelatoriosLineChart    = dynamic(() => import('@/components/charts/RelatoriosLineChart'),    { ssr: false })
 const RelatoriosBarChart     = dynamic(() => import('@/components/charts/RelatoriosBarChart'),     { ssr: false })
@@ -500,6 +501,26 @@ export default function RelatoriosPage() {
           'Total consumido': qty,
         }))
       )
+    } else if (tab === 'eventos') {
+      sheet = 'Eventos'
+      rows = eventosRows.flatMap((ev: any) =>
+        Object.entries(ev.produtos).map(([prod, qty]) => ({
+          'Evento': ev.name,
+          'Data': ev.date ? new Date(ev.date + 'T12:00:00').toLocaleDateString('pt-BR') : '—',
+          'Produto': prod,
+          'Total consumido': qty,
+        }))
+      )
+    } else if (tab === 'precos') {
+      sheet = 'Preços'
+      rows = precosRows.map((r: any) => ({
+        'Data': new Date(r.created_at).toLocaleDateString('pt-BR'),
+        'Produto': r.product?.name || '—',
+        'Fornecedor': r.supplier || '—',
+        'Quantidade': r.quantity,
+        'Valor unitário': 'R$ ' + Number(r.unit_cost).toFixed(2),
+        'Total': 'R$ ' + (r.quantity * Number(r.unit_cost)).toFixed(2),
+      }))
     } else if (tab === 'auditoria') {
       sheet = 'Auditoria'
       rows = auditRows.map((a: any) => ({
@@ -560,6 +581,17 @@ export default function RelatoriosPage() {
       body = minRows.flatMap((m: any) =>
         Object.entries(m.produtos).map(([prod, qty]) => [m.name, prod, qty])
       )
+    } else if (tab === 'eventos') {
+      head = [['Evento','Data','Produto','Total consumido']]
+      body = eventosRows.flatMap((ev: any) =>
+        Object.entries(ev.produtos).map(([prod, qty]) => [ev.name, ev.date ? new Date(ev.date + 'T12:00:00').toLocaleDateString('pt-BR') : '—', prod, qty])
+      )
+    } else if (tab === 'precos') {
+      head = [['Data','Produto','Fornecedor','Qtd','Valor unit.','Total']]
+      body = precosRows.map((r: any) => [
+        new Date(r.created_at).toLocaleDateString('pt-BR'), r.product?.name || '—', r.supplier || '—',
+        r.quantity, 'R$ ' + Number(r.unit_cost).toFixed(2), 'R$ ' + (r.quantity * Number(r.unit_cost)).toFixed(2),
+      ])
     } else if (tab === 'auditoria') {
       head = [['Data','Ação','Entidade','Descrição']]
       body = auditRows.map((a: any) => [
@@ -585,6 +617,120 @@ export default function RelatoriosPage() {
       doc.text(church, doc.internal.pageSize.width-14, doc.internal.pageSize.height-8, {align:'right'})
     }
     doc.save(`${tabLabel.toLowerCase()}-${dateFrom}-${dateTo}.pdf`)
+  }
+
+  // ── Exportar relatório completo da aba Estoque (todos os blocos, um arquivo só) ──
+  const [exportingAll, setExportingAll] = useState(false)
+  async function buildEstoqueBlocks(): Promise<ReportBlock[]> {
+    const sb = createClient()
+    const church_id = profile!.church_id
+
+    const [{ data: minData }, { data: evData }, { data: precosData }, { data: auditData }, { data: patrData }] = await Promise.all([
+      sb.from('stock_movements').select('quantity,ministry:ministries(id,name),product:products(name,category)')
+        .eq('church_id', church_id).eq('type', 'out').not('ministry_id', 'is', null)
+        .gte('created_at', (() => { const d = new Date(); d.setDate(d.getDate() - parseInt(minPeriod)); return d.toISOString() })()),
+      sb.from('stock_movements').select('quantity,event:events(id,name,event_date),product:products(name,category)')
+        .eq('church_id', church_id).eq('type', 'out').not('event_id', 'is', null)
+        .gte('created_at', (() => { const d = new Date(); d.setDate(d.getDate() - parseInt(eventosPeriod)); return d.toISOString() })()),
+      sb.from('stock_movements').select('id,unit_cost,supplier,quantity,created_at,product:products(id,name,category)')
+        .eq('church_id', church_id).eq('type', 'in').not('unit_cost', 'is', null).order('created_at', { ascending: false }).limit(200),
+      sb.from('audit_log').select('id,action,entity,description,created_at,user:profiles(name,email)')
+        .eq('church_id', church_id).gte('created_at', auditDateFrom).lte('created_at', auditDateTo + 'T23:59:59.999Z').order('created_at', { ascending: false }).limit(500),
+      sb.from('patrimonio').select('*,ministry:ministries(name)').eq('church_id', church_id).eq('is_active', true),
+    ])
+
+    const minMap: Record<string, { name: string; produtos: Record<string, number> }> = {}
+    ;(minData || []).forEach((m: any) => {
+      const key = m.ministry?.id || 'none'
+      if (!minMap[key]) minMap[key] = { name: m.ministry?.name || 'Sem ministério', produtos: {} }
+      const prod = m.product?.name || 'Desconhecido'
+      minMap[key].produtos[prod] = (minMap[key].produtos[prod] || 0) + m.quantity
+    })
+
+    const evMap: Record<string, { name: string; date: string | null; produtos: Record<string, number> }> = {}
+    ;(evData || []).forEach((m: any) => {
+      const key = m.event?.id || 'none'
+      if (!evMap[key]) evMap[key] = { name: m.event?.name || 'Sem evento', date: m.event?.event_date || null, produtos: {} }
+      const prod = m.product?.name || 'Desconhecido'
+      evMap[key].produtos[prod] = (evMap[key].produtos[prod] || 0) + m.quantity
+    })
+
+    const patrItemsFresh = patrData || []
+    const patrPorCategoriaFresh = Object.values(patrItemsFresh.reduce((acc: any, p: any) => {
+      const c = p.category || 'Sem categoria'
+      if (!acc[c]) acc[c] = { categoria: c, qtd: 0, atual: 0 }
+      acc[c].qtd++; acc[c].atual += valorAtual(p)
+      return acc
+    }, {} as Record<string, any>))
+
+    const blocks: ReportBlock[] = [
+      {
+        title: 'Inventário',
+        columns: [{ key: 'name', label: 'Produto' }, { key: 'category', label: 'Categoria' }, { key: 'qty', label: 'Quantidade' }, { key: 'min', label: 'Mínimo' }, { key: 'status', label: 'Status' }],
+        rows: filteredProds.map(p => ({ name: p.name, category: p.category || '—', qty: getQty(p.id), min: p.min_stock, status: getQty(p.id) === 0 ? 'Zerado' : getQty(p.id) <= p.min_stock ? 'Baixo' : 'OK' })),
+      },
+      {
+        title: 'Críticos',
+        columns: [{ key: 'name', label: 'Produto' }, { key: 'category', label: 'Categoria' }, { key: 'qty', label: 'Qtd atual' }, { key: 'min', label: 'Mínimo' }],
+        rows: critical.map(p => ({ name: p.name, category: p.category || '—', qty: getQty(p.id), min: p.min_stock })),
+      },
+      {
+        title: 'Movimentações',
+        columns: [{ key: 'date', label: 'Data' }, { key: 'name', label: 'Produto' }, { key: 'type', label: 'Tipo' }, { key: 'qty', label: 'Qtd' }, { key: 'loc', label: 'Depósito' }],
+        rows: filteredMovs.map((m: any) => ({ date: new Date(m.created_at).toLocaleDateString('pt-BR'), name: m.product?.name || '—', type: m.type === 'in' ? 'Entrada' : m.type === 'out' ? 'Saída' : 'Ajuste', qty: m.quantity, loc: m.location?.name || '—' })),
+      },
+      {
+        title: 'Depósitos',
+        columns: [{ key: 'loc', label: 'Depósito' }, { key: 'entradas', label: 'Entradas' }, { key: 'saidas', label: 'Saídas' }, { key: 'total', label: 'Total' }],
+        rows: Object.entries(locMap).map(([loc, d]) => ({ loc, entradas: d.entradas, saidas: d.saidas, total: d.total })),
+      },
+      {
+        title: 'Consumo',
+        columns: [{ key: 'name', label: 'Produto' }, { key: 'qty', label: 'Total movimentado' }],
+        rows: Object.entries(prodMap).sort(([, a], [, b]) => b - a).map(([name, qty]) => ({ name, qty })),
+      },
+      {
+        title: 'Ministérios',
+        columns: [{ key: 'ministry', label: 'Ministério' }, { key: 'product', label: 'Produto' }, { key: 'qty', label: 'Total consumido' }],
+        rows: Object.values(minMap).flatMap(m => Object.entries(m.produtos).map(([product, qty]) => ({ ministry: m.name, product, qty }))),
+      },
+      {
+        title: 'Eventos',
+        columns: [{ key: 'event', label: 'Evento' }, { key: 'date', label: 'Data' }, { key: 'product', label: 'Produto' }, { key: 'qty', label: 'Total consumido' }],
+        rows: Object.values(evMap).flatMap(ev => Object.entries(ev.produtos).map(([product, qty]) => ({ event: ev.name, date: ev.date ? new Date(ev.date + 'T12:00:00').toLocaleDateString('pt-BR') : '—', product, qty }))),
+      },
+      {
+        title: 'Preços',
+        columns: [{ key: 'date', label: 'Data' }, { key: 'name', label: 'Produto' }, { key: 'supplier', label: 'Fornecedor' }, { key: 'qty', label: 'Qtd' }, { key: 'unit', label: 'Valor unit.' }],
+        rows: (precosData || []).map((r: any) => ({ date: new Date(r.created_at).toLocaleDateString('pt-BR'), name: r.product?.name || '—', supplier: r.supplier || '—', qty: r.quantity, unit: 'R$ ' + Number(r.unit_cost).toFixed(2) })),
+      },
+      {
+        title: 'Auditoria',
+        columns: [{ key: 'date', label: 'Data' }, { key: 'action', label: 'Ação' }, { key: 'entity', label: 'Entidade' }, { key: 'desc', label: 'Descrição' }],
+        rows: (auditData || []).map((a: any) => ({ date: new Date(a.created_at).toLocaleString('pt-BR'), action: a.action, entity: a.entity, desc: a.description || '—' })),
+      },
+      {
+        title: 'Patrimônio por categoria',
+        columns: [{ key: 'categoria', label: 'Categoria' }, { key: 'qtd', label: 'Qtd' }, { key: 'atual', label: 'Valor atual' }],
+        rows: patrPorCategoriaFresh.map((c: any) => ({ categoria: c.categoria, qtd: c.qtd, atual: fmtBRL(c.atual) })),
+      },
+    ]
+    return blocks
+  }
+
+  async function exportEstoqueCompletoExcel() {
+    setExportingAll(true)
+    try {
+      const blocks = await buildEstoqueBlocks()
+      await exportBlocksToExcel(blocks, `relatorio-estoque-completo-${todayStamp()}.xlsx`)
+    } finally { setExportingAll(false) }
+  }
+  async function exportEstoqueCompletoPDF() {
+    setExportingAll(true)
+    try {
+      const blocks = await buildEstoqueBlocks()
+      await exportBlocksToPDF(blocks, { filename: `relatorio-estoque-completo-${todayStamp()}.pdf`, reportTitle: 'Relatório completo — Estoque', churchName: profile?.church?.name || 'Poiema', period: `${dateFrom} a ${dateTo}` })
+    } finally { setExportingAll(false) }
   }
 
   const L = { display:'block' as const, fontSize:'11px', color:'var(--text-3)', marginBottom:'5px' }
@@ -613,17 +759,29 @@ export default function RelatoriosPage() {
           <h1 style={{ fontSize:'22px', fontWeight:'600' }}>Relatórios</h1>
           <p style={{ fontSize:'13px', color:'var(--text-3)', marginTop:'4px' }}>{view === 'estoque' ? 'Analise e exporte dados do estoque' : 'Relatórios da igreja: membros, ministérios, grupos e eventos'}</p>
         </div>
-        {isAdmin && (
-          <div style={{ display:'flex', gap:'4px', background:'var(--bg-card)', border:'1px solid var(--border)', borderRadius:'var(--radius-sm)', padding:'3px' }}>
-            {(['estoque','igreja'] as const).map(v => (
-              <button key={v} onClick={() => setView(v)} style={{
-                padding:'7px 16px', borderRadius:'6px', cursor:'pointer', fontSize:'13px', fontWeight:'500',
-                background: view===v ? 'var(--brand)' : 'transparent',
-                color: view===v ? '#fff' : 'var(--text-2)', border:'none',
-              }}>{v === 'estoque' ? 'Estoque' : 'Igreja'}</button>
-            ))}
-          </div>
-        )}
+        <div style={{ display:'flex', gap:'10px', alignItems:'center', flexWrap:'wrap' }}>
+          {view === 'estoque' && (
+            <div style={{ display:'flex', gap:'8px' }}>
+              <button onClick={exportEstoqueCompletoExcel} disabled={exportingAll} style={{ padding:'8px 16px', borderRadius:'var(--radius-sm)', background:'var(--bg-card)', border:'1px solid var(--border)', color:'var(--text-2)', fontSize:'13px', cursor: exportingAll ? 'not-allowed' : 'pointer', opacity: exportingAll ? 0.6 : 1 }}>
+                {exportingAll ? 'Gerando...' : 'Exportar relatório completo (Excel)'}
+              </button>
+              <button onClick={exportEstoqueCompletoPDF} disabled={exportingAll} style={{ padding:'8px 16px', borderRadius:'var(--radius-sm)', background:'var(--bg-card)', border:'1px solid var(--border)', color:'var(--text-2)', fontSize:'13px', cursor: exportingAll ? 'not-allowed' : 'pointer', opacity: exportingAll ? 0.6 : 1 }}>
+                {exportingAll ? 'Gerando...' : 'Exportar relatório completo (PDF)'}
+              </button>
+            </div>
+          )}
+          {isAdmin && (
+            <div style={{ display:'flex', gap:'4px', background:'var(--bg-card)', border:'1px solid var(--border)', borderRadius:'var(--radius-sm)', padding:'3px' }}>
+              {(['estoque','igreja'] as const).map(v => (
+                <button key={v} onClick={() => setView(v)} style={{
+                  padding:'7px 16px', borderRadius:'6px', cursor:'pointer', fontSize:'13px', fontWeight:'500',
+                  background: view===v ? 'var(--brand)' : 'transparent',
+                  color: view===v ? '#fff' : 'var(--text-2)', border:'none',
+                }}>{v === 'estoque' ? 'Estoque' : 'Igreja'}</button>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       {view === 'igreja' && isAdmin ? (
