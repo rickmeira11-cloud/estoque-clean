@@ -2,6 +2,9 @@
 import { useEffect, useState, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useProfile } from '@/hooks/useProfile'
+import dynamic from 'next/dynamic'
+const RelatoriosBarChart = dynamic(() => import('@/components/charts/RelatoriosBarChart'), { ssr: false })
+const IgrejaTrendLineChart = dynamic(() => import('@/components/charts/IgrejaTrendLineChart'), { ssr: false })
 
 type Tab = 'membros' | 'ministerios' | 'grupos' | 'eventos'
 const TABS: { id: Tab; label: string }[] = [
@@ -11,15 +14,18 @@ const TABS: { id: Tab; label: string }[] = [
   { id: 'eventos',     label: 'Eventos' },
 ]
 
-type Member = { id: string; full_name: string; is_active: boolean; neighborhood: string | null; birth_date: string | null; phone: string | null; wants_to_serve_other_ministry: string | null }
+const TRILHA_NAMES = ['Curso de Noivos', 'Curso de Finanças', 'Timothy', 'Bereanos', 'Leadersheep']
+
+type Member = { id: string; full_name: string; is_active: boolean; neighborhood: string | null; birth_date: string | null; phone: string | null; wants_to_serve_other_ministry: string | null; submitted_at: string | null }
 type Ministry = { id: string; name: string; is_active: boolean }
-type MinistryMember = { ministry_id: string; member_id: string; is_active: boolean }
+type MinistryMember = { ministry_id: string; member_id: string; is_active: boolean; role: string }
 type SmallGroup = { id: string; name: string; is_active: boolean }
-type GroupMember = { small_group_id: string; member_id: string }
+type GroupMember = { small_group_id: string; member_id: string; role: string }
 type EventType = { id: string; name: string }
 type EventTypeField = { id: string; event_type_id: string; field_key: string; label: string; field_type: string }
 type EventRow = { id: string; name: string; event_date: string | null; event_type_id: string | null }
 type Attachment = { id: string; event_id: string; file_url: string; file_name: string }
+type TrilhaFieldMember = { event_id: string; field_id: string; member_id: string }
 
 const MONTHS = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro']
 
@@ -57,7 +63,12 @@ export default function IgrejaReports() {
   const [eventTypes, setEventTypes] = useState<EventType[]>([])
   const [loading, setLoading] = useState(true)
 
+  const [trilhaEvents, setTrilhaEvents] = useState<EventRow[]>([])
+  const [trilhaFields, setTrilhaFields] = useState<EventTypeField[]>([])
+  const [trilhaFieldMembers, setTrilhaFieldMembers] = useState<TrilhaFieldMember[]>([])
+
   const [birthMonth, setBirthMonth] = useState(new Date().getMonth() + 1)
+  const [growthPeriod, setGrowthPeriod] = useState<'6m' | '12m' | 'year'>('6m')
 
   useEffect(() => { if (profile?.church_id) loadBase() }, [profile?.church_id])
 
@@ -68,11 +79,11 @@ export default function IgrejaReports() {
       { data: mem }, { data: mins }, { data: minMem },
       { data: groups }, { data: grpMem }, { data: types },
     ] = await Promise.all([
-      sb.from('members').select('id, full_name, is_active, neighborhood, birth_date, phone, wants_to_serve_other_ministry').eq('church_id', profile!.church_id),
+      sb.from('members').select('id, full_name, is_active, neighborhood, birth_date, phone, wants_to_serve_other_ministry, submitted_at').eq('church_id', profile!.church_id),
       sb.from('ministries').select('id, name, is_active').eq('church_id', profile!.church_id),
-      sb.from('ministry_members').select('ministry_id, member_id, is_active'),
+      sb.from('ministry_members').select('ministry_id, member_id, is_active, role'),
       sb.from('small_groups').select('id, name, is_active').eq('church_id', profile!.church_id),
-      sb.from('small_group_members').select('small_group_id, member_id'),
+      sb.from('small_group_members').select('small_group_id, member_id, role'),
       sb.from('event_types').select('id, name').eq('church_id', profile!.church_id),
     ])
     setMembers(mem || [])
@@ -81,6 +92,24 @@ export default function IgrejaReports() {
     setSmallGroups(groups || [])
     setGroupMembers(grpMem || [])
     setEventTypes(types || [])
+
+    const trilhaTypeIds = (types || []).filter((t: any) => TRILHA_NAMES.includes(t.name)).map((t: any) => t.id)
+    if (trilhaTypeIds.length) {
+      const [{ data: tEvents }, { data: tFields }] = await Promise.all([
+        sb.from('events').select('id, name, event_date, event_type_id').in('event_type_id', trilhaTypeIds),
+        sb.from('event_type_fields').select('id, event_type_id, field_key, label, field_type').in('event_type_id', trilhaTypeIds).eq('field_type', 'member_relation'),
+      ])
+      setTrilhaEvents(tEvents || [])
+      setTrilhaFields(tFields || [])
+      const eventIds = (tEvents || []).map((e: any) => e.id)
+      if (eventIds.length) {
+        const { data: tfm } = await sb.from('event_field_members').select('event_id, field_id, member_id').in('event_id', eventIds)
+        setTrilhaFieldMembers(tfm || [])
+      } else setTrilhaFieldMembers([])
+    } else {
+      setTrilhaEvents([]); setTrilhaFields([]); setTrilhaFieldMembers([])
+    }
+
     setLoading(false)
   }
 
@@ -155,6 +184,99 @@ export default function IgrejaReports() {
     }).sort((a, b) => b.count - a.count)
   }, [activeGroups, groupMembers, memberNameById, memberById])
 
+  // F: crescimento de membros por período
+  const growthData = useMemo(() => {
+    const months = growthPeriod === '6m' ? 6 : 12
+    const now = new Date()
+    const buckets: { key: string; label: string; value: number }[] = []
+    if (growthPeriod === 'year') {
+      const year = now.getFullYear()
+      for (let m = 0; m < 12; m++) buckets.push({ key: `${year}-${String(m + 1).padStart(2, '0')}`, label: MONTHS[m].slice(0, 3), value: 0 })
+    } else {
+      for (let i = months - 1; i >= 0; i--) {
+        const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
+        buckets.push({ key: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`, label: `${MONTHS[d.getMonth()].slice(0, 3)}/${String(d.getFullYear()).slice(2)}`, value: 0 })
+      }
+    }
+    const byKey: Record<string, number> = {}
+    buckets.forEach(b => { byKey[b.key] = 0 })
+    members.forEach(m => {
+      if (!m.submitted_at) return
+      const key = m.submitted_at.slice(0, 7)
+      if (key in byKey) byKey[key]++
+    })
+    return buckets.map(b => ({ name: b.label, value: byKey[b.key] }))
+  }, [members, growthPeriod])
+
+  // F: tempo de casa
+  const tempoCasa = useMemo(() => {
+    const now = Date.now()
+    const withDays = activeMembers
+      .filter(m => m.submitted_at)
+      .map(m => ({ ...m, days: Math.floor((now - new Date(m.submitted_at!).getTime()) / 86400000) }))
+    const menos3m = withDays.filter(m => m.days < 90)
+    const menos6m = withDays.filter(m => m.days < 180).sort((a, b) => a.days - b.days)
+    return { menos3m: menos3m.length, menos6m: menos6m.length, lista: menos6m }
+  }, [activeMembers])
+
+  // F: dupla ausência (sem ministério E sem 2ou+)
+  const duplaAusencia = useMemo(
+    () => activeMembers.filter(m => !activeMinistryMemberIds.has(m.id) && !activeGroupMemberIds.has(m.id)),
+    [activeMembers, activeMinistryMemberIds, activeGroupMemberIds]
+  )
+
+  // F: ministérios e grupos sem líder
+  const ministriesSemLider = useMemo(() => {
+    const comLider = new Set(ministryMembers.filter(mm => mm.role === 'lider').map(mm => mm.ministry_id))
+    return ministries.filter(m => m.is_active && !comLider.has(m.id))
+  }, [ministries, ministryMembers])
+
+  const groupsSemLider = useMemo(() => {
+    const comLider = new Set(groupMembers.filter(gm => gm.role === 'leader').map(gm => gm.small_group_id))
+    return activeGroups.filter(g => !comLider.has(g.id))
+  }, [activeGroups, groupMembers])
+
+  // F: trilhas formativas
+  const trilhas = useMemo(() => {
+    const fieldIdsByType: Record<string, string[]> = {}
+    trilhaFields.forEach(f => { (fieldIdsByType[f.event_type_id] ||= []).push(f.id) })
+    const participantsAll = new Set<string>()
+    const result = TRILHA_NAMES.map(name => {
+      const type = eventTypes.find(t => t.name === name)
+      if (!type) return { name, exists: false, memberIds: [] as string[], rows: [] as { id: string; name: string }[] }
+      const eventIds = new Set(trilhaEvents.filter(e => e.event_type_id === type.id).map(e => e.id))
+      const fieldIds = new Set(fieldIdsByType[type.id] || [])
+      const memberIds = [...new Set(trilhaFieldMembers.filter(fm => eventIds.has(fm.event_id) && fieldIds.has(fm.field_id)).map(fm => fm.member_id))]
+      memberIds.forEach(id => participantsAll.add(id))
+      const rows = memberIds.map(id => ({ id, name: memberNameById[id] || id })).sort((a, b) => a.name.localeCompare(b.name))
+      return { name, exists: true, memberIds, rows }
+    })
+    const semTrilha = activeMembers.filter(m => !participantsAll.has(m.id))
+    return { tracks: result, semTrilha }
+  }, [eventTypes, trilhaEvents, trilhaFields, trilhaFieldMembers, memberNameById, activeMembers])
+
+  // F: faixa etária
+  const faixaEtaria = useMemo(() => {
+    const ranges: { label: string; min: number; max: number }[] = [
+      { label: '0-12', min: 0, max: 12 }, { label: '13-17', min: 13, max: 17 },
+      { label: '18-25', min: 18, max: 25 }, { label: '26-40', min: 26, max: 40 },
+      { label: '41-60', min: 41, max: 60 }, { label: '60+', min: 61, max: 999 },
+    ]
+    const counts = ranges.map(r => ({ name: r.label, value: 0, min: r.min, max: r.max }))
+    let semData = 0
+    const today = new Date()
+    activeMembers.forEach(m => {
+      if (!m.birth_date) { semData++; return }
+      const bd = new Date(m.birth_date + 'T12:00:00')
+      let age = today.getFullYear() - bd.getFullYear()
+      const hasHadBirthday = (today.getMonth() > bd.getMonth()) || (today.getMonth() === bd.getMonth() && today.getDate() >= bd.getDate())
+      if (!hasHadBirthday) age--
+      const bucket = counts.find(c => age >= c.min && age <= c.max)
+      if (bucket) bucket.value++
+    })
+    return { data: counts.map(({ name, value }) => ({ name, value })), semData }
+  }, [activeMembers])
+
   if (loading) {
     return <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>{[1,2,3].map(i => <div key={i} className="skeleton" style={{ height: '48px', borderRadius: '8px' }}/>)}</div>
   }
@@ -197,8 +319,8 @@ export default function IgrejaReports() {
             </div>
             {birthdays.length === 0 ? <Notice>Nenhum aniversariante em {MONTHS[birthMonth - 1]}.</Notice> : (
               <table style={miniTable}>
-                <thead><tr><th style={thStyle}>Dia</th><th style={thStyle}>Nome</th></tr></thead>
-                <tbody>{birthdays.map(m => <tr key={m.id}><td style={tdStyle}>{m.day}</td><td style={tdStyle}>{m.full_name}</td></tr>)}</tbody>
+                <thead><tr><th style={thStyle}>Dia</th><th style={thStyle}>Nome</th><th style={thStyle}>Telefone</th></tr></thead>
+                <tbody>{birthdays.map(m => <tr key={m.id}><td style={tdStyle}>{m.day}</td><td style={tdStyle}>{m.full_name}</td><td style={tdStyle}>{m.phone || '—'}</td></tr>)}</tbody>
               </table>
             )}
           </div>
@@ -233,6 +355,85 @@ export default function IgrejaReports() {
             {membersWithoutGroup.length === 0 ? <Notice>Todos os membros ativos estão em algum grupo.</Notice> : (
               <NameListTable header="Nome" names={membersWithoutGroup.map(m => m.full_name)} />
             )}
+          </div>
+
+          <div style={panelStyle}>
+            <span style={panelTitle}>Dupla ausência — sem ministério e sem 2ou+ ({duplaAusencia.length})</span>
+            {duplaAusencia.length === 0 ? <Notice>Nenhum membro ativo está ausente das duas frentes ao mesmo tempo.</Notice> : (
+              <NameListTable header="Nome" names={duplaAusencia.map(m => m.full_name)} />
+            )}
+          </div>
+
+          <div style={panelStyle}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+              <span style={panelTitle}>Crescimento — novos membros por período</span>
+              <select value={growthPeriod} onChange={e => setGrowthPeriod(e.target.value as any)}>
+                <option value="6m">Últimos 6 meses</option>
+                <option value="12m">Últimos 12 meses</option>
+                <option value="year">Este ano</option>
+              </select>
+            </div>
+            {growthData.every(g => g.value === 0) ? <Notice>Sem dados de cadastro (submitted_at) no período.</Notice> : (
+              <div style={{ height: 240 }}>
+                <RelatoriosBarChart data={growthData} layout="horizontal" barSize={24}/>
+              </div>
+            )}
+          </div>
+
+          <div style={panelStyle}>
+            <span style={panelTitle}>Tempo de casa</span>
+            <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', marginBottom: '14px' }}>
+              <div style={{ flex: 1, minWidth: '140px' }}>
+                <div style={{ fontSize: '12px', color: 'var(--text-3)' }}>Menos de 3 meses</div>
+                <div style={{ fontSize: '24px', fontWeight: '700', color: 'var(--brand-light)' }}>{tempoCasa.menos3m}</div>
+              </div>
+              <div style={{ flex: 1, minWidth: '140px' }}>
+                <div style={{ fontSize: '12px', color: 'var(--text-3)' }}>Menos de 6 meses</div>
+                <div style={{ fontSize: '24px', fontWeight: '700', color: 'var(--brand-light)' }}>{tempoCasa.menos6m}</div>
+              </div>
+            </div>
+            {tempoCasa.lista.length === 0 ? <Notice>Nenhum membro recente (últimos 6 meses).</Notice> : (
+              <table style={miniTable}>
+                <thead><tr><th style={thStyle}>Nome</th><th style={thStyle}>Telefone</th><th style={thStyle}>Dias de casa</th></tr></thead>
+                <tbody>
+                  {tempoCasa.lista.map(m => (
+                    <tr key={m.id}><td style={tdStyle}>{m.full_name}</td><td style={tdStyle}>{m.phone || '—'}</td><td style={tdStyle}>{m.days}</td></tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+
+          <div style={panelStyle}>
+            <span style={panelTitle}>Distribuição por faixa etária {faixaEtaria.semData > 0 && `(${faixaEtaria.semData} sem data de nascimento informada)`}</span>
+            <div style={{ height: 220 }}>
+              <RelatoriosBarChart data={faixaEtaria.data} layout="horizontal" barSize={28}/>
+            </div>
+          </div>
+
+          <div style={panelStyle}>
+            <span style={panelTitle}>Trilhas formativas</span>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+              {trilhas.tracks.map(t => (
+                <div key={t.name}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '6px' }}>
+                    <span style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-1)' }}>{t.name}</span>
+                    {t.exists && <span style={{ fontSize: '12px', color: 'var(--text-3)' }}>{t.memberIds.length} membro{t.memberIds.length !== 1 ? 's' : ''}</span>}
+                  </div>
+                  {!t.exists ? <Notice>Tipo de evento "{t.name}" não encontrado em Tipos de Evento.</Notice>
+                    : t.rows.length === 0 ? <Notice>Nenhum membro vinculado ainda.</Notice>
+                    : <NameListTable header="Nome" names={t.rows.map(r => r.name)} />}
+                </div>
+              ))}
+              <div>
+                <div style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-1)', marginBottom: '6px' }}>
+                  Membros sem nenhuma trilha formativa ({trilhas.semTrilha.length})
+                </div>
+                {trilhas.semTrilha.length === 0 ? <Notice>Todos os membros ativos já participaram de alguma trilha.</Notice> : (
+                  <NameListTable header="Nome" names={trilhas.semTrilha.map(m => m.full_name)} />
+                )}
+              </div>
+            </div>
           </div>
         </div>
       )}
@@ -269,6 +470,12 @@ export default function IgrejaReports() {
                   </div>
                 ))}
               </div>
+            )}
+          </div>
+          <div style={panelStyle}>
+            <span style={panelTitle}>Ministérios ativos sem líder ({ministriesSemLider.length})</span>
+            {ministriesSemLider.length === 0 ? <Notice>Todos os ministérios ativos têm ao menos um líder.</Notice> : (
+              <NameListTable header="Ministério" names={ministriesSemLider.map(m => m.name)} />
             )}
           </div>
           <div style={panelStyle}>
@@ -325,6 +532,12 @@ export default function IgrejaReports() {
                   </div>
                 ))}
               </div>
+            )}
+          </div>
+          <div style={panelStyle}>
+            <span style={panelTitle}>Grupos ativos sem líder ({groupsSemLider.length})</span>
+            {groupsSemLider.length === 0 ? <Notice>Todos os grupos ativos têm ao menos um líder.</Notice> : (
+              <NameListTable header="Grupo" names={groupsSemLider.map(g => g.name)} />
             )}
           </div>
           <div style={panelStyle}>
@@ -526,6 +739,12 @@ function EventosReport({ eventTypes }: { eventTypes: EventType[] }) {
               : cultoChartData.length === 0 ? <Notice>Nenhum culto no período.</Notice>
               : (
                 <>
+                  <div style={{ height: 240, marginBottom: '16px' }}>
+                    <IgrejaTrendLineChart
+                      data={cultoChartData.map(c => ({ label: c.label, adultos: c.adultos, criancas: c.criancas, total: c.adultos + c.criancas }))}
+                      lines={[{ key: 'adultos', label: 'Adultos' }, { key: 'criancas', label: 'Crianças' }, { key: 'total', label: 'Total' }]}
+                    />
+                  </div>
                   <table style={miniTable}>
                     <thead><tr><th style={thStyle}>Evento</th><th style={thStyle}>Data</th><th style={thStyle}>Adultos</th><th style={thStyle}>Crianças</th><th style={thStyle}>Total</th></tr></thead>
                     <tbody>
