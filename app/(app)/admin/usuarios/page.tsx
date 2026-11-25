@@ -170,7 +170,7 @@ export default function UsuariosPage() {
     : users
 
   return (
-    <div style={{ maxWidth: '800px' }}>
+    <div style={{ maxWidth: '1100px' }}>
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:'24px', gap:'12px' }}>
         <div><h1 style={{ fontSize:'22px', fontWeight:'600' }}>Usuarios</h1><p style={{ fontSize:'13px', color:'var(--text-3)', marginTop:'4px' }}>Gerencie acessos e vinculos com igrejas</p></div>
         <div style={{ display: 'flex', gap: '8px', flexShrink: 0 }}>
@@ -294,8 +294,8 @@ export default function UsuariosPage() {
       ) : filteredUsers.length === 0 ? (
         <div style={{ textAlign:'center', padding:'40px', fontSize:'13px', color:'var(--text-3)', background:'var(--bg-card)', border:'1px solid var(--border)', borderRadius:'12px' }}>Nenhum usuario encontrado para essa busca.</div>
       ) : viewMode === 'list' ? (
-        <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px', overflow: 'hidden' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+        <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px', overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px', minWidth: '720px' }}>
             <thead>
               <tr style={{ borderBottom: '1px solid var(--border)' }}>
                 <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: '11px', color: 'var(--text-3)', fontWeight: '500', width: '36px' }}></th>
