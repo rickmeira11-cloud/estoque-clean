@@ -14,8 +14,6 @@ const TABS: { id: Tab; label: string }[] = [
   { id: 'eventos',     label: 'Eventos' },
 ]
 
-const TRILHA_NAMES = ['Curso de Noivos', 'Curso de Finanças', 'Timothy', 'Bereanos', 'Leadersheep']
-
 type Member = { id: string; full_name: string; is_active: boolean; neighborhood: string | null; birth_date: string | null; phone: string | null; wants_to_serve_other_ministry: string | null; submitted_at: string | null }
 type Ministry = { id: string; name: string; is_active: boolean }
 type MinistryMember = { ministry_id: string; member_id: string; is_active: boolean; role: string }
@@ -25,7 +23,6 @@ type EventType = { id: string; name: string }
 type EventTypeField = { id: string; event_type_id: string; field_key: string; label: string; field_type: string }
 type EventRow = { id: string; name: string; event_date: string | null; event_type_id: string | null }
 type Attachment = { id: string; event_id: string; file_url: string; file_name: string }
-type TrilhaFieldMember = { event_id: string; field_id: string; member_id: string }
 
 const MONTHS = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro']
 
@@ -63,10 +60,6 @@ export default function IgrejaReports() {
   const [eventTypes, setEventTypes] = useState<EventType[]>([])
   const [loading, setLoading] = useState(true)
 
-  const [trilhaEvents, setTrilhaEvents] = useState<EventRow[]>([])
-  const [trilhaFields, setTrilhaFields] = useState<EventTypeField[]>([])
-  const [trilhaFieldMembers, setTrilhaFieldMembers] = useState<TrilhaFieldMember[]>([])
-
   const [birthMonth, setBirthMonth] = useState(new Date().getMonth() + 1)
   const [growthPeriod, setGrowthPeriod] = useState<'6m' | '12m' | 'year'>('6m')
 
@@ -92,23 +85,6 @@ export default function IgrejaReports() {
     setSmallGroups(groups || [])
     setGroupMembers(grpMem || [])
     setEventTypes(types || [])
-
-    const trilhaTypeIds = (types || []).filter((t: any) => TRILHA_NAMES.includes(t.name)).map((t: any) => t.id)
-    if (trilhaTypeIds.length) {
-      const [{ data: tEvents }, { data: tFields }] = await Promise.all([
-        sb.from('events').select('id, name, event_date, event_type_id').in('event_type_id', trilhaTypeIds),
-        sb.from('event_type_fields').select('id, event_type_id, field_key, label, field_type').in('event_type_id', trilhaTypeIds).eq('field_type', 'member_relation'),
-      ])
-      setTrilhaEvents(tEvents || [])
-      setTrilhaFields(tFields || [])
-      const eventIds = (tEvents || []).map((e: any) => e.id)
-      if (eventIds.length) {
-        const { data: tfm } = await sb.from('event_field_members').select('event_id, field_id, member_id').in('event_id', eventIds)
-        setTrilhaFieldMembers(tfm || [])
-      } else setTrilhaFieldMembers([])
-    } else {
-      setTrilhaEvents([]); setTrilhaFields([]); setTrilhaFieldMembers([])
-    }
 
     setLoading(false)
   }
@@ -235,25 +211,6 @@ export default function IgrejaReports() {
     const comLider = new Set(groupMembers.filter(gm => gm.role === 'leader').map(gm => gm.small_group_id))
     return activeGroups.filter(g => !comLider.has(g.id))
   }, [activeGroups, groupMembers])
-
-  // F: trilhas formativas
-  const trilhas = useMemo(() => {
-    const fieldIdsByType: Record<string, string[]> = {}
-    trilhaFields.forEach(f => { (fieldIdsByType[f.event_type_id] ||= []).push(f.id) })
-    const participantsAll = new Set<string>()
-    const result = TRILHA_NAMES.map(name => {
-      const type = eventTypes.find(t => t.name === name)
-      if (!type) return { name, exists: false, memberIds: [] as string[], rows: [] as { id: string; name: string }[] }
-      const eventIds = new Set(trilhaEvents.filter(e => e.event_type_id === type.id).map(e => e.id))
-      const fieldIds = new Set(fieldIdsByType[type.id] || [])
-      const memberIds = [...new Set(trilhaFieldMembers.filter(fm => eventIds.has(fm.event_id) && fieldIds.has(fm.field_id)).map(fm => fm.member_id))]
-      memberIds.forEach(id => participantsAll.add(id))
-      const rows = memberIds.map(id => ({ id, name: memberNameById[id] || id })).sort((a, b) => a.name.localeCompare(b.name))
-      return { name, exists: true, memberIds, rows }
-    })
-    const semTrilha = activeMembers.filter(m => !participantsAll.has(m.id))
-    return { tracks: result, semTrilha }
-  }, [eventTypes, trilhaEvents, trilhaFields, trilhaFieldMembers, memberNameById, activeMembers])
 
   // F: faixa etária
   const faixaEtaria = useMemo(() => {
@@ -411,30 +368,6 @@ export default function IgrejaReports() {
             </div>
           </div>
 
-          <div style={panelStyle}>
-            <span style={panelTitle}>Trilhas formativas</span>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
-              {trilhas.tracks.map(t => (
-                <div key={t.name}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '6px' }}>
-                    <span style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-1)' }}>{t.name}</span>
-                    {t.exists && <span style={{ fontSize: '12px', color: 'var(--text-3)' }}>{t.memberIds.length} membro{t.memberIds.length !== 1 ? 's' : ''}</span>}
-                  </div>
-                  {!t.exists ? <Notice>Tipo de evento "{t.name}" não encontrado em Tipos de Evento.</Notice>
-                    : t.rows.length === 0 ? <Notice>Nenhum membro vinculado ainda.</Notice>
-                    : <NameListTable header="Nome" names={t.rows.map(r => r.name)} />}
-                </div>
-              ))}
-              <div>
-                <div style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-1)', marginBottom: '6px' }}>
-                  Membros sem nenhuma trilha formativa ({trilhas.semTrilha.length})
-                </div>
-                {trilhas.semTrilha.length === 0 ? <Notice>Todos os membros ativos já participaram de alguma trilha.</Notice> : (
-                  <NameListTable header="Nome" names={trilhas.semTrilha.map(m => m.full_name)} />
-                )}
-              </div>
-            </div>
-          </div>
         </div>
       )}
 
