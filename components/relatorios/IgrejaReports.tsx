@@ -34,6 +34,17 @@ function Notice({ children }: { children: React.ReactNode }) {
   return <div style={{ padding: '10px 14px', borderRadius: '8px', background: 'var(--bg-3)', border: '1px solid var(--border)', color: 'var(--text-3)', fontSize: '13px' }}>{children}</div>
 }
 
+function NameListTable({ header, names }: { header: string; names: string[] }) {
+  return (
+    <table style={miniTable}>
+      <thead><tr><th style={thStyle}>{header}</th></tr></thead>
+      <tbody>
+        {[...names].sort((a, b) => a.localeCompare(b)).map((name, i) => <tr key={i}><td style={tdStyle}>{name}</td></tr>)}
+      </tbody>
+    </table>
+  )
+}
+
 export default function IgrejaReports() {
   const { profile } = useProfile()
   const [tab, setTab] = useState<Tab>('membros')
@@ -213,18 +224,14 @@ export default function IgrejaReports() {
           <div style={panelStyle}>
             <span style={panelTitle}>Membros sem ministério ({membersWithoutMinistry.length})</span>
             {membersWithoutMinistry.length === 0 ? <Notice>Todos os membros ativos estão em algum ministério.</Notice> : (
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                {membersWithoutMinistry.map(m => <span key={m.id} style={{ fontSize: '12px', padding: '4px 10px', borderRadius: '99px', background: 'var(--bg-3)', color: 'var(--text-2)' }}>{m.full_name}</span>)}
-              </div>
+              <NameListTable header="Nome" names={membersWithoutMinistry.map(m => m.full_name)} />
             )}
           </div>
 
           <div style={panelStyle}>
             <span style={panelTitle}>Membros sem 2ou+ ({membersWithoutGroup.length})</span>
             {membersWithoutGroup.length === 0 ? <Notice>Todos os membros ativos estão em algum grupo.</Notice> : (
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                {membersWithoutGroup.map(m => <span key={m.id} style={{ fontSize: '12px', padding: '4px 10px', borderRadius: '99px', background: 'var(--bg-3)', color: 'var(--text-2)' }}>{m.full_name}</span>)}
-              </div>
+              <NameListTable header="Nome" names={membersWithoutGroup.map(m => m.full_name)} />
             )}
           </div>
         </div>
@@ -267,9 +274,7 @@ export default function IgrejaReports() {
           <div style={panelStyle}>
             <span style={panelTitle}>Ministérios sem nenhum membro vinculado ({ministriesEmpty.length})</span>
             {ministriesEmpty.length === 0 ? <Notice>Todos os ministérios têm ao menos um membro.</Notice> : (
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                {ministriesEmpty.map(m => <span key={m.id} style={{ fontSize: '12px', padding: '4px 10px', borderRadius: '99px', background: 'var(--bg-3)', color: 'var(--text-2)' }}>{m.name}</span>)}
-              </div>
+              <NameListTable header="Ministério" names={ministriesEmpty.map(m => m.name)} />
             )}
           </div>
           <div style={panelStyle}>
@@ -325,9 +330,7 @@ export default function IgrejaReports() {
           <div style={panelStyle}>
             <span style={panelTitle}>Membros sem 2ou+ ({membersWithoutGroup.length})</span>
             {membersWithoutGroup.length === 0 ? <Notice>Todos os membros ativos estão em algum grupo.</Notice> : (
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                {membersWithoutGroup.map(m => <span key={m.id} style={{ fontSize: '12px', padding: '4px 10px', borderRadius: '99px', background: 'var(--bg-3)', color: 'var(--text-2)' }}>{m.full_name}</span>)}
-              </div>
+              <NameListTable header="Nome" names={membersWithoutGroup.map(m => m.full_name)} />
             )}
           </div>
         </div>
@@ -428,7 +431,7 @@ function EventosReport({ eventTypes }: { eventTypes: EventType[] }) {
     return cultoEvents.map(e => {
       const adultos = fieldValues.find(v => v.event_id === e.id && v.field_id === adultosField.id)?.value_number ?? 0
       const criancas = fieldValues.find(v => v.event_id === e.id && v.field_id === criancasField.id)?.value_number ?? 0
-      return { label: e.event_date ? new Date(e.event_date + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) : '—', adultos, criancas }
+      return { name: e.name, label: e.event_date ? new Date(e.event_date + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) : '—', adultos, criancas }
     })
   }, [cultoType, adultosField, criancasField, events, fieldValues])
 
@@ -524,10 +527,11 @@ function EventosReport({ eventTypes }: { eventTypes: EventType[] }) {
               : (
                 <>
                   <table style={miniTable}>
-                    <thead><tr><th style={thStyle}>Data</th><th style={thStyle}>Adultos</th><th style={thStyle}>Crianças</th><th style={thStyle}>Total</th></tr></thead>
+                    <thead><tr><th style={thStyle}>Evento</th><th style={thStyle}>Data</th><th style={thStyle}>Adultos</th><th style={thStyle}>Crianças</th><th style={thStyle}>Total</th></tr></thead>
                     <tbody>
                       {cultoChartData.map((c, i) => (
                         <tr key={i}>
+                          <td style={tdStyle}>{c.name}</td>
                           <td style={tdStyle}>{c.label}</td>
                           <td style={tdStyle}>{c.adultos}</td>
                           <td style={tdStyle}>{c.criancas}</td>
@@ -561,9 +565,7 @@ function EventosReport({ eventTypes }: { eventTypes: EventType[] }) {
                 {!membrosBatizadosField
                   ? <Notice>Nenhum campo de relação com membros configurado para o tipo Batismo.</Notice>
                   : batizadosList.length === 0 ? <Notice>Nenhum membro vinculado a batismos no período.</Notice> : (
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                      {batizadosList.map((b, i) => <span key={i} style={{ fontSize: '12px', padding: '4px 10px', borderRadius: '99px', background: 'var(--brand-dim)', color: 'var(--brand-light)' }}>{b.name}</span>)}
-                    </div>
+                    <NameListTable header="Nome" names={batizadosList.map(b => b.name)} />
                   )}
               </div>
             )}

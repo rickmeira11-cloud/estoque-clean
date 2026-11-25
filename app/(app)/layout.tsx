@@ -1,5 +1,6 @@
 ﻿'use client'
 import { TopNav } from '@/components/TopNav'
+import { ScrollToTop } from '@/components/ScrollToTop'
 import { useProfile } from '@/hooks/useProfile'
 import { useRouter, usePathname } from 'next/navigation'
 import { useEffect } from 'react'
@@ -26,6 +27,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           {children}
         </div>
       </main>
+      <ScrollToTop />
     </div>
   )
 }
