@@ -234,10 +234,6 @@ export default function MinisteriosAdminPage() {
             <button onClick={() => setViewMode('painel')} style={{ padding: '7px 12px', background: viewMode === 'painel' ? 'var(--bg-3)' : 'transparent', border: 'none', borderRight: '1px solid var(--border)', fontSize: '12px', color: viewMode === 'painel' ? 'var(--text-1)' : 'var(--text-3)', cursor: 'pointer' }}>Painel</button>
             <button onClick={() => setViewMode('lista')} style={{ padding: '7px 12px', background: viewMode === 'lista' ? 'var(--bg-3)' : 'transparent', border: 'none', fontSize: '12px', color: viewMode === 'lista' ? 'var(--text-1)' : 'var(--text-3)', cursor: 'pointer' }}>Lista</button>
           </div>
-          <a href="https://calendariopoiema.vercel.app/" target="_blank" rel="noopener noreferrer" style={{ padding: '9px 16px', background: 'transparent', border: '1px solid var(--border)', borderRadius: '8px', fontSize: '13px', color: 'var(--text-2)', cursor: 'pointer', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3"/></svg>
-            Ver mural público
-          </a>
           <button onClick={openNewMin} style={{ padding: '9px 18px', background: 'var(--brand)', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: '500', cursor: 'pointer' }}>
             + Novo ministério
           </button>

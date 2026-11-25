@@ -17,7 +17,7 @@ const NAV = [
   { href:'/nfe',           label:'Importar NF-e', icon:'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z' },
   { href:'/patrimonio',    label:'Patrimônio',     icon:'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4' },
   { href:'/relatorios',    label:'Relatórios',   icon:'M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z' },
-  { href:'/mural',         label:'Mural',        icon:'M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75M9 7a4 4 0 110 8 4 4 0 010-8z', externalHref:'https://calendariopoiema.vercel.app/' },
+  { href:'/mural',         label:'Calendário',   icon:'M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75M9 7a4 4 0 110 8 4 4 0 010-8z', externalHref:'https://calendariopoiema.vercel.app/' },
 ]
 
 const NAV_CADASTROS = [
@@ -62,7 +62,7 @@ function NavLink({ href, label, icon, small=false, isActive, externalHref }: { h
       {isActive && <span style={{width:'4px',height:'4px',borderRadius:'50%',background:'var(--brand-light)',marginLeft:'2px'}}/>}
     </>
   )
-  // Link externo (ex.: Mural = site Calendário Poiema) — âncora nativa em nova aba
+  // Link externo (ex.: Calendário = site Calendário Poiema) — âncora nativa em nova aba
   if (externalHref) return <a href={externalHref} target="_blank" rel="noopener noreferrer" style={style}>{inner}</a>
   return <Link href={href} style={style}>{inner}</Link>
 }
@@ -350,12 +350,12 @@ export function TopNav() {
           </Link>
         )})()}
 
-        {/* Mural — apenas Poiema BNU */}
+        {/* Calendário — apenas Poiema BNU */}
         {isPoiemaBNU && <div key="mural-sec">
-          <div style={{padding:"12px 16px 4px",fontSize:"10px",fontWeight:"700",color:"var(--text-3)",textTransform:"uppercase",letterSpacing:"0.08em",borderTop:"1px solid var(--border)",marginTop:"4px"}}>Mural</div>
+          <div style={{padding:"12px 16px 4px",fontSize:"10px",fontWeight:"700",color:"var(--text-3)",textTransform:"uppercase",letterSpacing:"0.08em",borderTop:"1px solid var(--border)",marginTop:"4px"}}>Calendário</div>
           <a href="https://calendariopoiema.vercel.app/" target="_blank" rel="noopener noreferrer" onClick={()=>setMenuOpen(false)} style={{display:"flex",alignItems:"center",gap:"12px",padding:"12px 16px",textDecoration:"none",color:"var(--text-2)",background:"transparent",transition:"background 0.1s",borderLeft:"3px solid transparent"}}>
             <span style={{color:"var(--text-3)",flexShrink:0}}><Icon d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75M9 7a4 4 0 110 8 4 4 0 010-8z" size={16}/></span>
-            <span style={{fontSize:"14px",fontWeight:"400"}}>Mural</span>
+            <span style={{fontSize:"14px",fontWeight:"400"}}>Calendário</span>
           </a>
         </div>}
 
