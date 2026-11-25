@@ -16,10 +16,14 @@ const TABS: { id: Tab; label: string }[] = [
   { id: 'eventos',     label: 'Eventos' },
 ]
 
-type Member = { id: string; full_name: string; is_active: boolean; neighborhood: string | null; birth_date: string | null; phone: string | null; wants_to_serve_other_ministry: string | null; submitted_at: string | null }
+type Member = {
+  id: string; full_name: string; is_active: boolean; neighborhood: string | null; birth_date: string | null
+  phone: string | null; wants_to_serve_other_ministry: string | null; submitted_at: string | null
+  accepts_communication: boolean | null; wants_to_host_group: string | null; spouse_name: string | null; children_info: string | null
+}
 type Ministry = { id: string; name: string; is_active: boolean }
 type MinistryMember = { ministry_id: string; member_id: string; is_active: boolean; role: string }
-type SmallGroup = { id: string; name: string; is_active: boolean }
+type SmallGroup = { id: string; name: string; is_active: boolean; address: string | null }
 type GroupMember = { small_group_id: string; member_id: string; role: string }
 type EventType = { id: string; name: string }
 type EventTypeField = { id: string; event_type_id: string; field_key: string; label: string; field_type: string }
@@ -56,6 +60,20 @@ function namesToBlock(title: string, header: string, names: string[]): ReportBlo
     columns: [{ key: 'v', label: header }],
     rows: [...names].sort((a, b) => a.localeCompare(b)).map(v => ({ v })),
   }
+}
+
+function normalizeName(s: string): string {
+  return s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z\s]/g, '').trim().replace(/\s+/g, ' ')
+}
+
+// Estimativa de quantidade de crianças a partir de texto livre — não é contagem exata.
+function estimateChildrenCount(text: string): number {
+  const t = text.trim()
+  if (!t) return 0
+  const nums = t.match(/\d+/g)
+  if (nums && nums.length > 0) return nums.length
+  const parts = t.split(/,| e |;/i).map(p => p.trim()).filter(Boolean)
+  return parts.length || 1
 }
 
 function PanelHead({ title, count, getBlock, churchName, period, extra }: {
@@ -114,10 +132,10 @@ export default function IgrejaReports() {
       { data: mem }, { data: mins }, { data: minMem },
       { data: groups }, { data: grpMem }, { data: types },
     ] = await Promise.all([
-      sb.from('members').select('id, full_name, is_active, neighborhood, birth_date, phone, wants_to_serve_other_ministry, submitted_at').eq('church_id', profile!.church_id),
+      sb.from('members').select('id, full_name, is_active, neighborhood, birth_date, phone, wants_to_serve_other_ministry, submitted_at, accepts_communication, wants_to_host_group, spouse_name, children_info').eq('church_id', profile!.church_id),
       sb.from('ministries').select('id, name, is_active').eq('church_id', profile!.church_id),
       sb.from('ministry_members').select('ministry_id, member_id, is_active, role'),
-      sb.from('small_groups').select('id, name, is_active').eq('church_id', profile!.church_id),
+      sb.from('small_groups').select('id, name, is_active, address').eq('church_id', profile!.church_id),
       sb.from('small_group_members').select('small_group_id, member_id, role'),
       sb.from('event_types').select('id, name').eq('church_id', profile!.church_id),
     ])
@@ -264,6 +282,62 @@ export default function IgrejaReports() {
     })
     return { data: counts.map(({ name, value }) => ({ name, value })), semData }
   }, [activeMembers])
+
+  // G1: aceita comunicação
+  const comunicacaoStats = useMemo(() => {
+    const aceita = activeMembers.filter(m => m.accepts_communication === true).length
+    const naoAceita = activeMembers.filter(m => m.accepts_communication === false).length
+    const semInfo = activeMembers.length - aceita - naoAceita
+    return { aceita, naoAceita, semInfo, total: activeMembers.length }
+  }, [activeMembers])
+
+  // G2: potencial de liderança — quer anfitriar 2ou+ mas não é líder de nenhum grupo hoje
+  const groupLeaderIds = useMemo(() => new Set(groupMembers.filter(gm => gm.role === 'leader').map(gm => gm.member_id)), [groupMembers])
+  const potencialLideranca = useMemo(
+    () => activeMembers.filter(m => m.wants_to_host_group === 'Sim' && !groupLeaderIds.has(m.id)),
+    [activeMembers, groupLeaderIds]
+  )
+
+  // G3: casais cadastrados — correspondência aproximada por nome (texto livre), sujeita a falso positivo/negativo
+  const casaisPares = useMemo(() => {
+    const byNorm: Record<string, Member[]> = {}
+    activeMembers.forEach(m => { const k = normalizeName(m.full_name); (byNorm[k] ||= []).push(m) })
+    const pairs: { a: string; b: string }[] = []
+    const seen = new Set<string>()
+    activeMembers.forEach(m => {
+      if (!m.spouse_name?.trim()) return
+      const spouse = (byNorm[normalizeName(m.spouse_name)] || []).find(x => x.id !== m.id)
+      if (!spouse) return
+      const pairKey = [m.id, spouse.id].sort().join('|')
+      if (seen.has(pairKey)) return
+      seen.add(pairKey)
+      pairs.push({ a: m.full_name, b: spouse.full_name })
+    })
+    return pairs
+  }, [activeMembers])
+  const casaisComSpouseInfo = useMemo(() => activeMembers.filter(m => m.spouse_name?.trim()).length, [activeMembers])
+  const casaisSoUmLado = casaisComSpouseInfo - casaisPares.length * 2
+
+  // G4: crianças por família — estimativa a partir de texto livre (children_info), não é contagem exata
+  const criancasPorFamilia = useMemo(() => {
+    const rows = activeMembers
+      .filter(m => m.children_info?.trim())
+      .map(m => ({ name: m.full_name, info: m.children_info!, estimate: estimateChildrenCount(m.children_info!) }))
+    const total = rows.reduce((s, r) => s + r.estimate, 0)
+    return { rows, total }
+  }, [activeMembers])
+
+  // G6: densidade por bairro vs cobertura de 2ou+ (comparação de texto, aproximada)
+  const bairroCobertura = useMemo(() => {
+    return bairroDist.map(b => {
+      const bairroNorm = normalizeName(b.name)
+      const temGrupo = bairroNorm !== 'nao informado' && activeGroups.some(g => {
+        const addr = normalizeName(g.address || '')
+        return !!addr && (addr.includes(bairroNorm) || bairroNorm.includes(addr))
+      })
+      return { bairro: b.name, membros: b.value, temGrupo }
+    })
+  }, [bairroDist, activeGroups])
 
   if (loading) {
     return <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>{[1,2,3].map(i => <div key={i} className="skeleton" style={{ height: '48px', borderRadius: '8px' }}/>)}</div>
@@ -415,6 +489,82 @@ export default function IgrejaReports() {
             </div>
           </div>
 
+          <div style={panelStyle}>
+            <PanelHead
+              title="Aceita comunicação"
+              churchName={churchName}
+              getBlock={() => ({
+                title: 'Aceita comunicação',
+                columns: [{ key: 'name', label: 'Indicador' }, { key: 'value', label: 'Membros' }, { key: 'pct', label: '%' }],
+                rows: [
+                  { name: 'Aceita', value: comunicacaoStats.aceita, pct: comunicacaoStats.total ? ((comunicacaoStats.aceita / comunicacaoStats.total) * 100).toFixed(0) + '%' : '—' },
+                  { name: 'Não aceita', value: comunicacaoStats.naoAceita, pct: comunicacaoStats.total ? ((comunicacaoStats.naoAceita / comunicacaoStats.total) * 100).toFixed(0) + '%' : '—' },
+                  { name: 'Sem informação', value: comunicacaoStats.semInfo, pct: comunicacaoStats.total ? ((comunicacaoStats.semInfo / comunicacaoStats.total) * 100).toFixed(0) + '%' : '—' },
+                ],
+              })}
+            />
+            <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+              <div style={{ flex: 1, minWidth: '140px' }}>
+                <div style={{ fontSize: '12px', color: 'var(--text-3)' }}>Aceita</div>
+                <div style={{ fontSize: '24px', fontWeight: '700', color: 'var(--ok)' }}>{comunicacaoStats.aceita}{comunicacaoStats.total ? ` (${((comunicacaoStats.aceita / comunicacaoStats.total) * 100).toFixed(0)}%)` : ''}</div>
+              </div>
+              <div style={{ flex: 1, minWidth: '140px' }}>
+                <div style={{ fontSize: '12px', color: 'var(--text-3)' }}>Não aceita</div>
+                <div style={{ fontSize: '24px', fontWeight: '700', color: 'var(--empty)' }}>{comunicacaoStats.naoAceita}{comunicacaoStats.total ? ` (${((comunicacaoStats.naoAceita / comunicacaoStats.total) * 100).toFixed(0)}%)` : ''}</div>
+              </div>
+              {comunicacaoStats.semInfo > 0 && (
+                <div style={{ flex: 1, minWidth: '140px' }}>
+                  <div style={{ fontSize: '12px', color: 'var(--text-3)' }}>Sem informação</div>
+                  <div style={{ fontSize: '24px', fontWeight: '700', color: 'var(--text-3)' }}>{comunicacaoStats.semInfo}</div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div style={panelStyle}>
+            <PanelHead
+              title="Casais cadastrados (correspondência aproximada por nome)"
+              count={casaisPares.length}
+              churchName={churchName}
+              getBlock={() => ({
+                title: 'Casais cadastrados',
+                columns: [{ key: 'a', label: 'Membro' }, { key: 'b', label: 'Cônjuge (membro)' }],
+                rows: casaisPares,
+                summary: [{ a: 'Só um lado cadastrado', b: String(casaisSoUmLado) }],
+              })}
+            />
+            <Notice>Correspondência por texto livre (nome informado em "cônjuge") — pode haver falso positivo/negativo. Confira manualmente.</Notice>
+            {casaisPares.length === 0 ? <Notice>Nenhum par encontrado.</Notice> : (
+              <table style={{ ...miniTable, marginTop: '10px' }}>
+                <thead><tr><th style={thStyle}>Membro</th><th style={thStyle}>Cônjuge (membro)</th></tr></thead>
+                <tbody>{casaisPares.map((p, i) => <tr key={i}><td style={tdStyle}>{p.a}</td><td style={tdStyle}>{p.b}</td></tr>)}</tbody>
+              </table>
+            )}
+            {casaisSoUmLado > 0 && <div style={{ fontSize: '12px', color: 'var(--text-3)', marginTop: '8px' }}>{casaisSoUmLado} membro(s) informaram cônjuge, mas o cônjuge não foi encontrado como membro cadastrado.</div>}
+          </div>
+
+          <div style={panelStyle}>
+            <PanelHead
+              title="Crianças por família (estimativa a partir de texto livre)"
+              count={criancasPorFamilia.rows.length}
+              churchName={churchName}
+              getBlock={() => ({
+                title: 'Crianças por família',
+                columns: [{ key: 'name', label: 'Membro' }, { key: 'info', label: 'Informado' }, { key: 'estimate', label: 'Estimativa' }],
+                rows: criancasPorFamilia.rows,
+                summary: [{ name: 'Total estimado', estimate: criancasPorFamilia.total }],
+              })}
+            />
+            <Notice>Estimativa baseada em texto livre (children_info) — não é contagem exata.</Notice>
+            {criancasPorFamilia.rows.length === 0 ? <Notice>Nenhuma informação de crianças cadastrada.</Notice> : (
+              <table style={{ ...miniTable, marginTop: '10px' }}>
+                <thead><tr><th style={thStyle}>Membro</th><th style={thStyle}>Informado</th><th style={thStyle}>Estimativa</th></tr></thead>
+                <tbody>{criancasPorFamilia.rows.map((r, i) => <tr key={i}><td style={tdStyle}>{r.name}</td><td style={tdStyle}>{r.info}</td><td style={tdStyle}>{r.estimate}</td></tr>)}</tbody>
+              </table>
+            )}
+            <div style={{ fontSize: '12px', color: 'var(--text-3)', marginTop: '8px' }}>Total estimado: <strong style={{ color: 'var(--text-1)' }}>{criancasPorFamilia.total}</strong></div>
+          </div>
+
           <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
             <ExportAllButton
               label="Relatório Igreja — Membros"
@@ -428,6 +578,9 @@ export default function IgrejaReports() {
                 namesToBlock('Dupla ausência', 'Nome', duplaAusencia.map(m => m.full_name)),
                 { title: 'Crescimento', columns: [{ key: 'name', label: 'Mês' }, { key: 'value', label: 'Novos membros' }], rows: growthData, chartElement: growthChartRef.current },
                 { title: 'Faixa etária', columns: [{ key: 'name', label: 'Faixa' }, { key: 'value', label: 'Membros' }], rows: faixaEtaria.data, chartElement: faixaChartRef.current },
+                { title: 'Aceita comunicação', columns: [{ key: 'name', label: 'Indicador' }, { key: 'value', label: 'Membros' }], rows: [{ name: 'Aceita', value: comunicacaoStats.aceita }, { name: 'Não aceita', value: comunicacaoStats.naoAceita }, { name: 'Sem informação', value: comunicacaoStats.semInfo }] },
+                { title: 'Casais cadastrados', columns: [{ key: 'a', label: 'Membro' }, { key: 'b', label: 'Cônjuge' }], rows: casaisPares },
+                { title: 'Crianças por família', columns: [{ key: 'name', label: 'Membro' }, { key: 'info', label: 'Informado' }, { key: 'estimate', label: 'Estimativa' }], rows: criancasPorFamilia.rows },
               ]}
             />
           </div>
@@ -584,6 +737,40 @@ export default function IgrejaReports() {
               <NameListTable header="Nome" names={membersWithoutGroup.map(m => m.full_name)} />
             )}
           </div>
+
+          <div style={panelStyle}>
+            <PanelHead title="Potencial de liderança — quer anfitriar 2ou+ e ainda não lidera nenhum" count={potencialLideranca.length} churchName={churchName}
+              getBlock={() => namesToBlock('Potencial de liderança', 'Nome', potencialLideranca.map(m => m.full_name))} />
+            {potencialLideranca.length === 0 ? <Notice>Nenhum membro nessa condição.</Notice> : (
+              <NameListTable header="Nome" names={potencialLideranca.map(m => m.full_name)} />
+            )}
+          </div>
+
+          <div style={panelStyle}>
+            <PanelHead
+              title="Densidade por bairro x cobertura de 2ou+ (comparação aproximada por texto)"
+              churchName={churchName}
+              getBlock={() => ({
+                title: 'Densidade por bairro x cobertura de 2ou+',
+                columns: [{ key: 'bairro', label: 'Bairro' }, { key: 'membros', label: 'Membros' }, { key: 'temGrupo', label: 'Tem 2ou+ detectado' }],
+                rows: bairroCobertura.map(b => ({ bairro: b.bairro, membros: b.membros, temGrupo: b.temGrupo ? 'Sim' : 'Não' })),
+              })}
+            />
+            <Notice>Comparação por texto livre do endereço dos grupos — pode haver falso positivo/negativo. Bairros com membros e sem grupo detectado estão destacados.</Notice>
+            <table style={{ ...miniTable, marginTop: '10px' }}>
+              <thead><tr><th style={thStyle}>Bairro</th><th style={thStyle}>Membros</th><th style={thStyle}>Tem 2ou+ detectado</th></tr></thead>
+              <tbody>
+                {bairroCobertura.map(b => (
+                  <tr key={b.bairro} style={!b.temGrupo ? { background: 'var(--low-dim)' } : undefined}>
+                    <td style={tdStyle}>{b.bairro}</td>
+                    <td style={tdStyle}>{b.membros}</td>
+                    <td style={tdStyle}>{b.temGrupo ? 'Sim' : 'Não'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
           <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
             <ExportAllButton
               label="Relatório Igreja — 2ou+"
@@ -593,6 +780,8 @@ export default function IgrejaReports() {
                 { title: 'Membros por grupo', columns: [{ key: 'group', label: 'Grupo' }, { key: 'name', label: 'Nome' }, { key: 'phone', label: 'Telefone' }], rows: groupCounts.flatMap(g => g.rows.map(r => ({ group: g.name, name: r.name, phone: r.phone || '—' }))) },
                 namesToBlock('Grupos ativos sem líder', 'Grupo', groupsSemLider.map(g => g.name)),
                 namesToBlock('Membros sem 2ou+', 'Nome', membersWithoutGroup.map(m => m.full_name)),
+                namesToBlock('Potencial de liderança', 'Nome', potencialLideranca.map(m => m.full_name)),
+                { title: 'Densidade por bairro x cobertura de 2ou+', columns: [{ key: 'bairro', label: 'Bairro' }, { key: 'membros', label: 'Membros' }, { key: 'temGrupo', label: 'Tem 2ou+' }], rows: bairroCobertura.map(b => ({ bairro: b.bairro, membros: b.membros, temGrupo: b.temGrupo ? 'Sim' : 'Não' })) },
               ]}
             />
           </div>

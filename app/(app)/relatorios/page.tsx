@@ -10,6 +10,7 @@ const RelatoriosLineChart    = dynamic(() => import('@/components/charts/Relator
 const RelatoriosBarChart     = dynamic(() => import('@/components/charts/RelatoriosBarChart'),     { ssr: false })
 const RelatoriosDepositsChart = dynamic(() => import('@/components/charts/RelatoriosDepositsChart'), { ssr: false })
 const IgrejaReports = dynamic(() => import('@/components/relatorios/IgrejaReports'), { ssr: false })
+const SistemaReports = dynamic(() => import('@/components/relatorios/SistemaReports'), { ssr: false })
 
 type ReportTab = 'inventario' | 'movimentacoes' | 'criticos' | 'consumo' | 'depositos' | 'auditoria' | 'ministerios' | 'precos' | 'eventos' | 'patrimonio'
 
@@ -51,7 +52,8 @@ const PATR_STATUS: { id: string; label: string; color: string; bg: string }[] = 
 export default function RelatoriosPage() {
   const { profile, isAdmin } = useProfile()
   const theme = useSyncTheme()
-  const [view, setView] = useState<'estoque' | 'igreja'>('estoque')
+  const [view, setView] = useState<'estoque' | 'igreja' | 'sistema'>('estoque')
+  const isSuperAdmin = profile?.role === 'super_admin'
   const COLORS = useMemo(() => {
     if (typeof document === 'undefined') return COLOR_VARS.map(() => '')
     const s = getComputedStyle(document.documentElement)
@@ -96,9 +98,12 @@ export default function RelatoriosPage() {
   const [patrLoading,    setPatrLoading]    = useState(false)
   const [patrManutPeriod, setPatrManutPeriod] = useState('90')
   const [patrPend,       setPatrPend]       = useState<'nf'|'ministerio'|'valor'|'local'>('nf')
+  const [patrManutRanking, setPatrManutRanking] = useState<{ name: string; category: string; count: number }[]>([])
+  const [yoyMovs, setYoyMovs] = useState<any[]>([])
 
   useEffect(() => { if (profile?.church_id) loadBase() }, [profile?.church_id])
   useEffect(() => { if (profile?.church_id) loadMovements() }, [profile?.church_id, dateFrom, dateTo])
+  useEffect(() => { if (profile?.church_id && tab === 'movimentacoes') loadYoyMovs() }, [profile?.church_id, tab, dateFrom, dateTo])
   useEffect(() => { if (profile?.church_id && tab === 'depositos') loadBalances() }, [profile?.church_id, tab, filterLoc, filterCat])
   useEffect(() => { if (profile?.church_id && tab === 'auditoria') loadAuditoria() }, [profile?.church_id, tab, auditPage, auditUser, auditDateFrom, auditDateTo])
   useEffect(() => { if (profile?.church_id && tab === 'ministerios') loadMinisterios() }, [profile?.church_id, tab, minPeriod])
@@ -106,6 +111,7 @@ export default function RelatoriosPage() {
   useEffect(() => { if (profile?.church_id && tab === 'eventos') loadEventos() }, [profile?.church_id, tab, eventosPeriod])
   useEffect(() => { if (profile?.church_id && tab === 'patrimonio') loadPatrimonio() }, [profile?.church_id, tab])
   useEffect(() => { if (profile?.church_id && tab === 'patrimonio') loadPatrManut() }, [profile?.church_id, tab, patrManutPeriod])
+  useEffect(() => { if (profile?.church_id && tab === 'patrimonio') loadPatrManutRanking() }, [profile?.church_id, tab])
 
   async function loadBase() {
     const sb = createClient()
@@ -367,6 +373,36 @@ export default function RelatoriosPage() {
     setPatrManut(data || [])
   }
 
+  // 7. Bens com manutenção recorrente — ranking por quantidade de registros (todo o histórico)
+  async function loadPatrManutRanking() {
+    const sb = createClient()
+    const { data } = await sb.from('patrimonio_manutencoes')
+      .select('patrimonio_id,patrimonio:patrimonio(name,category)')
+      .eq('church_id', profile!.church_id)
+    const map: Record<string, { name: string; category: string; count: number }> = {}
+    ;(data || []).forEach((m: any) => {
+      const key = m.patrimonio_id || 'none'
+      if (!map[key]) map[key] = { name: m.patrimonio?.name || 'Bem removido', category: m.patrimonio?.category || 'Sem categoria', count: 0 }
+      map[key].count++
+    })
+    setPatrManutRanking(Object.values(map).sort((a, b) => b.count - a.count))
+  }
+
+  // 8. Variação de movimentação ano a ano — mesmo período (dateFrom-dateTo) do ano atual vs ano anterior
+  async function loadYoyMovs() {
+    const sb = createClient()
+    const shiftYear = (d: string, years: number) => {
+      const dt = new Date(d + 'T00:00:00'); dt.setFullYear(dt.getFullYear() + years)
+      return dt.toISOString().split('T')[0]
+    }
+    const { data } = await sb.from('stock_movements')
+      .select('type,quantity,created_at')
+      .eq('church_id', profile!.church_id)
+      .gte('created_at', shiftYear(dateFrom, -1))
+      .lte('created_at', shiftYear(dateTo, -1) + 'T23:59:59')
+    setYoyMovs(data || [])
+  }
+
   // ── Patrimônio: agregações derivadas ──
   const patrResumo = {
     total: patrItems.length,
@@ -391,6 +427,14 @@ export default function RelatoriosPage() {
   })
   const patrTop = [...patrItems].sort((a, b) => valorAtual(b) - valorAtual(a)).slice(0, 10)
   const patrCustoManut = patrManut.reduce((s, m: any) => s + (m.cost || 0), 0)
+  const yoyCompare = (() => {
+    const atualEntradas = filteredMovs.filter(m => m.type === 'in').reduce((s: number, m: any) => s + m.quantity, 0)
+    const atualSaidas = filteredMovs.filter(m => m.type === 'out').reduce((s: number, m: any) => s + m.quantity, 0)
+    const anteriorEntradas = yoyMovs.filter((m: any) => m.type === 'in').reduce((s: number, m: any) => s + m.quantity, 0)
+    const anteriorSaidas = yoyMovs.filter((m: any) => m.type === 'out').reduce((s: number, m: any) => s + m.quantity, 0)
+    const pct = (atual: number, anterior: number) => anterior === 0 ? (atual === 0 ? 0 : null) : ((atual - anterior) / anterior) * 100
+    return { atualEntradas, atualSaidas, anteriorEntradas, anteriorSaidas, pctEntradas: pct(atualEntradas, anteriorEntradas), pctSaidas: pct(atualSaidas, anteriorSaidas) }
+  })()
   const patrComValor = patrItems.filter((p: any) => p.acquisition_value != null).length
   const patrPendencias = {
     nf:         patrItems.filter((p: any) => !p.nfe_key && !p.nfe_file_url),
@@ -718,6 +762,19 @@ export default function RelatoriosPage() {
         columns: [{ key: 'categoria', label: 'Categoria' }, { key: 'qtd', label: 'Qtd' }, { key: 'atual', label: 'Valor atual' }],
         rows: patrPorCategoriaFresh.map((c: any) => ({ categoria: c.categoria, qtd: c.qtd, atual: fmtBRL(c.atual) })),
       },
+      {
+        title: 'Bens com manutenção recorrente',
+        columns: [{ key: 'name', label: 'Bem' }, { key: 'category', label: 'Categoria' }, { key: 'count', label: 'Manutenções' }],
+        rows: patrManutRanking,
+      },
+      {
+        title: 'Variação de movimentação ano a ano',
+        columns: [{ key: 'tipo', label: 'Tipo' }, { key: 'atual', label: 'Período atual' }, { key: 'anterior', label: 'Ano anterior' }, { key: 'variacao', label: 'Variação' }],
+        rows: [
+          { tipo: 'Entradas', atual: yoyCompare.atualEntradas, anterior: yoyCompare.anteriorEntradas, variacao: yoyCompare.pctEntradas == null ? '—' : `${yoyCompare.pctEntradas >= 0 ? '+' : ''}${yoyCompare.pctEntradas.toFixed(0)}%` },
+          { tipo: 'Saídas', atual: yoyCompare.atualSaidas, anterior: yoyCompare.anteriorSaidas, variacao: yoyCompare.pctSaidas == null ? '—' : `${yoyCompare.pctSaidas >= 0 ? '+' : ''}${yoyCompare.pctSaidas.toFixed(0)}%` },
+        ],
+      },
     ]
     return blocks
   }
@@ -761,7 +818,7 @@ export default function RelatoriosPage() {
       <div style={{ marginBottom:'24px', display:'flex', justifyContent:'space-between', alignItems:'flex-start', flexWrap:'wrap', gap:'12px' }}>
         <div>
           <h1 style={{ fontSize:'22px', fontWeight:'600' }}>Relatórios</h1>
-          <p style={{ fontSize:'13px', color:'var(--text-3)', marginTop:'4px' }}>{view === 'estoque' ? 'Analise e exporte dados do estoque' : 'Relatórios da igreja: membros, ministérios, grupos e eventos'}</p>
+          <p style={{ fontSize:'13px', color:'var(--text-3)', marginTop:'4px' }}>{view === 'estoque' ? 'Analise e exporte dados do estoque' : view === 'igreja' ? 'Relatórios da igreja: membros, ministérios, grupos e eventos' : 'Uso do próprio sistema — visível apenas para super_admin'}</p>
         </div>
         <div style={{ display:'flex', gap:'10px', alignItems:'center', flexWrap:'wrap' }}>
           {view === 'estoque' && (
@@ -776,19 +833,21 @@ export default function RelatoriosPage() {
           )}
           {isAdmin && (
             <div style={{ display:'flex', gap:'4px', background:'var(--bg-card)', border:'1px solid var(--border)', borderRadius:'var(--radius-sm)', padding:'3px' }}>
-              {(['estoque','igreja'] as const).map(v => (
+              {(['estoque','igreja', ...(isSuperAdmin ? ['sistema'] as const : [])] as const).map(v => (
                 <button key={v} onClick={() => setView(v)} style={{
                   padding:'7px 16px', borderRadius:'6px', cursor:'pointer', fontSize:'13px', fontWeight:'500',
                   background: view===v ? 'var(--brand)' : 'transparent',
                   color: view===v ? '#fff' : 'var(--text-2)', border:'none',
-                }}>{v === 'estoque' ? 'Estoque' : 'Igreja'}</button>
+                }}>{v === 'estoque' ? 'Estoque' : v === 'igreja' ? 'Igreja' : 'Sistema'}</button>
               ))}
             </div>
           )}
         </div>
       </div>
 
-      {view === 'igreja' && isAdmin ? (
+      {view === 'sistema' && isSuperAdmin ? (
+        <SistemaReports />
+      ) : view === 'igreja' && isAdmin ? (
         <IgrejaReports />
       ) : (
       <>
@@ -938,6 +997,40 @@ export default function RelatoriosPage() {
                         </tr>
                       )
                     })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* 8. Variação de movimentação ano a ano */}
+          {tab==='movimentacoes' && (
+            <div style={{ ...panelStyle, padding:0, overflow:'hidden' }}>
+              <div style={{ ...panelHeader, padding:'16px 20px', borderBottom:'1px solid var(--border)', marginBottom:0 }}>
+                <span style={panelTitle}>Variação ano a ano — mesmo período ({dateFrom} a {dateTo}) vs ano anterior</span>
+              </div>
+              <div style={{ overflowX:'auto' }}>
+                <table style={{ width:'100%', borderCollapse:'collapse' }}>
+                  <thead><tr style={{ background:'var(--bg-3)' }}>
+                    {['Tipo','Período atual','Mesmo período ano anterior','Variação'].map((h,i) => <th key={h} style={{ padding:'10px 14px', textAlign:i>=1?'right':'left', fontSize:'11px', color:'var(--text-3)', fontWeight:'500', textTransform:'uppercase', letterSpacing:'0.04em' }}>{h}</th>)}
+                  </tr></thead>
+                  <tbody>
+                    <tr style={{ borderTop:'1px solid var(--border)' }}>
+                      <td style={{ padding:'10px 14px', fontSize:'13px', color:'var(--text-1)' }}>Entradas</td>
+                      <td style={{ padding:'10px 14px', fontSize:'13px', textAlign:'right', fontFamily:'var(--font-mono)' }}>{yoyCompare.atualEntradas}</td>
+                      <td style={{ padding:'10px 14px', fontSize:'13px', textAlign:'right', fontFamily:'var(--font-mono)', color:'var(--text-3)' }}>{yoyCompare.anteriorEntradas}</td>
+                      <td style={{ padding:'10px 14px', fontSize:'13px', textAlign:'right', fontWeight:'700', fontFamily:'var(--font-mono)', color: yoyCompare.pctEntradas == null ? 'var(--text-3)' : yoyCompare.pctEntradas >= 0 ? 'var(--ok)' : 'var(--empty)' }}>
+                        {yoyCompare.pctEntradas == null ? '—' : `${yoyCompare.pctEntradas >= 0 ? '+' : ''}${yoyCompare.pctEntradas.toFixed(0)}%`}
+                      </td>
+                    </tr>
+                    <tr style={{ borderTop:'1px solid var(--border)' }}>
+                      <td style={{ padding:'10px 14px', fontSize:'13px', color:'var(--text-1)' }}>Saídas</td>
+                      <td style={{ padding:'10px 14px', fontSize:'13px', textAlign:'right', fontFamily:'var(--font-mono)' }}>{yoyCompare.atualSaidas}</td>
+                      <td style={{ padding:'10px 14px', fontSize:'13px', textAlign:'right', fontFamily:'var(--font-mono)', color:'var(--text-3)' }}>{yoyCompare.anteriorSaidas}</td>
+                      <td style={{ padding:'10px 14px', fontSize:'13px', textAlign:'right', fontWeight:'700', fontFamily:'var(--font-mono)', color: yoyCompare.pctSaidas == null ? 'var(--text-3)' : yoyCompare.pctSaidas >= 0 ? 'var(--ok)' : 'var(--empty)' }}>
+                        {yoyCompare.pctSaidas == null ? '—' : `${yoyCompare.pctSaidas >= 0 ? '+' : ''}${yoyCompare.pctSaidas.toFixed(0)}%`}
+                      </td>
+                    </tr>
                   </tbody>
                 </table>
               </div>
@@ -1508,6 +1601,33 @@ export default function RelatoriosPage() {
                       <span style={{ fontWeight:'700', color:'var(--empty)', fontFamily:'var(--font-mono)' }}>{fmtBRL(patrCustoManut)}</span>
                     </div>
                   </>
+                )}
+              </div>
+
+              {/* 7b. Bens com manutenção recorrente */}
+              <div style={{ ...panelStyle, padding:0, overflow:'hidden' }}>
+                <div style={{ ...panelHeader, padding:'16px 20px', borderBottom:'1px solid var(--border)', marginBottom:0 }}>
+                  <span style={panelTitle}>Bens com manutenção recorrente</span>
+                </div>
+                {patrManutRanking.length === 0 ? (
+                  <div style={{ padding:'20px', textAlign:'center', color:'var(--text-3)', fontSize:'13px' }}>Nenhum registro de manutenção encontrado.</div>
+                ) : (
+                  <div style={{ overflowX:'auto' }}>
+                    <table style={{ width:'100%', borderCollapse:'collapse' }}>
+                      <thead><tr style={{ background:'var(--bg-3)' }}>
+                        {['Bem','Categoria','Manutenções'].map((h,i) => <th key={h} style={{ padding:'10px 14px', textAlign:i===2?'right':'left', fontSize:'11px', color:'var(--text-3)', fontWeight:'500', textTransform:'uppercase', letterSpacing:'0.04em' }}>{h}</th>)}
+                      </tr></thead>
+                      <tbody>
+                        {patrManutRanking.map((r, i) => (
+                          <tr key={i} style={{ borderTop:'1px solid var(--border)' }}>
+                            <td style={{ padding:'10px 14px', fontSize:'13px', color:'var(--text-1)' }}>{r.name}</td>
+                            <td style={{ padding:'10px 14px', fontSize:'12px', color:'var(--text-2)' }}>{r.category}</td>
+                            <td style={{ padding:'10px 14px', fontSize:'13px', fontWeight:'700', color:'var(--text-1)', textAlign:'right', fontFamily:'var(--font-mono)' }}>{r.count}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 )}
               </div>
 
