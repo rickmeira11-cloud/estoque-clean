@@ -32,6 +32,9 @@ type AdminTableProps<T extends { id: string }> = {
   onToggle?: (item: T) => Promise<void>
   renderItem: (item: T, actions: Actions, isAdmin: boolean) => ReactNode
   listContainerStyle?: React.CSSProperties
+  /** Quando informado, exibe uma busca por texto acima da lista, filtrando pelos campos retornados aqui. */
+  getSearchText?: (item: T) => string
+  searchPlaceholder?: string
 }
 
 const L: React.CSSProperties = {
@@ -49,6 +52,7 @@ export default function AdminTable<T extends { id: string }>({
   isAdmin, loading, items,
   fields, initialForm, formTitle, onEditInit, onSave,
   onDelete, onToggle, renderItem, listContainerStyle,
+  getSearchText, searchPlaceholder = 'Buscar...',
 }: AdminTableProps<T>) {
   const [showForm, setShowForm] = useState(false)
   const [editId,   setEditId]   = useState<string | null>(null)
@@ -56,6 +60,7 @@ export default function AdminTable<T extends { id: string }>({
   const [saving,   setSaving]   = useState(false)
   const [error,    setError]    = useState<string | null>(null)
   const [success,  setSuccess]  = useState('')
+  const [search,   setSearch]   = useState('')
   const formRef  = useRef<HTMLDivElement>(null)
   const firstRef = useRef<HTMLInputElement>(null)
 
@@ -90,6 +95,9 @@ export default function AdminTable<T extends { id: string }>({
   }
 
   const isEditing = editId !== null
+  const filteredItems = getSearchText && search.trim()
+    ? items.filter(item => getSearchText(item).toLowerCase().includes(search.trim().toLowerCase()))
+    : items
 
   return (
     <div>
@@ -105,6 +113,12 @@ export default function AdminTable<T extends { id: string }>({
           </button>
         )}
       </div>
+
+      {getSearchText && !loading && items.length > 0 && (
+        <div style={{ marginBottom: '16px' }}>
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder={searchPlaceholder} style={{ maxWidth: '320px' }} />
+        </div>
+      )}
 
       {/* Success banner */}
       {success && (
@@ -165,9 +179,11 @@ export default function AdminTable<T extends { id: string }>({
           {emptyIcon && <div style={{ fontSize: '40px', marginBottom: '12px' }}>{emptyIcon}</div>}
           <div>{emptyText ?? 'Nenhum item cadastrado ainda.'}</div>
         </div>
+      ) : filteredItems.length === 0 ? (
+        <div style={{ textAlign: 'center', padding: '60px', color: 'var(--text-3)' }}>Nenhum item encontrado para essa busca.</div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', ...listContainerStyle }}>
-          {items.map(item => (
+          {filteredItems.map(item => (
             <div key={item.id}>
               {renderItem(
                 item,

@@ -30,6 +30,11 @@ export default function EventosPage() {
   const [loading,    setLoading]    = useState(true)
   const [memberOptions, setMemberOptions] = useState<RegisteredMember[]>([])
 
+  const [search,     setSearch]     = useState('')
+  const [filterType, setFilterType] = useState('')
+  const [filterFrom, setFilterFrom] = useState('')
+  const [filterTo,   setFilterTo]   = useState('')
+
   const [showForm, setShowForm] = useState(false)
   const [editId,   setEditId]   = useState<string | null>(null)
   const [form,     setForm]     = useState(blankForm)
@@ -51,6 +56,14 @@ export default function EventosPage() {
   useEffect(() => { if (profile?.church_id) { load(); loadTypes(); loadMemberOptions() } }, [profile?.church_id])
 
   function showFlash(msg: string) { setFlash(msg); setTimeout(() => setFlash(null), 3000) }
+
+  const filteredEvents = events.filter(ev => {
+    if (search.trim() && !ev.name.toLowerCase().includes(search.trim().toLowerCase())) return false
+    if (filterType && ev.event_type_id !== filterType) return false
+    if (filterFrom && (!ev.event_date || ev.event_date < filterFrom)) return false
+    if (filterTo && (!ev.event_date || ev.event_date > filterTo)) return false
+    return true
+  })
 
   async function loadTypes() {
     const { data } = await createClient()
@@ -298,6 +311,16 @@ export default function EventosPage() {
         )}
       </div>
 
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '10px', marginBottom: '16px' }}>
+        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar por nome..." style={INPUT_STYLE} />
+        <select value={filterType} onChange={e => setFilterType(e.target.value)} style={INPUT_STYLE}>
+          <option value="">Todos os tipos</option>
+          {eventTypes.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+        </select>
+        <input type="date" value={filterFrom} onChange={e => setFilterFrom(e.target.value)} style={INPUT_STYLE} title="De" />
+        <input type="date" value={filterTo} onChange={e => setFilterTo(e.target.value)} style={INPUT_STYLE} title="Até" />
+      </div>
+
       {showForm && (
         <div ref={formRef} style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '20px', marginBottom: '20px' }}>
           <h3 style={{ fontSize: '14px', fontWeight: '600', marginBottom: '16px' }}>{editId ? 'Editar evento' : 'Novo evento'}</h3>
@@ -435,9 +458,11 @@ export default function EventosPage() {
         </div>
       ) : events.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '60px 0', color: 'var(--text-3)', fontSize: '14px' }}>📅 Nenhum evento cadastrado ainda.</div>
+      ) : filteredEvents.length === 0 ? (
+        <div style={{ textAlign: 'center', padding: '60px 0', color: 'var(--text-3)', fontSize: '14px' }}>Nenhum evento encontrado para esse filtro.</div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          {events.map(ev => (
+          {filteredEvents.map(ev => (
             <div key={ev.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 18px', borderRadius: 'var(--radius)', background: 'var(--bg-card)', border: `1px solid ${ev.is_active ? 'var(--border)' : 'rgba(255,255,255,0.04)'}`, opacity: ev.is_active ? 1 : 0.6, gap: '12px', flexWrap: 'wrap' }}>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>

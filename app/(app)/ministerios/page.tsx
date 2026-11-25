@@ -43,6 +43,7 @@ export default function MinisteriosAdminPage() {
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
   const [viewMode, setViewMode] = useState<'painel' | 'lista'>('painel')
+  const [search, setSearch] = useState('')
   const photoRef = useRef<HTMLInputElement>(null)
   const modalPhotoRef = useRef<HTMLInputElement>(null)
   const [modalPhotoPreview, setModalPhotoPreview] = useState<string | null>(null)
@@ -215,6 +216,17 @@ export default function MinisteriosAdminPage() {
   const L = { display: 'block' as const, fontSize: '11px', color: 'var(--text-3)', marginBottom: '5px' }
   const INPUT_S: React.CSSProperties = { width: '100%', padding: '9px 12px', background: 'var(--bg-3)', border: '1px solid var(--border)', borderRadius: '8px', fontSize: '13px', color: 'var(--text-1)', outline: 'none', boxSizing: 'border-box' }
 
+  const searchLower = search.trim().toLowerCase()
+  const filteredMinistries = searchLower
+    ? ministries.filter(m => m.name.toLowerCase().includes(searchLower) || (m.members || []).some(mb => mb.is_active && mb.name.toLowerCase().includes(searchLower)))
+    : ministries
+  const allMemberRows = ministries.flatMap(m =>
+    (m.members || []).filter(mb => mb.is_active).map(mb => ({ ...mb, _ministry: m.name, _ministryObj: m }))
+  )
+  const filteredMemberRows = searchLower
+    ? allMemberRows.filter(mb => mb.name.toLowerCase().includes(searchLower) || mb._ministry.toLowerCase().includes(searchLower))
+    : allMemberRows
+
   if (!isAdmin) return (
     <div style={{ maxWidth: '600px' }}>
       <h1 style={{ fontSize: '22px', fontWeight: '600' }}>Ministérios</h1>
@@ -240,6 +252,10 @@ export default function MinisteriosAdminPage() {
         </div>
       </div>
 
+      <div style={{ marginBottom: '14px' }}>
+        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar ministério ou membro..." style={{ maxWidth: '320px' }} />
+      </div>
+
       {success && <div className="fade-up" style={{ marginBottom: '14px', padding: '10px 14px', borderRadius: '8px', background: 'var(--ok-dim)', border: '1px solid rgba(34,197,94,0.2)', fontSize: '13px', color: 'var(--ok)' }}>{success}</div>}
       {error && <div style={{ marginBottom: '14px', padding: '10px 14px', borderRadius: '8px', background: 'var(--empty-dim)', fontSize: '13px', color: 'var(--empty)' }}>{error}<button onClick={() => setError(null)} style={{ marginLeft: '10px', background: 'none', border: 'none', color: 'var(--empty)', cursor: 'pointer' }}>✕</button></div>}
 
@@ -247,8 +263,8 @@ export default function MinisteriosAdminPage() {
         <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px', overflow: 'hidden' }}>
           {loading ? (
             <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '8px' }}>{[1,2,3].map(i => <div key={i} className="skeleton" style={{ height: '36px', borderRadius: '6px' }}/>)}</div>
-          ) : ministries.flatMap(m => (m.members || []).filter(mb => mb.is_active).map(mb => ({ ...mb, _ministry: m.name }))).length === 0 ? (
-            <div style={{ padding: '40px', textAlign: 'center', fontSize: '13px', color: 'var(--text-3)' }}>Nenhum membro cadastrado nos ministérios.</div>
+          ) : filteredMemberRows.length === 0 ? (
+            <div style={{ padding: '40px', textAlign: 'center', fontSize: '13px', color: 'var(--text-3)' }}>{search.trim() ? 'Nenhum membro encontrado para essa busca.' : 'Nenhum membro cadastrado nos ministérios.'}</div>
           ) : (
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
               <thead>
@@ -261,9 +277,7 @@ export default function MinisteriosAdminPage() {
                 </tr>
               </thead>
               <tbody>
-                {ministries.flatMap(m =>
-                  (m.members || []).filter(mb => mb.is_active).map(mb => ({ ...mb, _ministry: m.name, _ministryObj: m }))
-                ).map((mb, idx, arr) => (
+                {filteredMemberRows.map((mb, idx, arr) => (
                   <tr key={mb.id} style={{ borderBottom: idx < arr.length - 1 ? '1px solid var(--border)' : 'none' }}>
                     <td style={{ padding: '10px 14px', color: 'var(--text-2)', fontWeight: '500' }}>{mb._ministry}</td>
                     <td style={{ padding: '10px 14px' }}>
@@ -299,7 +313,11 @@ export default function MinisteriosAdminPage() {
             <div style={{ textAlign: 'center', padding: '40px 20px', fontSize: '13px', color: 'var(--text-3)', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px' }}>
               Nenhum ministério cadastrado.<br/>Clique em "+ Novo ministério" para começar.
             </div>
-          ) : ministries.map(m => (
+          ) : filteredMinistries.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '40px 20px', fontSize: '13px', color: 'var(--text-3)', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px' }}>
+              Nenhum ministério encontrado para essa busca.
+            </div>
+          ) : filteredMinistries.map(m => (
             <div key={m.id}
               onClick={() => setSelected(m)}
               style={{ background: 'var(--bg-card)', border: `1px solid ${selected?.id === m.id ? 'var(--brand)' : 'var(--border)'}`, borderRadius: '10px', overflow: 'hidden', transition: 'border-color 0.15s', opacity: m.is_active ? 1 : 0.5 }}>

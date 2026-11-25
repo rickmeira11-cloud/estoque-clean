@@ -69,6 +69,8 @@ export default function DepositosPage() {
       onEditInit={loc => ({ name: loc.name, description: loc.description || '' })}
       onSave={onSave}
       onToggle={onToggle}
+      getSearchText={l => l.name + ' ' + (l.description || '')}
+      searchPlaceholder="Buscar depósito..."
       renderItem={(loc, actions, isAdmin) => (
         <div style={{ borderRadius: 'var(--radius)', background: 'var(--bg-card)', border: `1px solid ${loc.is_active ? 'var(--border)' : 'rgba(255,255,255,0.03)'}`, opacity: loc.is_active ? 1 : 0.5, overflow: 'hidden' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '14px 16px' }}>

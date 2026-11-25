@@ -158,6 +158,8 @@ export default function TiposEventoPage() {
         onSave={onSave}
         onDelete={onDelete}
         onToggle={onToggle}
+        getSearchText={et => et.name}
+        searchPlaceholder="Buscar tipo de evento..."
         renderItem={(et, actions, isAdmin) => (
           <div style={{ display: 'flex', flexDirection: 'column', borderRadius: 'var(--radius)', background: 'var(--bg-card)', border: `1px solid ${et.is_active ? 'var(--border)' : 'rgba(255,255,255,0.04)'}`, opacity: et.is_active ? 1 : 0.6, overflow: 'hidden' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 18px', gap: '12px' }}>

@@ -23,6 +23,7 @@ export default function UsuariosPage() {
   const [approvingId,  setApprovingId]  = useState(null)
   const [approveForm,  setApproveForm]  = useState({ church_id: '', role: 'operator' })
   const [viewMode,     setViewMode]     = useState('cards')
+  const [search,       setSearch]       = useState('')
   const formRef  = useRef(null)
   const firstRef = useRef(null)
 
@@ -163,6 +164,11 @@ export default function UsuariosPage() {
   const L = { display: 'block', fontSize: '11px', color: 'var(--text-3)', marginBottom: '5px' }
   if (!isAdmin) return <div><h1>Usuarios</h1><p>Sem permissao.</p></div>
 
+  const searchLower = search.trim().toLowerCase()
+  const filteredUsers = searchLower
+    ? users.filter(u => (u.name || '').toLowerCase().includes(searchLower) || (u.email || '').toLowerCase().includes(searchLower) || (u.church?.name || '').toLowerCase().includes(searchLower))
+    : users
+
   return (
     <div style={{ maxWidth: '800px' }}>
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:'24px', gap:'12px' }}>
@@ -275,10 +281,18 @@ export default function UsuariosPage() {
         </div>
       )}
 
+      {!loading && users.length > 0 && (
+        <div style={{ marginBottom: '14px' }}>
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar por nome, e-mail ou igreja..." style={{ maxWidth: '320px' }} />
+        </div>
+      )}
+
       {loading ? (
         <div style={{ display:'flex', flexDirection:'column', gap:'8px' }}>{[1,2,3].map(i => <div key={i} className="skeleton" style={{ height:'80px', borderRadius:'12px' }} />)}</div>
       ) : users.length === 0 ? (
         <div style={{ textAlign:'center', padding:'40px', fontSize:'13px', color:'var(--text-3)', background:'var(--bg-card)', border:'1px solid var(--border)', borderRadius:'12px' }}>Nenhum usuario.</div>
+      ) : filteredUsers.length === 0 ? (
+        <div style={{ textAlign:'center', padding:'40px', fontSize:'13px', color:'var(--text-3)', background:'var(--bg-card)', border:'1px solid var(--border)', borderRadius:'12px' }}>Nenhum usuario encontrado para essa busca.</div>
       ) : viewMode === 'list' ? (
         <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px', overflow: 'hidden' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
@@ -294,8 +308,8 @@ export default function UsuariosPage() {
               </tr>
             </thead>
             <tbody>
-              {users.map((u, idx) => (
-                <tr key={u.id} style={{ borderBottom: idx < users.length - 1 ? '1px solid var(--border)' : 'none', opacity: u.is_active ? 1 : 0.5 }}>
+              {filteredUsers.map((u, idx) => (
+                <tr key={u.id} style={{ borderBottom: idx < filteredUsers.length - 1 ? '1px solid var(--border)' : 'none', opacity: u.is_active ? 1 : 0.5 }}>
                   <td style={{ padding: '10px 14px' }}>
                     <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'var(--brand-dim)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '13px', fontWeight: '700', color: 'var(--brand-light)' }}>{(u.name||u.email||'?').charAt(0).toUpperCase()}</div>
                   </td>
@@ -321,7 +335,7 @@ export default function UsuariosPage() {
         </div>
       ) : (
         <div style={{ display:'flex', flexDirection:'column', gap:'8px' }}>
-          {users.map(u => (
+          {filteredUsers.map(u => (
             <div key={u.id} style={{ borderRadius:'12px', background:'var(--bg-card)', border:"1px solid " + (u.is_active ? 'var(--border)' : 'rgba(255,255,255,0.03)'), opacity:u.is_active?1:0.5, overflow:'hidden' }}>
               <div style={{ display:'flex', alignItems:'center', gap:'12px', padding:'14px 16px' }}>
                 <div style={{ width:'40px', height:'40px', borderRadius:'50%', background:'var(--brand-dim)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'16px', fontWeight:'700', color:'var(--brand-light)', flexShrink:0 }}>{(u.name||u.email||'?').charAt(0).toUpperCase()}</div>

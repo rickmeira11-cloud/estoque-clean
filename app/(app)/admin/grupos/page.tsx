@@ -191,6 +191,8 @@ export default function GruposPage() {
         onEditInit={g => ({ name: g.name, address: g.address || '', weekday: g.weekday, time: g.time })}
         onSave={onSave}
         onToggle={onToggle}
+        getSearchText={g => g.name + ' ' + (g.address || '')}
+        searchPlaceholder="Buscar grupo..."
         renderItem={(g, actions, isAdmin) => (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 0, borderRadius: 'var(--radius)', background: 'var(--bg-card)', border: `1px solid ${g.is_active ? 'var(--border)' : 'rgba(255,255,255,0.04)'}`, opacity: g.is_active ? 1 : 0.6, overflow: 'hidden' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 18px', gap: '12px', flexWrap: 'wrap' }}>

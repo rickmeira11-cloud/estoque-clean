@@ -84,6 +84,8 @@ export default function CategoriasPage() {
       formTitle={editing => editing ? 'Editar categoria' : 'Nova categoria'}
       onEditInit={cat => ({ name: cat.name, color: cat.color || '#6366f1' })}
       onSave={onSave}
+      getSearchText={c => c.name}
+      searchPlaceholder="Buscar categoria..."
       onDelete={onDelete}
       listContainerStyle={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '12px', flexDirection: undefined }}
       renderItem={(cat, actions, isAdmin) => (

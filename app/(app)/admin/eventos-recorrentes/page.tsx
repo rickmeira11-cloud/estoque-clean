@@ -32,6 +32,7 @@ export default function EventosRecorrentesPage() {
   const [desc,     setDesc]     = useState('')
   const [saving,   setSaving]   = useState(false)
   const [success,  setSuccess]  = useState('')
+  const [search,   setSearch]   = useState('')
 
   useEffect(() => { if (profile?.church_id) { load(); loadTypes() } }, [profile?.church_id])
 
@@ -91,6 +92,10 @@ export default function EventosRecorrentesPage() {
   }
 
   if (loading) return <div style={{ padding:'40px', textAlign:'center', color:'var(--text-3)' }}>Carregando...</div>
+
+  const filteredRules = search.trim()
+    ? rules.filter(r => r.name.toLowerCase().includes(search.trim().toLowerCase()))
+    : rules
 
   return (
     <div>
@@ -175,8 +180,15 @@ export default function EventosRecorrentesPage() {
           <div>Nenhuma regra recorrente cadastrada.</div>
         </div>
       ) : (
+        <>
+          <div style={{ marginBottom: '14px' }}>
+            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar por nome..." style={{ maxWidth: '320px' }} />
+          </div>
+          {filteredRules.length === 0 ? (
+            <div style={{ textAlign:'center', padding:'60px', color:'var(--text-3)' }}>Nenhuma regra encontrada para essa busca.</div>
+          ) : (
         <div style={{ display:'flex', flexDirection:'column', gap:'10px' }}>
-          {rules.map(r => (
+          {filteredRules.map(r => (
             <div key={r.id} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'14px 18px', borderRadius:'var(--radius)', background:'var(--bg-card)', border:`1px solid ${r.is_active ? 'var(--border)' : 'rgba(255,255,255,0.04)'}`, opacity:r.is_active?1:0.55, gap:'12px', flexWrap:'wrap' }}>
               <div style={{ flex:1, minWidth:0 }}>
                 <div style={{ display:'flex', alignItems:'center', gap:'8px', flexWrap:'wrap' }}>
@@ -203,6 +215,8 @@ export default function EventosRecorrentesPage() {
             </div>
           ))}
         </div>
+          )}
+        </>
       )}
     </div>
   )
