@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState, useMemo } from 'react'
+import { useEffect, useState, useMemo, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useProfile } from '@/hooks/useProfile'
 import { useSyncTheme } from '@/hooks/useSyncTheme'
@@ -84,6 +84,8 @@ export default function RelatoriosPage() {
   const [products,   setProducts]   = useState<any[]>([])
   const [movements,  setMovements]  = useState<any[]>([])
   const [loading,    setLoading]    = useState(false)
+  const consumoChartRef = useRef<HTMLDivElement>(null)
+  const depositosChartRef = useRef<HTMLDivElement>(null)
   const [sortCol,    setSortCol]    = useState('')
   const [sortDir,    setSortDir]    = useState('asc')
   const [balances,   setBalances]   = useState<any[]>([])
@@ -683,11 +685,13 @@ export default function RelatoriosPage() {
         title: 'Depósitos',
         columns: [{ key: 'loc', label: 'Depósito' }, { key: 'entradas', label: 'Entradas' }, { key: 'saidas', label: 'Saídas' }, { key: 'total', label: 'Total' }],
         rows: Object.entries(locMap).map(([loc, d]) => ({ loc, entradas: d.entradas, saidas: d.saidas, total: d.total })),
+        chartElement: tab === 'depositos' ? depositosChartRef.current : null,
       },
       {
         title: 'Consumo',
         columns: [{ key: 'name', label: 'Produto' }, { key: 'qty', label: 'Total movimentado' }],
         rows: Object.entries(prodMap).sort(([, a], [, b]) => b - a).map(([name, qty]) => ({ name, qty })),
+        chartElement: tab === 'consumo' ? consumoChartRef.current : null,
       },
       {
         title: 'Ministérios',
@@ -999,7 +1003,7 @@ export default function RelatoriosPage() {
               {rankingData.length > 0 && (
                 <div style={{ background:'var(--bg-card)', border:'1px solid var(--border)', borderRadius:'var(--radius)', padding:'18px' }}>
                   <div style={{ ...panelTitle, marginBottom:'16px' }}>Ranking — produtos mais movimentados</div>
-                  <div style={{ height: 280 }}>
+                  <div ref={consumoChartRef} style={{ height: 280 }}>
                     <RelatoriosBarChart
                       data={rankingData.map((r: any, i: number) => ({ ...r, value: r.total, fill: COLORS[i % COLORS.length] }))}
                       layout="vertical"
@@ -1038,7 +1042,7 @@ export default function RelatoriosPage() {
               {locData.length > 0 && (
                 <div style={{ background:'var(--bg-card)', border:'1px solid var(--border)', borderRadius:'var(--radius)', padding:'18px' }}>
                   <div style={{ ...panelTitle, marginBottom:'16px' }}>Movimentações por depósito</div>
-                  <div style={{ height: 240 }}>
+                  <div ref={depositosChartRef} style={{ height: 240 }}>
                     <RelatoriosDepositsChart data={locData}/>
                   </div>
                 </div>

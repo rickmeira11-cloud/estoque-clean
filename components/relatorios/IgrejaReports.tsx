@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState, useMemo } from 'react'
+import { useEffect, useState, useMemo, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useProfile } from '@/hooks/useProfile'
 import dynamic from 'next/dynamic'
@@ -102,6 +102,8 @@ export default function IgrejaReports() {
 
   const [birthMonth, setBirthMonth] = useState(new Date().getMonth() + 1)
   const [growthPeriod, setGrowthPeriod] = useState<'6m' | '12m' | 'year'>('6m')
+  const growthChartRef = useRef<HTMLDivElement>(null)
+  const faixaChartRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => { if (profile?.church_id) loadBase() }, [profile?.church_id])
 
@@ -386,10 +388,11 @@ export default function IgrejaReports() {
                 title: 'Crescimento — novos membros por período',
                 columns: [{ key: 'name', label: 'Mês' }, { key: 'value', label: 'Novos membros' }],
                 rows: growthData,
+                chartElement: growthChartRef.current,
               })}
             />
             {growthData.every(g => g.value === 0) ? <Notice>Sem dados de cadastro (submitted_at) no período.</Notice> : (
-              <div style={{ height: 240 }}>
+              <div ref={growthChartRef} style={{ height: 240 }}>
                 <RelatoriosBarChart data={growthData} layout="horizontal" barSize={24}/>
               </div>
             )}
@@ -404,9 +407,10 @@ export default function IgrejaReports() {
                 columns: [{ key: 'name', label: 'Faixa' }, { key: 'value', label: 'Membros' }],
                 rows: faixaEtaria.data,
                 summary: [{ name: 'Sem data de nascimento', value: faixaEtaria.semData }],
+                chartElement: faixaChartRef.current,
               })}
             />
-            <div style={{ height: 220 }}>
+            <div ref={faixaChartRef} style={{ height: 220 }}>
               <RelatoriosBarChart data={faixaEtaria.data} layout="horizontal" barSize={28}/>
             </div>
           </div>
@@ -422,8 +426,8 @@ export default function IgrejaReports() {
                 namesToBlock('Membros sem ministério', 'Nome', membersWithoutMinistry.map(m => m.full_name)),
                 namesToBlock('Membros sem 2ou+', 'Nome', membersWithoutGroup.map(m => m.full_name)),
                 namesToBlock('Dupla ausência', 'Nome', duplaAusencia.map(m => m.full_name)),
-                { title: 'Crescimento', columns: [{ key: 'name', label: 'Mês' }, { key: 'value', label: 'Novos membros' }], rows: growthData },
-                { title: 'Faixa etária', columns: [{ key: 'name', label: 'Faixa' }, { key: 'value', label: 'Membros' }], rows: faixaEtaria.data },
+                { title: 'Crescimento', columns: [{ key: 'name', label: 'Mês' }, { key: 'value', label: 'Novos membros' }], rows: growthData, chartElement: growthChartRef.current },
+                { title: 'Faixa etária', columns: [{ key: 'name', label: 'Faixa' }, { key: 'value', label: 'Membros' }], rows: faixaEtaria.data, chartElement: faixaChartRef.current },
               ]}
             />
           </div>
@@ -630,6 +634,7 @@ function EventosReport({ eventTypes, churchName }: { eventTypes: EventType[]; ch
   const [memberNames, setMemberNames] = useState<Record<string, string>>({})
   const [ataSearch, setAtaSearch] = useState('')
   const [loading, setLoading] = useState(true)
+  const cultoChartRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => { if (profile?.church_id) load() }, [profile?.church_id, from, to])
 
@@ -801,6 +806,7 @@ function EventosReport({ eventTypes, churchName }: { eventTypes: EventType[]; ch
                 title: 'Cultos — Adultos x Crianças',
                 columns: [{ key: 'name', label: 'Evento' }, { key: 'label', label: 'Data' }, { key: 'adultos', label: 'Adultos' }, { key: 'criancas', label: 'Crianças' }, { key: 'total', label: 'Total' }],
                 rows: cultoChartData.map(c => ({ name: c.name, label: c.label, adultos: c.adultos, criancas: c.criancas, total: c.adultos + c.criancas })),
+                chartElement: cultoChartRef.current,
               })}
             />
             {!cultoType ? <Notice>Nenhum tipo de evento chamado "Culto" encontrado.</Notice>
@@ -808,7 +814,7 @@ function EventosReport({ eventTypes, churchName }: { eventTypes: EventType[]; ch
               : cultoChartData.length === 0 ? <Notice>Nenhum culto no período.</Notice>
               : (
                 <>
-                  <div style={{ height: 240, marginBottom: '16px' }}>
+                  <div ref={cultoChartRef} style={{ height: 240, marginBottom: '16px' }}>
                     <IgrejaTrendLineChart
                       data={cultoChartData.map(c => ({ label: c.label, adultos: c.adultos, criancas: c.criancas, total: c.adultos + c.criancas }))}
                       lines={[{ key: 'adultos', label: 'Adultos' }, { key: 'criancas', label: 'Crianças' }, { key: 'total', label: 'Total' }]}
@@ -908,7 +914,7 @@ function EventosReport({ eventTypes, churchName }: { eventTypes: EventType[]; ch
               filename="igreja-eventos"
               getBlocks={() => [
                 { title: 'Eventos por tipo', columns: [{ key: 'name', label: 'Tipo' }, { key: 'value', label: 'Qtde' }], rows: byType },
-                { title: 'Cultos', columns: [{ key: 'name', label: 'Evento' }, { key: 'label', label: 'Data' }, { key: 'adultos', label: 'Adultos' }, { key: 'criancas', label: 'Crianças' }, { key: 'total', label: 'Total' }], rows: cultoChartData.map(c => ({ name: c.name, label: c.label, adultos: c.adultos, criancas: c.criancas, total: c.adultos + c.criancas })) },
+                { title: 'Cultos', columns: [{ key: 'name', label: 'Evento' }, { key: 'label', label: 'Data' }, { key: 'adultos', label: 'Adultos' }, { key: 'criancas', label: 'Crianças' }, { key: 'total', label: 'Total' }], rows: cultoChartData.map(c => ({ name: c.name, label: c.label, adultos: c.adultos, criancas: c.criancas, total: c.adultos + c.criancas })), chartElement: cultoChartRef.current },
                 { title: 'Batismos', columns: [{ key: 'name', label: 'Nome' }], rows: batizadosList.map(b => ({ name: b.name })) },
                 { title: 'Atas de reunião', columns: [{ key: 'name', label: 'Evento' }, { key: 'date', label: 'Data' }, { key: 'text', label: 'Ata' }], rows: atas.map(a => ({ name: a.event.name, date: a.event.event_date ? new Date(a.event.event_date + 'T12:00:00').toLocaleDateString('pt-BR') : '—', text: a.text || '—' })) },
               ]}
