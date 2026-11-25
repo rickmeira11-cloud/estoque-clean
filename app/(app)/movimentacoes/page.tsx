@@ -414,8 +414,8 @@ export default function MovimentacoesPage() {
                 </div>
               )}
 
-              {/* Mais opções — colapsável */}
-              <details open={!!(ministryId || eventId || supplier || unitCost || note)} style={{ marginBottom: '16px' }}>
+              {/* Mais opções — colapsável (aberta por padrão em entrada/saída, já que ministério/evento/preço raramente são preenchidos quando ficam escondidos) */}
+              <details open={type !== 'transfer' || !!(ministryId || eventId || supplier || unitCost || note)} style={{ marginBottom: '16px' }}>
                 <summary style={{ fontSize: '13px', fontWeight: '500', color: 'var(--text-2)', cursor: 'pointer', userSelect: 'none', padding: '8px 10px', borderRadius: 'var(--radius-sm)', background: 'var(--bg-3)', border: '1px solid var(--border)', listStyle: 'none', display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <span style={{ fontSize: '10px' }}>▶</span> Mais opções
                 </summary>
@@ -443,6 +443,12 @@ export default function MovimentacoesPage() {
                           </option>
                         ))}
                       </select>
+                    </div>
+                  )}
+
+                  {type === 'out' && !ministryId && !eventId && (ministries.length > 0 || events.length > 0) && (
+                    <div style={{ fontSize: '11px', color: 'var(--text-3)' }}>
+                      Sem ministério/evento vinculado — essa saída não vai aparecer nos relatórios de consumo por ministério ou evento.
                     </div>
                   )}
 
