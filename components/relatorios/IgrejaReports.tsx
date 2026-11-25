@@ -3,6 +3,8 @@ import { useEffect, useState, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useProfile } from '@/hooks/useProfile'
 import dynamic from 'next/dynamic'
+import { BlockExport } from './BlockExport'
+import { exportBlocksToExcel, exportBlocksToPDF, todayStamp, type ReportBlock } from '@/lib/report-export'
 const RelatoriosBarChart = dynamic(() => import('@/components/charts/RelatoriosBarChart'), { ssr: false })
 const IgrejaTrendLineChart = dynamic(() => import('@/components/charts/IgrejaTrendLineChart'), { ssr: false })
 
@@ -48,8 +50,46 @@ function NameListTable({ header, names }: { header: string; names: string[] }) {
   )
 }
 
+function namesToBlock(title: string, header: string, names: string[]): ReportBlock {
+  return {
+    title,
+    columns: [{ key: 'v', label: header }],
+    rows: [...names].sort((a, b) => a.localeCompare(b)).map(v => ({ v })),
+  }
+}
+
+function PanelHead({ title, count, getBlock, churchName, period, extra }: {
+  title: string; count?: number
+  getBlock: () => ReportBlock; churchName: string; period?: string
+  extra?: React.ReactNode
+}) {
+  return (
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap', gap: '8px' }}>
+      <span style={{ ...panelTitle, marginBottom: 0 }}>{title}{count !== undefined ? ` (${count})` : ''}</span>
+      <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+        {extra}
+        <BlockExport getBlock={getBlock} churchName={churchName} period={period}/>
+      </div>
+    </div>
+  )
+}
+
+function ExportAllButton({ label, getBlocks, filename, churchName, period }: {
+  label: string; getBlocks: () => ReportBlock[]; filename: string; churchName: string; period?: string
+}) {
+  async function onExcel() { await exportBlocksToExcel(getBlocks(), `${filename}-${todayStamp()}.xlsx`) }
+  async function onPDF() { await exportBlocksToPDF(getBlocks(), { filename: `${filename}-${todayStamp()}.pdf`, reportTitle: label, churchName, period }) }
+  return (
+    <div style={{ display: 'flex', gap: '8px' }}>
+      <button onClick={onExcel} style={{ padding: '7px 14px', borderRadius: '6px', background: 'var(--bg-3)', border: '1px solid var(--border)', color: 'var(--text-2)', fontSize: '12px', cursor: 'pointer' }}>Exportar Excel</button>
+      <button onClick={onPDF} style={{ padding: '7px 14px', borderRadius: '6px', background: 'var(--bg-3)', border: '1px solid var(--border)', color: 'var(--text-2)', fontSize: '12px', cursor: 'pointer' }}>Exportar PDF</button>
+    </div>
+  )
+}
+
 export default function IgrejaReports() {
   const { profile } = useProfile()
+  const churchName = (profile as any)?.church?.name || 'Igreja'
   const [tab, setTab] = useState<Tab>('membros')
 
   const [members, setMembers] = useState<Member[]>([])
@@ -184,17 +224,6 @@ export default function IgrejaReports() {
     return buckets.map(b => ({ name: b.label, value: byKey[b.key] }))
   }, [members, growthPeriod])
 
-  // F: tempo de casa
-  const tempoCasa = useMemo(() => {
-    const now = Date.now()
-    const withDays = activeMembers
-      .filter(m => m.submitted_at)
-      .map(m => ({ ...m, days: Math.floor((now - new Date(m.submitted_at!).getTime()) / 86400000) }))
-    const menos3m = withDays.filter(m => m.days < 90)
-    const menos6m = withDays.filter(m => m.days < 180).sort((a, b) => a.days - b.days)
-    return { menos3m: menos3m.length, menos6m: menos6m.length, lista: menos6m }
-  }, [activeMembers])
-
   // F: dupla ausência (sem ministério E sem 2ou+)
   const duplaAusencia = useMemo(
     () => activeMembers.filter(m => !activeMinistryMemberIds.has(m.id) && !activeGroupMemberIds.has(m.id)),
@@ -268,12 +297,20 @@ export default function IgrejaReports() {
           <Notice>Lista completa de membros disponível em <a href="/membros" style={{ color: 'var(--brand-light)' }}>Membros</a>.</Notice>
 
           <div style={panelStyle}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
-              <span style={panelTitle}>Aniversariantes de {MONTHS[birthMonth - 1]}</span>
-              <select value={birthMonth} onChange={e => setBirthMonth(parseInt(e.target.value))}>
-                {MONTHS.map((m, i) => <option key={i} value={i + 1}>{m}</option>)}
-              </select>
-            </div>
+            <PanelHead
+              title={`Aniversariantes de ${MONTHS[birthMonth - 1]}`}
+              churchName={churchName}
+              extra={
+                <select value={birthMonth} onChange={e => setBirthMonth(parseInt(e.target.value))}>
+                  {MONTHS.map((m, i) => <option key={i} value={i + 1}>{m}</option>)}
+                </select>
+              }
+              getBlock={() => ({
+                title: `Aniversariantes de ${MONTHS[birthMonth - 1]}`,
+                columns: [{ key: 'day', label: 'Dia' }, { key: 'full_name', label: 'Nome' }, { key: 'phone', label: 'Telefone' }],
+                rows: birthdays.map(m => ({ day: m.day, full_name: m.full_name, phone: m.phone || '—' })),
+              })}
+            />
             {birthdays.length === 0 ? <Notice>Nenhum aniversariante em {MONTHS[birthMonth - 1]}.</Notice> : (
               <table style={miniTable}>
                 <thead><tr><th style={thStyle}>Dia</th><th style={thStyle}>Nome</th><th style={thStyle}>Telefone</th></tr></thead>
@@ -283,7 +320,16 @@ export default function IgrejaReports() {
           </div>
 
           <div style={panelStyle}>
-            <span style={panelTitle}>Distribuição por bairro ({bairroDist.length} bairro{bairroDist.length !== 1 ? 's' : ''})</span>
+            <PanelHead
+              title="Distribuição por bairro"
+              count={bairroDist.length}
+              churchName={churchName}
+              getBlock={() => ({
+                title: 'Distribuição por bairro',
+                columns: [{ key: 'name', label: 'Bairro' }, { key: 'value', label: 'Membros' }, { key: 'pct', label: '%' }],
+                rows: bairroDist.map(b => ({ name: b.name, value: b.value, pct: (activeMembers.length ? ((b.value / activeMembers.length) * 100).toFixed(0) : 0) + '%' })),
+              })}
+            />
             {bairroDist.length === 0 ? <Notice>Sem dados.</Notice> : (
               <table style={miniTable}>
                 <thead><tr><th style={thStyle}>Bairro</th><th style={thStyle}>Membros</th><th style={thStyle}>%</th></tr></thead>
@@ -301,35 +347,47 @@ export default function IgrejaReports() {
           </div>
 
           <div style={panelStyle}>
-            <span style={panelTitle}>Membros sem ministério ({membersWithoutMinistry.length})</span>
+            <PanelHead title="Membros sem ministério" count={membersWithoutMinistry.length} churchName={churchName}
+              getBlock={() => namesToBlock('Membros sem ministério', 'Nome', membersWithoutMinistry.map(m => m.full_name))} />
             {membersWithoutMinistry.length === 0 ? <Notice>Todos os membros ativos estão em algum ministério.</Notice> : (
               <NameListTable header="Nome" names={membersWithoutMinistry.map(m => m.full_name)} />
             )}
           </div>
 
           <div style={panelStyle}>
-            <span style={panelTitle}>Membros sem 2ou+ ({membersWithoutGroup.length})</span>
+            <PanelHead title="Membros sem 2ou+" count={membersWithoutGroup.length} churchName={churchName}
+              getBlock={() => namesToBlock('Membros sem 2ou+', 'Nome', membersWithoutGroup.map(m => m.full_name))} />
             {membersWithoutGroup.length === 0 ? <Notice>Todos os membros ativos estão em algum grupo.</Notice> : (
               <NameListTable header="Nome" names={membersWithoutGroup.map(m => m.full_name)} />
             )}
           </div>
 
           <div style={panelStyle}>
-            <span style={panelTitle}>Dupla ausência — sem ministério e sem 2ou+ ({duplaAusencia.length})</span>
+            <PanelHead title="Dupla ausência — sem ministério e sem 2ou+" count={duplaAusencia.length} churchName={churchName}
+              getBlock={() => namesToBlock('Dupla ausência', 'Nome', duplaAusencia.map(m => m.full_name))} />
             {duplaAusencia.length === 0 ? <Notice>Nenhum membro ativo está ausente das duas frentes ao mesmo tempo.</Notice> : (
               <NameListTable header="Nome" names={duplaAusencia.map(m => m.full_name)} />
             )}
           </div>
 
           <div style={panelStyle}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
-              <span style={panelTitle}>Crescimento — novos membros por período</span>
-              <select value={growthPeriod} onChange={e => setGrowthPeriod(e.target.value as any)}>
-                <option value="6m">Últimos 6 meses</option>
-                <option value="12m">Últimos 12 meses</option>
-                <option value="year">Este ano</option>
-              </select>
-            </div>
+            <PanelHead
+              title="Crescimento — novos membros por período"
+              churchName={churchName}
+              period={growthPeriod === '6m' ? 'Últimos 6 meses' : growthPeriod === '12m' ? 'Últimos 12 meses' : 'Este ano'}
+              extra={
+                <select value={growthPeriod} onChange={e => setGrowthPeriod(e.target.value as any)}>
+                  <option value="6m">Últimos 6 meses</option>
+                  <option value="12m">Últimos 12 meses</option>
+                  <option value="year">Este ano</option>
+                </select>
+              }
+              getBlock={() => ({
+                title: 'Crescimento — novos membros por período',
+                columns: [{ key: 'name', label: 'Mês' }, { key: 'value', label: 'Novos membros' }],
+                rows: growthData,
+              })}
+            />
             {growthData.every(g => g.value === 0) ? <Notice>Sem dados de cadastro (submitted_at) no período.</Notice> : (
               <div style={{ height: 240 }}>
                 <RelatoriosBarChart data={growthData} layout="horizontal" barSize={24}/>
@@ -338,36 +396,37 @@ export default function IgrejaReports() {
           </div>
 
           <div style={panelStyle}>
-            <span style={panelTitle}>Tempo de casa</span>
-            <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', marginBottom: '14px' }}>
-              <div style={{ flex: 1, minWidth: '140px' }}>
-                <div style={{ fontSize: '12px', color: 'var(--text-3)' }}>Menos de 3 meses</div>
-                <div style={{ fontSize: '24px', fontWeight: '700', color: 'var(--brand-light)' }}>{tempoCasa.menos3m}</div>
-              </div>
-              <div style={{ flex: 1, minWidth: '140px' }}>
-                <div style={{ fontSize: '12px', color: 'var(--text-3)' }}>Menos de 6 meses</div>
-                <div style={{ fontSize: '24px', fontWeight: '700', color: 'var(--brand-light)' }}>{tempoCasa.menos6m}</div>
-              </div>
-            </div>
-            {tempoCasa.lista.length === 0 ? <Notice>Nenhum membro recente (últimos 6 meses).</Notice> : (
-              <table style={miniTable}>
-                <thead><tr><th style={thStyle}>Nome</th><th style={thStyle}>Telefone</th><th style={thStyle}>Dias de casa</th></tr></thead>
-                <tbody>
-                  {tempoCasa.lista.map(m => (
-                    <tr key={m.id}><td style={tdStyle}>{m.full_name}</td><td style={tdStyle}>{m.phone || '—'}</td><td style={tdStyle}>{m.days}</td></tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </div>
-
-          <div style={panelStyle}>
-            <span style={panelTitle}>Distribuição por faixa etária {faixaEtaria.semData > 0 && `(${faixaEtaria.semData} sem data de nascimento informada)`}</span>
+            <PanelHead
+              title={`Distribuição por faixa etária${faixaEtaria.semData > 0 ? ` (${faixaEtaria.semData} sem data de nascimento informada)` : ''}`}
+              churchName={churchName}
+              getBlock={() => ({
+                title: 'Distribuição por faixa etária',
+                columns: [{ key: 'name', label: 'Faixa' }, { key: 'value', label: 'Membros' }],
+                rows: faixaEtaria.data,
+                summary: [{ name: 'Sem data de nascimento', value: faixaEtaria.semData }],
+              })}
+            />
             <div style={{ height: 220 }}>
               <RelatoriosBarChart data={faixaEtaria.data} layout="horizontal" barSize={28}/>
             </div>
           </div>
 
+          <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+            <ExportAllButton
+              label="Relatório Igreja — Membros"
+              churchName={churchName}
+              filename="igreja-membros"
+              getBlocks={() => [
+                { title: 'Aniversariantes', columns: [{ key: 'day', label: 'Dia' }, { key: 'full_name', label: 'Nome' }, { key: 'phone', label: 'Telefone' }], rows: birthdays.map(m => ({ day: m.day, full_name: m.full_name, phone: m.phone || '—' })) },
+                { title: 'Distribuição por bairro', columns: [{ key: 'name', label: 'Bairro' }, { key: 'value', label: 'Membros' }], rows: bairroDist },
+                namesToBlock('Membros sem ministério', 'Nome', membersWithoutMinistry.map(m => m.full_name)),
+                namesToBlock('Membros sem 2ou+', 'Nome', membersWithoutGroup.map(m => m.full_name)),
+                namesToBlock('Dupla ausência', 'Nome', duplaAusencia.map(m => m.full_name)),
+                { title: 'Crescimento', columns: [{ key: 'name', label: 'Mês' }, { key: 'value', label: 'Novos membros' }], rows: growthData },
+                { title: 'Faixa etária', columns: [{ key: 'name', label: 'Faixa' }, { key: 'value', label: 'Membros' }], rows: faixaEtaria.data },
+              ]}
+            />
+          </div>
         </div>
       )}
 
@@ -384,7 +443,15 @@ export default function IgrejaReports() {
             </div>
           </div>
           <div style={panelStyle}>
-            <span style={panelTitle}>Membros por ministério</span>
+            <PanelHead
+              title="Membros por ministério"
+              churchName={churchName}
+              getBlock={() => ({
+                title: 'Membros por ministério',
+                columns: [{ key: 'ministry', label: 'Ministério' }, { key: 'name', label: 'Nome' }, { key: 'phone', label: 'Telefone' }],
+                rows: ministryCounts.flatMap(m => m.rows.map(r => ({ ministry: m.name, name: r.name, phone: r.phone || '—' }))),
+              })}
+            />
             {ministryCounts.length === 0 ? <Notice>Nenhum ministério com membros vinculados.</Notice> : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
                 {ministryCounts.map(m => (
@@ -406,19 +473,30 @@ export default function IgrejaReports() {
             )}
           </div>
           <div style={panelStyle}>
-            <span style={panelTitle}>Ministérios ativos sem líder ({ministriesSemLider.length})</span>
+            <PanelHead title="Ministérios ativos sem líder" count={ministriesSemLider.length} churchName={churchName}
+              getBlock={() => namesToBlock('Ministérios ativos sem líder', 'Ministério', ministriesSemLider.map(m => m.name))} />
             {ministriesSemLider.length === 0 ? <Notice>Todos os ministérios ativos têm ao menos um líder.</Notice> : (
               <NameListTable header="Ministério" names={ministriesSemLider.map(m => m.name)} />
             )}
           </div>
           <div style={panelStyle}>
-            <span style={panelTitle}>Ministérios sem nenhum membro vinculado ({ministriesEmpty.length})</span>
+            <PanelHead title="Ministérios sem nenhum membro vinculado" count={ministriesEmpty.length} churchName={churchName}
+              getBlock={() => namesToBlock('Ministérios sem membro vinculado', 'Ministério', ministriesEmpty.map(m => m.name))} />
             {ministriesEmpty.length === 0 ? <Notice>Todos os ministérios têm ao menos um membro.</Notice> : (
               <NameListTable header="Ministério" names={ministriesEmpty.map(m => m.name)} />
             )}
           </div>
           <div style={panelStyle}>
-            <span style={panelTitle}>Membros que não servem em nenhum ministério ({membersWithoutMinistry.length})</span>
+            <PanelHead
+              title="Membros que não servem em nenhum ministério"
+              count={membersWithoutMinistry.length}
+              churchName={churchName}
+              getBlock={() => ({
+                title: 'Membros sem ministério — desejo de servir',
+                columns: [{ key: 'full_name', label: 'Nome' }, { key: 'phone', label: 'Telefone' }, { key: 'wants', label: 'Ministério que deseja participar' }],
+                rows: membersWithoutMinistry.map(m => ({ full_name: m.full_name, phone: m.phone || '—', wants: m.wants_to_serve_other_ministry || '—' })),
+              })}
+            />
             {membersWithoutMinistry.length === 0 ? <Notice>Todos os membros ativos estão em algum ministério.</Notice> : (
               <table style={miniTable}>
                 <thead><tr><th style={thStyle}>Nome</th><th style={thStyle}>Telefone</th><th style={thStyle}>Ministério que deseja participar</th></tr></thead>
@@ -434,6 +512,19 @@ export default function IgrejaReports() {
               </table>
             )}
           </div>
+          <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+            <ExportAllButton
+              label="Relatório Igreja — Ministérios"
+              churchName={churchName}
+              filename="igreja-ministerios"
+              getBlocks={() => [
+                { title: 'Membros por ministério', columns: [{ key: 'ministry', label: 'Ministério' }, { key: 'name', label: 'Nome' }, { key: 'phone', label: 'Telefone' }], rows: ministryCounts.flatMap(m => m.rows.map(r => ({ ministry: m.name, name: r.name, phone: r.phone || '—' }))) },
+                namesToBlock('Ministérios ativos sem líder', 'Ministério', ministriesSemLider.map(m => m.name)),
+                namesToBlock('Ministérios sem membro vinculado', 'Ministério', ministriesEmpty.map(m => m.name)),
+                { title: 'Membros sem ministério', columns: [{ key: 'full_name', label: 'Nome' }, { key: 'phone', label: 'Telefone' }, { key: 'wants', label: 'Deseja participar' }], rows: membersWithoutMinistry.map(m => ({ full_name: m.full_name, phone: m.phone || '—', wants: m.wants_to_serve_other_ministry || '—' })) },
+              ]}
+            />
+          </div>
         </div>
       )}
 
@@ -444,7 +535,15 @@ export default function IgrejaReports() {
             <div style={{ fontSize: '28px', fontWeight: '700', color: 'var(--brand-light)' }}>{activeGroups.length}</div>
           </div>
           <div style={panelStyle}>
-            <span style={panelTitle}>Membros por grupo</span>
+            <PanelHead
+              title="Membros por grupo"
+              churchName={churchName}
+              getBlock={() => ({
+                title: 'Membros por grupo',
+                columns: [{ key: 'group', label: 'Grupo' }, { key: 'name', label: 'Nome' }, { key: 'phone', label: 'Telefone' }],
+                rows: groupCounts.flatMap(g => g.rows.map(r => ({ group: g.name, name: r.name, phone: r.phone || '—' }))),
+              })}
+            />
             {groupCounts.length === 0 ? <Notice>Nenhum grupo cadastrado.</Notice> : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
                 {groupCounts.map(g => (
@@ -468,21 +567,35 @@ export default function IgrejaReports() {
             )}
           </div>
           <div style={panelStyle}>
-            <span style={panelTitle}>Grupos ativos sem líder ({groupsSemLider.length})</span>
+            <PanelHead title="Grupos ativos sem líder" count={groupsSemLider.length} churchName={churchName}
+              getBlock={() => namesToBlock('Grupos ativos sem líder', 'Grupo', groupsSemLider.map(g => g.name))} />
             {groupsSemLider.length === 0 ? <Notice>Todos os grupos ativos têm ao menos um líder.</Notice> : (
               <NameListTable header="Grupo" names={groupsSemLider.map(g => g.name)} />
             )}
           </div>
           <div style={panelStyle}>
-            <span style={panelTitle}>Membros sem 2ou+ ({membersWithoutGroup.length})</span>
+            <PanelHead title="Membros sem 2ou+" count={membersWithoutGroup.length} churchName={churchName}
+              getBlock={() => namesToBlock('Membros sem 2ou+', 'Nome', membersWithoutGroup.map(m => m.full_name))} />
             {membersWithoutGroup.length === 0 ? <Notice>Todos os membros ativos estão em algum grupo.</Notice> : (
               <NameListTable header="Nome" names={membersWithoutGroup.map(m => m.full_name)} />
             )}
           </div>
+          <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+            <ExportAllButton
+              label="Relatório Igreja — 2ou+"
+              churchName={churchName}
+              filename="igreja-2ou-mais"
+              getBlocks={() => [
+                { title: 'Membros por grupo', columns: [{ key: 'group', label: 'Grupo' }, { key: 'name', label: 'Nome' }, { key: 'phone', label: 'Telefone' }], rows: groupCounts.flatMap(g => g.rows.map(r => ({ group: g.name, name: r.name, phone: r.phone || '—' }))) },
+                namesToBlock('Grupos ativos sem líder', 'Grupo', groupsSemLider.map(g => g.name)),
+                namesToBlock('Membros sem 2ou+', 'Nome', membersWithoutGroup.map(m => m.full_name)),
+              ]}
+            />
+          </div>
         </div>
       )}
 
-      {tab === 'eventos' && <EventosReport eventTypes={eventTypes} />}
+      {tab === 'eventos' && <EventosReport eventTypes={eventTypes} churchName={churchName} />}
     </div>
   )
 }
@@ -500,7 +613,9 @@ function periodRange(opt: PeriodOpt, from: string, to: string): { from: string; 
   return { from: start.toISOString().split('T')[0], to: now.toISOString().split('T')[0] }
 }
 
-function EventosReport({ eventTypes }: { eventTypes: EventType[] }) {
+const PERIOD_OPT_LABEL: Record<PeriodOpt, string> = { month: 'Este mês', quarter: 'Este trimestre', year: 'Este ano', custom: 'Personalizado' }
+
+function EventosReport({ eventTypes, churchName }: { eventTypes: EventType[]; churchName: string }) {
   const { profile } = useProfile()
   const [periodOpt, setPeriodOpt] = useState<PeriodOpt>('month')
   const [customFrom, setCustomFrom] = useState(() => { const d = new Date(); d.setDate(1); return d.toISOString().split('T')[0] })
@@ -623,6 +738,8 @@ function EventosReport({ eventTypes }: { eventTypes: EventType[] }) {
       .filter(a => !ataSearch.trim() || a.text.toLowerCase().includes(ataSearch.toLowerCase()))
   }, [ataFieldsAllTypes, events, fieldValues, attachments, ataSearch])
 
+  const periodLabel = periodOpt === 'custom' ? `${from} a ${to}` : PERIOD_OPT_LABEL[periodOpt]
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
       <div style={{ ...panelStyle, display: 'flex', gap: '12px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
@@ -648,7 +765,17 @@ function EventosReport({ eventTypes }: { eventTypes: EventType[] }) {
       ) : (
         <>
           <div style={panelStyle}>
-            <span style={panelTitle}>Eventos por tipo ({events.length} no período)</span>
+            <PanelHead
+              title="Eventos por tipo"
+              count={events.length}
+              churchName={churchName}
+              period={periodLabel}
+              getBlock={() => ({
+                title: 'Eventos por tipo',
+                columns: [{ key: 'name', label: 'Tipo' }, { key: 'value', label: 'Qtde' }, { key: 'pct', label: '%' }],
+                rows: byType.map(t => ({ name: t.name, value: t.value, pct: (events.length ? ((t.value / events.length) * 100).toFixed(0) : 0) + '%' })),
+              })}
+            />
             {byType.length === 0 ? <Notice>Nenhum evento no período.</Notice> : (
               <table style={miniTable}>
                 <thead><tr><th style={thStyle}>Tipo</th><th style={thStyle}>Qtde</th><th style={thStyle}>%</th></tr></thead>
@@ -666,7 +793,16 @@ function EventosReport({ eventTypes }: { eventTypes: EventType[] }) {
           </div>
 
           <div style={panelStyle}>
-            <span style={panelTitle}>Cultos — Adultos x Crianças</span>
+            <PanelHead
+              title="Cultos — Adultos x Crianças"
+              churchName={churchName}
+              period={periodLabel}
+              getBlock={() => ({
+                title: 'Cultos — Adultos x Crianças',
+                columns: [{ key: 'name', label: 'Evento' }, { key: 'label', label: 'Data' }, { key: 'adultos', label: 'Adultos' }, { key: 'criancas', label: 'Crianças' }, { key: 'total', label: 'Total' }],
+                rows: cultoChartData.map(c => ({ name: c.name, label: c.label, adultos: c.adultos, criancas: c.criancas, total: c.adultos + c.criancas })),
+              })}
+            />
             {!cultoType ? <Notice>Nenhum tipo de evento chamado "Culto" encontrado.</Notice>
               : (!adultosField || !criancasField) ? <Notice>Faltam campos numéricos para o tipo Culto: {!adultosField && 'um com "adulto" no nome'}{!adultosField && !criancasField && ' e '}{!criancasField && 'um com "criança" no nome'}. Cadastre em Tipos de Evento.</Notice>
               : cultoChartData.length === 0 ? <Notice>Nenhum culto no período.</Notice>
@@ -708,7 +844,17 @@ function EventosReport({ eventTypes }: { eventTypes: EventType[] }) {
           </div>
 
           <div style={panelStyle}>
-            <span style={panelTitle}>Batismos</span>
+            <PanelHead
+              title="Batismos"
+              churchName={churchName}
+              period={periodLabel}
+              getBlock={() => ({
+                title: 'Batismos',
+                columns: [{ key: 'name', label: 'Nome' }],
+                rows: batizadosList.map(b => ({ name: b.name })),
+                summary: batismoTotal != null ? [{ name: `Total de batizados: ${batismoTotal}` }] : undefined,
+              })}
+            />
             {!batismoType ? <Notice>Nenhum tipo de evento chamado "Batismo" encontrado.</Notice> : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                 {!qtdBatizadosField
@@ -724,10 +870,17 @@ function EventosReport({ eventTypes }: { eventTypes: EventType[] }) {
           </div>
 
           <div style={panelStyle}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
-              <span style={panelTitle}>Atas de reunião</span>
-              <input value={ataSearch} onChange={e => setAtaSearch(e.target.value)} placeholder="Buscar no texto da ata..." style={{ maxWidth: '240px' }} />
-            </div>
+            <PanelHead
+              title="Atas de reunião"
+              churchName={churchName}
+              period={periodLabel}
+              extra={<input value={ataSearch} onChange={e => setAtaSearch(e.target.value)} placeholder="Buscar no texto da ata..." style={{ maxWidth: '240px' }} />}
+              getBlock={() => ({
+                title: 'Atas de reunião',
+                columns: [{ key: 'name', label: 'Evento' }, { key: 'date', label: 'Data' }, { key: 'text', label: 'Ata' }],
+                rows: atas.map(a => ({ name: a.event.name, date: a.event.event_date ? new Date(a.event.event_date + 'T12:00:00').toLocaleDateString('pt-BR') : '—', text: a.text || '—' })),
+              })}
+            />
             {ataFieldsAllTypes.length === 0 ? <Notice>Nenhum tipo de evento tem um campo de texto longo (ata) configurado.</Notice>
               : atas.length === 0 ? <Notice>Nenhuma ata encontrada{ataSearch ? ' para essa busca' : ' no período'}.</Notice>
               : (
@@ -745,6 +898,21 @@ function EventosReport({ eventTypes }: { eventTypes: EventType[] }) {
                   ))}
                 </div>
               )}
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+            <ExportAllButton
+              label="Relatório Igreja — Eventos"
+              churchName={churchName}
+              period={periodLabel}
+              filename="igreja-eventos"
+              getBlocks={() => [
+                { title: 'Eventos por tipo', columns: [{ key: 'name', label: 'Tipo' }, { key: 'value', label: 'Qtde' }], rows: byType },
+                { title: 'Cultos', columns: [{ key: 'name', label: 'Evento' }, { key: 'label', label: 'Data' }, { key: 'adultos', label: 'Adultos' }, { key: 'criancas', label: 'Crianças' }, { key: 'total', label: 'Total' }], rows: cultoChartData.map(c => ({ name: c.name, label: c.label, adultos: c.adultos, criancas: c.criancas, total: c.adultos + c.criancas })) },
+                { title: 'Batismos', columns: [{ key: 'name', label: 'Nome' }], rows: batizadosList.map(b => ({ name: b.name })) },
+                { title: 'Atas de reunião', columns: [{ key: 'name', label: 'Evento' }, { key: 'date', label: 'Data' }, { key: 'text', label: 'Ata' }], rows: atas.map(a => ({ name: a.event.name, date: a.event.event_date ? new Date(a.event.event_date + 'T12:00:00').toLocaleDateString('pt-BR') : '—', text: a.text || '—' })) },
+              ]}
+            />
           </div>
         </>
       )}
